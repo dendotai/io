@@ -11,67 +11,99 @@ final class AppModel {
         var id: String { device.uid }
     }
 
-    private(set) var rows: [Row] = []
+    private(set) var rows: [Direction: [Row]] = [:]
     private(set) var inUseSymbolName = DeviceSymbol.speaker
-    @ObservationIgnored private let outputList = OutputList(store: UserDefaultsStore())
-    @ObservationIgnored private var reported: [AudioDevices.Reported] = []
+    @ObservationIgnored private let switcher = Switcher(
+        output: DeviceList(newDevices: .top, store: UserDefaultsStore(key: "outputList")),
+        input: DeviceList(newDevices: .bottom, store: UserDefaultsStore(key: "inputList"))
+    )
+    @ObservationIgnored private var reported: [Direction: [AudioDevices.Reported]] = [:]
 
     func start() {
-        refresh(switching: true)
+        devicesChanged()
         AudioDevices.observe(
-            onDevicesChange: { [weak self] in self?.refresh(switching: false) },
-            onDefaultChange: { [weak self] in self?.updateRows() }
+            onDevicesChange: { [weak self] in self?.devicesChanged() },
+            onDefaultChange: { [weak self] in self?.defaultsChanged() }
         )
     }
 
     #if DEBUG
         func showDevicesWithoutSwitching() {
-            reported = AudioDevices.outputDevices()
-            outputList.update(connected: reported.map(\.device))
+            readDevices()
             updateRows()
         }
     #endif
 
-    func use(_ device: Device) {
-        outputList.pick(device)
-        switchToChosenDevice()
+    func use(_ device: Device, in direction: Direction) {
+        switcher.pick(device, in: direction)
+        switchToChosenDevices()
     }
 
-    func reorder(_ device: Device, to index: Int) {
-        outputList.reorder(device, to: index)
-        switchToChosenDevice()
+    func reorder(_ device: Device, to index: Int, in direction: Direction) {
+        switcher.reorder(device, to: index, in: direction)
+        switchToChosenDevices()
         updateRows()
     }
 
-    /// Switches only when a device connected or disconnected, or at launch, so a pick made in the system Sound menu stays.
-    private func refresh(switching force: Bool) {
-        reported = AudioDevices.outputDevices()
-        let changed = outputList.update(connected: reported.map(\.device))
-        if changed || force {
-            switchToChosenDevice()
+    private func devicesChanged() {
+        readDevices()
+        switchToChosenDevices()
+        updateRows()
+    }
+
+    /// Reads the devices first, because Core Audio does not order the default and device-list notifications.
+    private func defaultsChanged() {
+        readDevices()
+        switcher.defaultsChanged(inUse: inUse(), at: .now)
+        switchToChosenDevices()
+        updateRows()
+    }
+
+    private func readDevices() {
+        for direction in Direction.allCases {
+            reported[direction] = AudioDevices.devices(direction)
         }
-        updateRows()
+        switcher.devicesChanged(
+            connected: reported.mapValues { $0.map(\.device) },
+            inUse: inUse(),
+            at: .now
+        )
     }
 
-    private func switchToChosenDevice() {
-        guard let chosen = outputList.chosenDevice,
-            let id = reported.first(where: { $0.device.uid == chosen.uid })?.id,
-            id != AudioDevices.defaultOutputID()
-        else { return }
-        AudioDevices.setDefaultOutput(id)
+    private func inUse() -> [Direction: Device] {
+        var inUse: [Direction: Device] = [:]
+        for direction in Direction.allCases {
+            let defaultID = AudioDevices.defaultDeviceID(direction)
+            inUse[direction] = reported[direction]?.first { $0.id == defaultID }?.device
+        }
+        return inUse
+    }
+
+    private func switchToChosenDevices() {
+        for direction in Direction.allCases {
+            guard let chosen = switcher.chosenDevice(direction),
+                let id = reported[direction]?.first(where: { $0.device.uid == chosen.uid })?.id,
+                id != AudioDevices.defaultDeviceID(direction)
+            else { continue }
+            AudioDevices.setDefaultDevice(id, direction)
+        }
     }
 
     private func updateRows() {
-        let defaultID = AudioDevices.defaultOutputID()
-        let inUse = reported.first { $0.id == defaultID }
-        let inUseUID = inUse?.device.uid
-        inUseSymbolName = inUse?.symbolName ?? DeviceSymbol.speaker
-        rows = outputList.devices.map { device in
-            Row(
-                device: device,
-                isConnected: outputList.connectedUIDs.contains(device.uid),
-                isInUse: device.uid == inUseUID
-            )
+        for direction in Direction.allCases {
+            let list = switcher.list(direction)
+            let defaultID = AudioDevices.defaultDeviceID(direction)
+            let inUse = reported[direction]?.first { $0.id == defaultID }
+            if direction == .output {
+                inUseSymbolName = inUse?.symbolName ?? DeviceSymbol.speaker
+            }
+            rows[direction] = list.devices.map { device in
+                Row(
+                    device: device,
+                    isConnected: list.connectedUIDs.contains(device.uid),
+                    isInUse: device.uid == inUse?.device.uid
+                )
+            }
         }
     }
 }

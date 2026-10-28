@@ -10,7 +10,7 @@ enum AudioDevices {
 
     private static let system = AudioObjectID(kAudioObjectSystemObject)
 
-    static func outputDevices() -> [Reported] {
+    static func devices(_ direction: Direction) -> [Reported] {
         var address = address(kAudioHardwarePropertyDevices)
         var size: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return [] }
@@ -19,7 +19,7 @@ enum AudioDevices {
 
         return ids.compactMap { id in
             let transport = transportType(id)
-            guard hasOutputStreams(id), !isHidden(id), !excludedTransports.contains(transport),
+            guard hasStreams(id, direction), !isHidden(id), !excludedTransports.contains(transport),
                 let uid = string(id, kAudioDevicePropertyDeviceUID),
                 let name = string(id, kAudioObjectPropertyName)
             else { return nil }
@@ -28,8 +28,8 @@ enum AudioDevices {
         }
     }
 
-    static func defaultOutputID() -> AudioDeviceID? {
-        var address = address(kAudioHardwarePropertyDefaultOutputDevice)
+    static func defaultDeviceID(_ direction: Direction) -> AudioDeviceID? {
+        var address = address(direction.defaultDeviceSelector)
         var id = AudioDeviceID(0)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
         guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &id) == noErr, id != kAudioObjectUnknown else {
@@ -38,8 +38,8 @@ enum AudioDevices {
         return id
     }
 
-    static func setDefaultOutput(_ id: AudioDeviceID) {
-        var address = address(kAudioHardwarePropertyDefaultOutputDevice)
+    static func setDefaultDevice(_ id: AudioDeviceID, _ direction: Direction) {
+        var address = address(direction.defaultDeviceSelector)
         var id = id
         AudioObjectSetPropertyData(system, &address, 0, nil, UInt32(MemoryLayout<AudioDeviceID>.size), &id)
     }
@@ -49,9 +49,11 @@ enum AudioDevices {
         AudioObjectAddPropertyListenerBlock(system, &devices, .main) { _, _ in
             MainActor.assumeIsolated { onDevicesChange() }
         }
-        var defaultOutput = address(kAudioHardwarePropertyDefaultOutputDevice)
-        AudioObjectAddPropertyListenerBlock(system, &defaultOutput, .main) { _, _ in
-            MainActor.assumeIsolated { onDefaultChange() }
+        for direction in Direction.allCases {
+            var defaultDevice = address(direction.defaultDeviceSelector)
+            AudioObjectAddPropertyListenerBlock(system, &defaultDevice, .main) { _, _ in
+                MainActor.assumeIsolated { onDefaultChange() }
+            }
         }
     }
 
@@ -69,8 +71,8 @@ enum AudioDevices {
         AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
     }
 
-    private static func hasOutputStreams(_ id: AudioDeviceID) -> Bool {
-        var address = address(kAudioDevicePropertyStreams, scope: kAudioObjectPropertyScopeOutput)
+    private static func hasStreams(_ id: AudioDeviceID, _ direction: Direction) -> Bool {
+        var address = address(kAudioDevicePropertyStreams, scope: direction.streamScope)
         var size: UInt32 = 0
         return AudioObjectGetPropertyDataSize(id, &address, 0, nil, &size) == noErr && size > 0
     }
@@ -97,5 +99,15 @@ enum AudioDevices {
         var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }
         return value?.takeRetainedValue() as String?
+    }
+}
+
+extension Direction {
+    fileprivate var streamScope: AudioObjectPropertyScope {
+        self == .output ? kAudioObjectPropertyScopeOutput : kAudioObjectPropertyScopeInput
+    }
+
+    fileprivate var defaultDeviceSelector: AudioObjectPropertySelector {
+        self == .output ? kAudioHardwarePropertyDefaultOutputDevice : kAudioHardwarePropertyDefaultInputDevice
     }
 }
