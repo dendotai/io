@@ -22,42 +22,13 @@ private enum Metrics {
 struct PanelView: View {
     let model: AppModel
     @State private var opensAtLogin = LoginItem.isEnabled
-    @State private var drag: RowDrag?
-
-    private struct RowDrag {
-        let uid: String
-        var translation: CGFloat
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Output")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.primary.opacity(0.48))
-                .padding(.horizontal, Metrics.contentInset)
-                .frame(height: Metrics.headerHeight)
-
-            ForEach(Array(model.rows.enumerated()), id: \.element.id) { index, row in
-                let isLifted = drag?.uid == row.id
-                DeviceRow(row: row, isLifted: isLifted)
-                    .offset(y: offset(at: index))
-                    .animation(isLifted ? nil : Metrics.slide, value: offset(at: index))
-                    .zIndex(isLifted ? 1 : 0)
-                    .gesture(reorderOrUse(row))
-                    .accessibilityAddTraits(row.isConnected ? .isButton : [])
-                    .accessibilityAction {
-                        if row.isConnected {
-                            model.use(row.device)
-                        }
-                    }
-            }
-
-            Rectangle()
-                .fill(Color.primary.opacity(0.08))
-                .frame(height: 1)
-                .padding(.horizontal, Metrics.edgeInset)
-                .padding(.top, 5)
-                .padding(.bottom, 4)
+            DeviceSection(model: model, direction: .output)
+            Separator(inset: Metrics.contentInset)
+            DeviceSection(model: model, direction: .input)
+            Separator(inset: Metrics.edgeInset)
 
             HStack {
                 Text("Open at Login")
@@ -75,6 +46,65 @@ struct PanelView: View {
         .padding(.top, 5)
         .frame(width: Metrics.width, alignment: .leading)
         .onAppear { opensAtLogin = LoginItem.isEnabled }
+    }
+
+    private var opensAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { opensAtLogin },
+            set: { enabled in
+                LoginItem.setEnabled(enabled)
+                opensAtLogin = LoginItem.isEnabled
+            }
+        )
+    }
+}
+
+extension Direction {
+    fileprivate var title: String {
+        self == .output ? "Output" : "Input"
+    }
+
+    fileprivate var symbolName: String {
+        self == .output ? DeviceSymbol.speaker : DeviceSymbol.microphone
+    }
+}
+
+/// The heading and the rows of the Output list or the Input list. A row moves only within its own list.
+private struct DeviceSection: View {
+    let model: AppModel
+    let direction: Direction
+    @State private var drag: RowDrag?
+
+    private struct RowDrag {
+        let uid: String
+        var translation: CGFloat
+    }
+
+    private var rows: [AppModel.Row] { model.rows[direction] ?? [] }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(direction.title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.primary.opacity(0.48))
+                .padding(.horizontal, Metrics.contentInset)
+                .frame(height: Metrics.headerHeight)
+
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                let isLifted = drag?.uid == row.id
+                DeviceRow(row: row, symbolName: direction.symbolName, isLifted: isLifted)
+                    .offset(y: offset(at: index))
+                    .animation(isLifted ? nil : Metrics.slide, value: offset(at: index))
+                    .zIndex(isLifted ? 1 : 0)
+                    .gesture(reorderOrUse(row))
+                    .accessibilityAddTraits(row.isConnected ? .isButton : [])
+                    .accessibilityAction {
+                        if row.isConnected {
+                            model.use(row.device, in: direction)
+                        }
+                    }
+            }
+        }
         // A menu closed mid-drag never ends the gesture.
         .onDisappear { drag = nil }
     }
@@ -89,25 +119,25 @@ struct PanelView: View {
             .exclusively(
                 before: TapGesture().onEnded {
                     if row.isConnected {
-                        model.use(row.device)
+                        model.use(row.device, in: direction)
                     }
                 })
     }
 
     private func rowIndex(of uid: String) -> Int? {
-        model.rows.firstIndex { $0.id == uid }
+        rows.firstIndex { $0.id == uid }
     }
 
     private func targetIndex(of drag: RowDrag) -> Int? {
         guard let from = rowIndex(of: drag.uid) else { return nil }
         let shift = Int((drag.translation / Metrics.deviceRowHeight).rounded())
-        return min(max(from + shift, 0), model.rows.count - 1)
+        return min(max(from + shift, 0), rows.count - 1)
     }
 
     private func clampedTranslation(_ translation: CGFloat, of uid: String) -> CGFloat {
         guard let from = rowIndex(of: uid) else { return 0 }
         let up = -CGFloat(from) * Metrics.deviceRowHeight
-        let down = CGFloat(model.rows.count - 1 - from) * Metrics.deviceRowHeight
+        let down = CGFloat(rows.count - 1 - from) * Metrics.deviceRowHeight
         return min(max(translation, up), down)
     }
 
@@ -131,34 +161,24 @@ struct PanelView: View {
             return
         }
         withAnimation(Metrics.slide) {
-            // A drop on the row's own place is no reorder, so it keeps the hand pick.
             if to != from {
-                model.reorder(model.rows[from].device, to: to)
+                model.reorder(rows[from].device, to: to, in: direction)
             }
             self.drag = nil
         }
-    }
-
-    private var opensAtLoginBinding: Binding<Bool> {
-        Binding(
-            get: { opensAtLogin },
-            set: { enabled in
-                LoginItem.setEnabled(enabled)
-                opensAtLogin = LoginItem.isEnabled
-            }
-        )
     }
 }
 
 private struct DeviceRow: View {
     let row: AppModel.Row
+    let symbolName: String
     let isLifted: Bool
 
     var body: some View {
         HoverRow(height: Metrics.deviceRowHeight) { isHovered in
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
-                    Image(systemName: DeviceSymbol.speaker)
+                    Image(systemName: symbolName)
                         .font(.system(size: 12))
                         .foregroundStyle(row.isInUse ? .white : .primary)
                         .frame(width: Metrics.iconSize, height: Metrics.iconSize)
@@ -183,6 +203,20 @@ private struct DeviceRow: View {
         }
         .scaleEffect(isLifted ? Metrics.liftScale : 1)
         .padding(.horizontal, Metrics.edgeInset)
+    }
+}
+
+/// The Sound menu insets the line between device sections to the text, and the line above the settings links to the highlight.
+private struct Separator: View {
+    let inset: CGFloat
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.08))
+            .frame(height: 1)
+            .padding(.horizontal, inset)
+            .padding(.top, 5)
+            .padding(.bottom, 4)
     }
 }
 

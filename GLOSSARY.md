@@ -20,16 +20,20 @@ _Avoid_: speaker list, priority list
 The ordered list of remembered input devices. Its order is the priority.
 _Avoid_: microphone list, priority list
 
+**Device list**:
+The Output list or the Input list.
+_Avoid_: priority list
+
 **Priority**:
 A device's place in its list. The app uses the highest connected device.
 _Avoid_: rank, number
 
 **Reorder**:
-Dragging a row in the panel to change its priority.
+Dragging a row in the panel to change its priority. It never switches the device in use.
 _Avoid_: sort, rearrange
 
 **Hand pick**:
-A click on a device in the panel. The device stays in use until the next device connects or disconnects.
+A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects or a device above it connects.
 _Avoid_: override, manual mode
 
 **Forget**:

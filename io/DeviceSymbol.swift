@@ -3,6 +3,7 @@ import CoreAudio
 /// The SF Symbol the system Sound menu bar item shows for a device.
 enum DeviceSymbol {
     static let speaker = "speaker.wave.2.fill"
+    static let microphone = "mic.fill"
 
     /// Core Audio reports a Bluetooth device's model UID as "<product ID> <vendor ID>" in hex, such as "2027 4c".
     static func name(transportType: UInt32, modelUID: String?) -> String {
