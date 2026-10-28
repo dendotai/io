@@ -37,6 +37,12 @@ final class AppModel {
         switchToChosenDevice()
     }
 
+    func reorder(_ device: Device, to index: Int) {
+        outputList.reorder(device, to: index)
+        switchToChosenDevice()
+        updateRows()
+    }
+
     /// Switches only when a device connected or disconnected, or at launch, so a pick made in the system Sound menu stays.
     private func refresh(switching force: Bool) {
         reported = AudioDevices.outputDevices()

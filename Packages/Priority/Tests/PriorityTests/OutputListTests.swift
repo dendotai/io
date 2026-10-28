@@ -86,6 +86,53 @@ let display = Device(uid: "display", name: "Studio Display")
     #expect(second.chosenDevice == airPods)
 }
 
+@Test func reorderKeepsADisconnectedDeviceInItsPlace() {
+    let list = OutputList(store: MemoryStore())
+    list.update(connected: [display])
+    list.update(connected: [display, speakers])
+    list.update(connected: [display, speakers, airPods])
+    list.update(connected: [display, speakers])
+    #expect(list.devices == [airPods, speakers, display])
+    list.reorder(display, to: 1)
+    #expect(list.devices == [airPods, display, speakers])
+}
+
+@Test func reorderMovesADisconnectedDevice() {
+    let list = OutputList(store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.update(connected: [speakers])
+    list.reorder(airPods, to: 1)
+    #expect(list.devices == [speakers, airPods])
+}
+
+@Test func reorderChangesTheChosenDevice() {
+    let list = OutputList(store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.reorder(speakers, to: 0)
+    #expect(list.chosenDevice == speakers)
+}
+
+@Test func reorderEndsTheHandPick() {
+    let list = OutputList(store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, display])
+    list.update(connected: [speakers, display, airPods])
+    list.pick(speakers)
+    list.reorder(display, to: 0)
+    #expect(list.chosenDevice == display)
+}
+
+@Test func restartKeepsAReorder() {
+    let store = MemoryStore()
+    let first = OutputList(store: store)
+    first.update(connected: [speakers])
+    first.update(connected: [speakers, airPods])
+    first.reorder(speakers, to: 0)
+    #expect(OutputList(store: store).devices == [speakers, airPods])
+}
+
 @Test func renamedDeviceKeepsItsPlace() {
     let list = OutputList(store: MemoryStore())
     list.update(connected: [speakers])

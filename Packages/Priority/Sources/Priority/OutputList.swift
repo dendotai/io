@@ -60,6 +60,15 @@ public final class OutputList {
         return changed
     }
 
+    /// Places the device at `index` among every remembered device, connected or not, and ends the hand pick.
+    public func reorder(_ device: Device, to index: Int) {
+        guard let from = devices.firstIndex(where: { $0.uid == device.uid }) else { return }
+        let moved = devices.remove(at: from)
+        devices.insert(moved, at: min(max(index, 0), devices.count))
+        handPickUID = nil
+        store.save(devices)
+    }
+
     public func pick(_ device: Device) {
         guard connectedUIDs.contains(device.uid) else { return }
         handPickUID = device.uid
