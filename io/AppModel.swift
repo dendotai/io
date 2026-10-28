@@ -24,6 +24,14 @@ final class AppModel {
         )
     }
 
+    #if DEBUG
+        func showDevicesWithoutSwitching() {
+            reported = AudioDevices.outputDevices()
+            outputList.update(connected: reported.map(\.device))
+            updateRows()
+        }
+    #endif
+
     func use(_ device: Device) {
         outputList.pick(device)
         switchToChosenDevice()

@@ -1,7 +1,7 @@
 import Priority
 import SwiftUI
 
-/// Sizes in points, measured on the system Sound menu in the menu bar on macOS 27.
+/// Sizes in points and the grey opacities below, measured on a Light Mode screenshot of the system Sound menu on macOS 27.
 private enum Metrics {
     static let width: CGFloat = 308
     static let edgeInset: CGFloat = 5
@@ -10,6 +10,8 @@ private enum Metrics {
     static let deviceRowHeight: CGFloat = 32
     static let menuRowHeight: CGFloat = 22
     static let iconSize: CGFloat = 26
+    /// Half the menu row height: the Sound menu's highlight on "Sound Settings…" is a capsule.
+    static let highlightRadius: CGFloat = 11
 }
 
 struct PanelView: View {
@@ -20,7 +22,7 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Output")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.primary.opacity(0.48))
                 .padding(.horizontal, Metrics.contentInset)
                 .frame(height: Metrics.headerHeight)
 
@@ -28,9 +30,12 @@ struct PanelView: View {
                 DeviceRow(row: row) { model.use(row.device) }
             }
 
-            Divider()
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(height: 1)
                 .padding(.horizontal, Metrics.edgeInset)
-                .padding(.vertical, 6)
+                .padding(.top, 5)
+                .padding(.bottom, 4)
 
             HStack {
                 Text("Open at Login")
@@ -72,7 +77,7 @@ private struct DeviceRow: View {
                     .font(.system(size: 12))
                     .foregroundStyle(row.isInUse ? .white : .primary)
                     .frame(width: Metrics.iconSize, height: Metrics.iconSize)
-                    .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
+                    .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.09)))
                 Text(row.device.name)
                     .lineLimit(1)
             }
@@ -107,8 +112,8 @@ private struct HoverRow<Content: View>: View {
                 .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
                 .contentShape(Rectangle())
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isHovered && isEnabled ? Color.primary.opacity(0.1) : .clear)
+                    RoundedRectangle(cornerRadius: Metrics.highlightRadius)
+                        .fill(isHovered && isEnabled ? Color.primary.opacity(0.09) : .clear)
                 )
         }
         .buttonStyle(.plain)
