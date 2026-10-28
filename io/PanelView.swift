@@ -19,7 +19,7 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Output")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, Metrics.contentInset)
                 .frame(height: Metrics.headerHeight)
@@ -45,8 +45,7 @@ struct PanelView: View {
 
             MenuRow(title: "Quit io") { NSApp.terminate(nil) }
         }
-        .padding(.top, 10)
-        .padding(.bottom, Metrics.edgeInset)
+        .padding(.top, 5)
         .frame(width: Metrics.width, alignment: .leading)
         .onAppear { opensAtLogin = LoginItem.isEnabled }
     }
@@ -76,11 +75,6 @@ private struct DeviceRow: View {
                     .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
                 Text(row.device.name)
                     .lineLimit(1)
-                Spacer()
-                if row.isInUse {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .semibold))
-                }
             }
         }
         .opacity(row.isConnected ? 1 : 0.4)
