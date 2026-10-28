@@ -24,6 +24,10 @@ _Avoid_: microphone list, priority list
 A device's place in its list. The app uses the highest connected device.
 _Avoid_: rank, number
 
+**Hand pick**:
+A click on a device in the panel. The device stays in use until the next device connects or disconnects.
+_Avoid_: override, manual mode
+
 **Forget**:
 Removing a disconnected remembered device from its list.
 _Avoid_: delete, hide
