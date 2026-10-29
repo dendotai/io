@@ -13,7 +13,7 @@ public struct Device: Codable, Equatable, Hashable, Sendable {
         self.isBuiltIn = isBuiltIn
     }
 
-    /// Lists saved before `isBuiltIn` existed lack the key; a device's next connect sets it.
+    /// A saved list may lack `isBuiltIn`; a device's next connect sets it.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         uid = try container.decode(String.self, forKey: .uid)
