@@ -1,4 +1,5 @@
 import CoreAudio
+import IOKit.audio
 import Priority
 
 enum AudioDevices {
@@ -24,7 +25,10 @@ enum AudioDevices {
                 let name = string(id, kAudioObjectPropertyName)
             else { return nil }
             let symbolName = DeviceSymbol.name(transportType: transport, modelUID: string(id, kAudioDevicePropertyModelUID))
-            return Reported(id: id, device: Device(uid: uid, name: name), symbolName: symbolName)
+            let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
+            let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource.map(builtInDataSources.contains) == true
+            let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
+            return Reported(id: id, device: device, symbolName: symbolName)
         }
     }
 
@@ -64,6 +68,12 @@ enum AudioDevices {
         kAudioDeviceTransportTypeAirPlay,
     ]
 
+    /// The headphone jack's devices also report the built-in transport type; only the speakers and the microphone are always there.
+    private static let builtInDataSources: Set<UInt32> = [
+        UInt32(kIOAudioOutputPortSubTypeInternalSpeaker),
+        UInt32(kIOAudioInputPortSubTypeInternalMicrophone),
+    ]
+
     private static func address(
         _ selector: AudioObjectPropertySelector,
         scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
@@ -85,8 +95,12 @@ enum AudioDevices {
         uint32(id, kAudioDevicePropertyTransportType) ?? 0
     }
 
-    private static func uint32(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector) -> UInt32? {
-        var address = address(selector)
+    private static func uint32(
+        _ id: AudioDeviceID,
+        _ selector: AudioObjectPropertySelector,
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal
+    ) -> UInt32? {
+        var address = address(selector, scope: scope)
         var value: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
         guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }

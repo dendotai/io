@@ -8,6 +8,7 @@ final class AppModel {
         let device: Device
         let isConnected: Bool
         let isInUse: Bool
+        let canHide: Bool
         var id: String { device.uid }
     }
 
@@ -42,6 +43,11 @@ final class AppModel {
     func reorder(_ device: Device, to index: Int, in direction: Direction) {
         switcher.reorder(device, to: index, in: direction)
         switchToChosenDevices()
+        updateRows()
+    }
+
+    func hide(_ device: Device, in direction: Direction) {
+        switcher.hide(device, in: direction)
         updateRows()
     }
 
@@ -101,7 +107,8 @@ final class AppModel {
                 Row(
                     device: device,
                     isConnected: list.connectedUIDs.contains(device.uid),
-                    isInUse: device.uid == inUse?.device.uid
+                    isInUse: device.uid == inUse?.device.uid,
+                    canHide: list.canHide(device)
                 )
             }
         }

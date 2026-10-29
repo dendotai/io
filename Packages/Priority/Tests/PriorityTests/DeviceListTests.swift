@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import Priority
 
@@ -250,4 +251,71 @@ let airPodsMicrophone = Device(uid: "airpods-1-input", name: "AirPods Max D")
     let list = DeviceList(newDevices: .top, store: MemoryStore())
     list.update(connected: [airPods, display, speakers], inUse: speakers)
     #expect(list.devices == [speakers, airPods, display])
+}
+
+let builtInSpeakers = Device(uid: "built-in-speakers", name: "MacBook Pro Speakers", isBuiltIn: true)
+
+@Test func hideRemovesOnlyThatDevice() {
+    let store = MemoryStore()
+    let list = DeviceList(newDevices: .top, store: store)
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, display])
+    list.update(connected: [speakers, display, airPods])
+    list.update(connected: [speakers])
+    list.hide(display)
+    #expect(list.devices == [airPods, speakers])
+    #expect(store.saved == [airPods, speakers])
+}
+
+@Test func connectedDeviceCannotBeHidden() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    #expect(list.canHide(airPods) == false)
+    list.hide(airPods)
+    #expect(list.devices == [airPods, speakers])
+}
+
+@Test func builtInDeviceCannotBeHidden() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [builtInSpeakers])
+    list.update(connected: [airPods])
+    #expect(list.canHide(builtInSpeakers) == false)
+    list.hide(builtInSpeakers)
+    #expect(list.devices == [airPods, builtInSpeakers])
+}
+
+@Test func hiddenOutputComesBackAtTheTop() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, display])
+    list.update(connected: [speakers, display, airPods])
+    list.update(connected: [speakers, airPods])
+    list.hide(display)
+    list.update(connected: [speakers, airPods, display])
+    #expect(list.devices == [display, airPods, speakers])
+}
+
+@Test func hiddenInputComesBackAtTheBottom() {
+    let list = DeviceList(newDevices: .bottom, store: MemoryStore())
+    list.update(connected: [microphone])
+    list.update(connected: [microphone, iPhone])
+    list.reorder(iPhone, to: 0)
+    list.update(connected: [microphone])
+    list.hide(iPhone)
+    list.update(connected: [microphone, iPhone])
+    #expect(list.devices == [microphone, iPhone])
+}
+
+@Test func connectRefreshesWhetherTheDeviceIsBuiltIn() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [Device(uid: builtInSpeakers.uid, name: builtInSpeakers.name)])
+    list.update(connected: [builtInSpeakers])
+    list.update(connected: [])
+    #expect(list.canHide(builtInSpeakers) == false)
+}
+
+@Test func listSavedWithoutBuiltInStillLoads() throws {
+    let data = Data(#"[{"uid":"airpods-1","name":"AirPods Pro D1"}]"#.utf8)
+    #expect(try JSONDecoder().decode([Device].self, from: data) == [airPods])
 }
