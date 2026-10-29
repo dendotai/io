@@ -64,4 +64,8 @@ public final class Switcher {
     public func reorder(_ device: Device, to index: Int, in direction: Direction) {
         list(direction).reorder(device, to: index)
     }
+
+    public func hide(_ device: Device, in direction: Direction) {
+        list(direction).hide(device)
+    }
 }

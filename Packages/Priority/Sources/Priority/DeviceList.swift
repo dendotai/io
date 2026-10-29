@@ -4,10 +4,21 @@ public struct Device: Codable, Equatable, Hashable, Sendable {
     /// The Core Audio device UID, which stays the same across reconnects.
     public let uid: String
     public var name: String
+    /// Saved because macOS stops reporting a device's transport type once it disconnects.
+    public var isBuiltIn: Bool
 
-    public init(uid: String, name: String) {
+    public init(uid: String, name: String, isBuiltIn: Bool = false) {
         self.uid = uid
         self.name = name
+        self.isBuiltIn = isBuiltIn
+    }
+
+    /// Lists saved before `isBuiltIn` existed lack the key; a device's next connect sets it.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        uid = try container.decode(String.self, forKey: .uid)
+        name = try container.decode(String.self, forKey: .name)
+        isBuiltIn = try container.decodeIfPresent(Bool.self, forKey: .isBuiltIn) ?? false
     }
 }
 
@@ -59,6 +70,7 @@ public final class DeviceList {
         for device in connected {
             if let index = devices.firstIndex(where: { $0.uid == device.uid }) {
                 devices[index].name = device.name
+                devices[index].isBuiltIn = device.isBuiltIn
             } else {
                 newDevices.append(device)
             }
@@ -87,6 +99,18 @@ public final class DeviceList {
         if let inUse, inUse.uid != chosenDevice?.uid {
             handPickUID = inUse.uid
         }
+        store.save(devices)
+    }
+
+    public func canHide(_ device: Device) -> Bool {
+        guard let remembered = devices.first(where: { $0.uid == device.uid }) else { return false }
+        return !remembered.isBuiltIn && !connectedUIDs.contains(device.uid)
+    }
+
+    /// Removes the device, so its next connect places it as a new device.
+    public func hide(_ device: Device) {
+        guard canHide(device) else { return }
+        devices.removeAll { $0.uid == device.uid }
         store.save(devices)
     }
 

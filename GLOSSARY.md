@@ -9,8 +9,11 @@ An audio output or input that macOS reports, such as AirPods Pro D1 or MacBook P
 _Avoid_: source, endpoint
 
 **Remembered device**:
-A device the app has seen at least once. It stays in its list, connected or not, until it is forgotten.
+A device the app has seen at least once. It stays in its list, connected or not, until it is hidden.
 _Avoid_: known device, stored device
+
+**Built-in device**:
+A device that is part of the Mac, such as MacBook Pro Speakers or MacBook Pro Microphone. It can never be hidden.
 
 **Output list**:
 The ordered list of remembered output devices. Its order is the priority.
@@ -36,9 +39,9 @@ _Avoid_: sort, rearrange
 A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects or a device above it connects.
 _Avoid_: override, manual mode
 
-**Forget**:
+**Hide**:
 Removing a disconnected remembered device from its list.
-_Avoid_: delete, hide
+_Avoid_: delete, forget
 
 **Listening mode**:
 The AirPods setting with the values Off, Transparency, Adaptive, and Noise Cancellation.

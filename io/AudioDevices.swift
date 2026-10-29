@@ -24,7 +24,8 @@ enum AudioDevices {
                 let name = string(id, kAudioObjectPropertyName)
             else { return nil }
             let symbolName = DeviceSymbol.name(transportType: transport, modelUID: string(id, kAudioDevicePropertyModelUID))
-            return Reported(id: id, device: Device(uid: uid, name: name), symbolName: symbolName)
+            let device = Device(uid: uid, name: name, isBuiltIn: transport == kAudioDeviceTransportTypeBuiltIn)
+            return Reported(id: id, device: device, symbolName: symbolName)
         }
     }
 
