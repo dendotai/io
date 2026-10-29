@@ -126,7 +126,7 @@ private struct DeviceRowLabel: View {
     var isSubmenuOpen = false
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen) {
+        HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen, logName: "\(direction.title) \"\(row.device.name)\"") {
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: direction.symbolName)
@@ -311,6 +311,7 @@ private struct HoverRow<Content: View>: View {
     var textInset = Metrics.contentInset - Metrics.edgeInset
     var isHighlighted = false
     var isAccented = false
+    var logName: String?
     @ViewBuilder let content: () -> Content
     @State private var isHovered = false
 
@@ -324,6 +325,11 @@ private struct HoverRow<Content: View>: View {
                 RoundedRectangle(cornerRadius: radius)
                     .fill(isHovered || isHighlighted ? (isAccented ? Color.accentColor : Color.primary.opacity(0.09)) : .clear)
             )
-            .onHover { isHovered = $0 }
+            .onHover { hovering in
+                isHovered = hovering
+                if let logName {
+                    panelLog.notice("hover \(hovering ? "enter" : "exit", privacy: .public) \(logName, privacy: .public)")
+                }
+            }
     }
 }
