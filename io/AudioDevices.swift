@@ -1,3 +1,4 @@
+import AudioToolbox
 import CoreAudio
 import IOKit.audio
 import Priority
@@ -24,9 +25,11 @@ enum AudioDevices {
                 let uid = string(id, kAudioDevicePropertyDeviceUID),
                 let name = string(id, kAudioObjectPropertyName)
             else { return nil }
-            let symbolName = DeviceSymbol.name(transportType: transport, modelUID: string(id, kAudioDevicePropertyModelUID))
             let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
             let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource.map(builtInDataSources.contains) == true
+            let symbolName = DeviceSymbol.name(
+                direction: direction, transportType: transport, isBuiltIn: isBuiltIn, name: name,
+                modelUID: string(id, kAudioDevicePropertyModelUID))
             let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
             return Reported(id: id, device: device, symbolName: symbolName)
         }
@@ -47,6 +50,40 @@ enum AudioDevices {
         var id = id
         AudioObjectSetPropertyData(system, &address, 0, nil, UInt32(MemoryLayout<AudioDeviceID>.size), &id)
     }
+
+    /// The volume the Sound menu slider shows, from 0 to 1, or nil for an output with no volume control.
+    static func volume(_ id: AudioDeviceID) -> Float? {
+        var address = volumeAddress
+        guard AudioObjectHasProperty(id, &address) else { return nil }
+        var settable: DarwinBoolean = false
+        guard AudioObjectIsPropertySettable(id, &address, &settable) == noErr, settable.boolValue else { return nil }
+        var volume: Float32 = 0
+        var size = UInt32(MemoryLayout<Float32>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &volume) == noErr else { return nil }
+        return volume
+    }
+
+    static func setVolume(_ volume: Float, _ id: AudioDeviceID) {
+        var address = volumeAddress
+        var volume = Float32(volume)
+        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &volume)
+    }
+
+    /// Returns the call that stops the observation, because the volume belongs to one device and the output in use changes.
+    static func observeVolume(_ id: AudioDeviceID, onChange: @escaping @MainActor () -> Void) -> () -> Void {
+        var address = volumeAddress
+        let listener: AudioObjectPropertyListenerBlock = { _, _ in
+            MainActor.assumeIsolated { onChange() }
+        }
+        AudioObjectAddPropertyListenerBlock(id, &address, .main, listener)
+        return {
+            var address = volumeAddress
+            AudioObjectRemovePropertyListenerBlock(id, &address, .main, listener)
+        }
+    }
+
+    /// The replacement for the `AudioHardwareService` volume calls, which the SDK marks as no longer supported.
+    private static let volumeAddress = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume, scope: kAudioObjectPropertyScopeOutput)
 
     static func observe(onDevicesChange: @escaping @MainActor () -> Void, onDefaultChange: @escaping @MainActor () -> Void) {
         var devices = address(kAudioHardwarePropertyDevices)

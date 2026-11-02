@@ -6,9 +6,14 @@ import SwiftUI
 final class StatusItemController {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let model: AppModel
-    private let menu = NSMenu()
+    private let menu: NSMenu
+    private let volumeSlider: NSMenuItem
+    private let volumeSeparator: NSMenuItem
     private let headers: [Direction: NSMenuItem]
     private let separators: [Direction: NSMenuItem]
+    private let airPodsSettings: NSMenuItem
+    private let soundSettings: NSMenuItem
+    private let footerSeparator: NSMenuItem
     private let footer: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
@@ -20,8 +25,22 @@ final class StatusItemController {
 
     init(model: AppModel) {
         self.model = model
+        volumeSlider = Self.item(VolumeSlider(model: model))
+        volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
         headers = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(SectionHeader(direction: $0))) })
-        separators = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(PanelSeparator(direction: $0))) })
+        separators = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(PanelSeparator(inset: $0.separatorInset))) })
+        // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
+        let menu = NSMenu()
+        self.menu = menu
+        airPodsSettings = Self.item(AirPodsSettingsRow(model: model) {
+            menu.cancelTracking()
+            model.openAirPodsSettings()
+        })
+        soundSettings = Self.item(MenuRow(title: "Sound Settings…") {
+            menu.cancelTracking()
+            model.openSoundSettings()
+        })
+        footerSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
         footer = Self.item(PanelFooter())
         var dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)] = [:]
         for direction in Direction.allCases {
@@ -45,14 +64,14 @@ final class StatusItemController {
 
     /// Moves existing items instead of making new ones, so a row keeps its view.
     private func updateItems() {
-        let rows = withObservationTracking {
-            model.rows
+        let (rows, airPodsName) = withObservationTracking {
+            (model.rows, model.airPodsName)
         } onChange: { [weak self] in
             // Common modes, so the menu follows a connect while it is open.
             RunLoop.main.perform(inModes: [.common]) { self?.updateItems() }
         }
 
-        var items: [NSMenuItem] = []
+        var items: [NSMenuItem] = [volumeSlider, volumeSeparator]
         var names: [ObjectIdentifier: String] = [:]
         for direction in Direction.allCases {
             items.append(headers[direction]!)
@@ -77,7 +96,11 @@ final class StatusItemController {
             deviceItems[direction] = kept
             items.append(separators[direction]!)
         }
-        items.append(footer)
+        if airPodsName != nil {
+            items.append(airPodsSettings)
+            names[ObjectIdentifier(airPodsSettings)] = "AirPods Settings"
+        }
+        items += [soundSettings, footerSeparator, footer]
 
         var moved: [String] = []
         for (index, item) in items.enumerated() where !menu.items.indices.contains(index) || menu.items[index] !== item {

@@ -1,3 +1,4 @@
+import AppKit
 import CoreAudio
 import Observation
 import Priority
@@ -9,16 +10,25 @@ final class AppModel {
         let isConnected: Bool
         let isInUse: Bool
         let canHide: Bool
+        let symbolName: String
         var id: String { device.uid }
     }
 
     private(set) var rows: [Direction: [Row]] = [:]
     private(set) var inUseSymbolName = DeviceSymbol.speaker
+    /// The volume of the output in use, or nil when it has no volume control.
+    private(set) var volume: Float?
+    /// The connected AirPods that "<name> Settings…" names, the pair in use first.
+    private(set) var airPodsName: String?
     @ObservationIgnored private let switcher = Switcher(
         output: DeviceList(newDevices: .top, store: UserDefaultsStore(key: "outputList")),
         input: DeviceList(newDevices: .bottom, store: UserDefaultsStore(key: "inputList"))
     )
     @ObservationIgnored private var reported: [Direction: [AudioDevices.Reported]] = [:]
+    @ObservationIgnored private let symbolStore = DeviceSymbolStore()
+    @ObservationIgnored private lazy var symbols = symbolStore.load()
+    @ObservationIgnored private var volumeOutputID: AudioDeviceID?
+    @ObservationIgnored private var stopVolumeObservation: (() -> Void)?
 
     func start() {
         devicesChanged()
@@ -51,6 +61,24 @@ final class AppModel {
         updateRows()
     }
 
+    func setVolume(_ volume: Float) {
+        guard let volumeOutputID else { return }
+        AudioDevices.setVolume(volume, volumeOutputID)
+    }
+
+    func openSoundSettings() {
+        openSettings("com.apple.Sound-Settings.extension")
+    }
+
+    /// The URL takes no device, so the page opens on the AirPods System Settings picks.
+    func openAirPodsSettings() {
+        openSettings("com.apple.HeadphoneSettings")
+    }
+
+    private func openSettings(_ extensionID: String) {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:\(extensionID)")!)
+    }
+
     private func devicesChanged() {
         readDevices()
         for direction in Direction.allCases {
@@ -72,6 +100,14 @@ final class AppModel {
     private func readDevices() {
         for direction in Direction.allCases {
             reported[direction] = AudioDevices.devices(direction)
+        }
+        var symbols = self.symbols
+        for device in reported.values.joined() {
+            symbols[device.device.uid] = device.symbolName
+        }
+        if symbols != self.symbols {
+            self.symbols = symbols
+            symbolStore.save(symbols)
         }
         switcher.devicesChanged(
             connected: reported.mapValues { $0.map(\.device) },
@@ -105,16 +141,34 @@ final class AppModel {
             let defaultID = AudioDevices.defaultDeviceID(direction)
             let inUse = reported[direction]?.first { $0.id == defaultID }
             if direction == .output {
-                inUseSymbolName = inUse?.symbolName ?? DeviceSymbol.speaker
+                inUseSymbolName = inUse.map { DeviceSymbol.menuBarName($0.symbolName) } ?? DeviceSymbol.speaker
+                observeVolume(of: inUse?.id)
             }
             rows[direction] = list.devices.map { device in
                 Row(
                     device: device,
                     isConnected: list.connectedUIDs.contains(device.uid),
                     isInUse: device.uid == inUse?.device.uid,
-                    canHide: list.canHide(device)
+                    canHide: list.canHide(device),
+                    symbolName: symbols[device.uid] ?? DeviceSymbol.fallback(direction)
                 )
             }
         }
+        let connectedAirPods = (rows[.output] ?? []).filter { $0.isConnected && DeviceSymbol.isAirPods($0.symbolName) }
+        airPodsName = (connectedAirPods.first(where: \.isInUse) ?? connectedAirPods.first)?.device.name
+    }
+
+    private func observeVolume(of outputID: AudioDeviceID?) {
+        guard outputID != volumeOutputID else { return }
+        stopVolumeObservation?()
+        stopVolumeObservation = nil
+        volumeOutputID = outputID
+        if let outputID {
+            stopVolumeObservation = AudioDevices.observeVolume(outputID) { [weak self] in
+                guard let self, let volumeOutputID = self.volumeOutputID else { return }
+                volume = AudioDevices.volume(volumeOutputID)
+            }
+        }
+        volume = outputID.flatMap(AudioDevices.volume)
     }
 }
