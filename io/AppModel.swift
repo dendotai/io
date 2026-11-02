@@ -53,6 +53,10 @@ final class AppModel {
 
     private func devicesChanged() {
         readDevices()
+        for direction in Direction.allCases {
+            let names = (reported[direction] ?? []).map(\.device.name).joined(separator: ", ")
+            panelLog.notice("devices \(String(describing: direction), privacy: .public): \(names, privacy: .public)")
+        }
         switchToChosenDevices()
         updateRows()
     }

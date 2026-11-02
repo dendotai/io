@@ -16,6 +16,7 @@ final class StatusItemController {
     /// Built with the panel, so a drag starts without building a view.
     private let dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)]
     private let openSubmenu = OpenSubmenu()
+    private let menuLog = MenuLog()
 
     init(model: AppModel) {
         self.model = model
@@ -28,6 +29,7 @@ final class StatusItemController {
             dragLayers[direction] = (state, Self.item(DragLayer(model: model, drag: state)))
         }
         self.dragLayers = dragLayers
+        menu.delegate = menuLog
         statusItem.menu = menu
         updateItems()
         updateIcon()
@@ -51,10 +53,12 @@ final class StatusItemController {
         }
 
         var items: [NSMenuItem] = []
+        var names: [ObjectIdentifier: String] = [:]
         for direction in Direction.allCases {
             items.append(headers[direction]!)
             if drag?.direction == direction {
                 items.append(dragLayers[direction]!.item)
+                names[ObjectIdentifier(dragLayers[direction]!.item)] = "\(direction) drag layer"
                 items.append(separators[direction]!)
                 continue
             }
@@ -67,6 +71,7 @@ final class StatusItemController {
                     item.submenu = hideMenu(row.device, in: direction)
                 }
                 kept[row.id] = item
+                names[ObjectIdentifier(item)] = "\(direction) \"\(row.device.name)\""
                 items.append(item)
             }
             deviceItems[direction] = kept
@@ -74,14 +79,20 @@ final class StatusItemController {
         }
         items.append(footer)
 
+        var moved: [String] = []
         for (index, item) in items.enumerated() where !menu.items.indices.contains(index) || menu.items[index] !== item {
             if item.menu != nil {
                 menu.removeItem(item)
             }
             menu.insertItem(item, at: index)
+            moved.append(names[ObjectIdentifier(item)] ?? "other")
         }
+        let removedCount = menu.items.count - items.count
         while menu.items.count > items.count {
             menu.removeItem(at: items.count)
+        }
+        if !moved.isEmpty || removedCount > 0 {
+            panelLog.notice("items inserted: \(moved.joined(separator: ", "), privacy: .public); removed from the end: \(removedCount)")
         }
     }
 
@@ -131,6 +142,7 @@ final class StatusItemController {
         RunLoop.main.add(timer, forMode: .common)
         // The first event's translation is still right, and holds the move made before the drag began.
         drag = (direction, pointerY + translation, timer, 0)
+        panelLog.notice("drag start \(String(describing: direction), privacy: .public) \"\(device.name, privacy: .public)\"")
         updateItems()
     }
 
@@ -147,6 +159,7 @@ final class StatusItemController {
         guard let drag else { return }
         drag.timer.invalidate()
         self.drag = nil
+        panelLog.notice("drag end")
         let state = dragLayers[drag.direction]!.state
         let rows = model.rows[drag.direction] ?? []
         if let from = rows.firstIndex(where: { $0.id == state.uid }), let to = state.targetIndex(in: rows), to != from {
