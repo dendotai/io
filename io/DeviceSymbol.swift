@@ -1,5 +1,5 @@
+import AppKit
 import CoreAudio
-import Foundation
 import Priority
 
 /// The SF Symbol the system Sound menu shows for a device.
@@ -39,6 +39,21 @@ enum DeviceSymbol {
     /// The Sound menu bar icon shows the headphones in use, and a speaker for every other output (the Mac, a display).
     static func menuBarName(_ symbolName: String) -> String {
         ["headphones", "airpods", "beats"].contains { symbolName.hasPrefix($0) } ? symbolName : speaker
+    }
+
+    /// AirPods cases are named "<buds>.chargingcase.wireless.fill" and Beats cases "<buds>.chargingcase.fill"; buds with no case symbol of their own get the AirPods one.
+    static func chargingCase(of symbolName: String) -> String {
+        firstExisting(["\(symbolName).chargingcase.wireless.fill", "\(symbolName).chargingcase.fill"]) ?? "airpods.chargingcase.wireless.fill"
+    }
+
+    /// One bud of a pair, such as "airpods.pro.gen3.left"; AirPods 3 name theirs in the singular, "airpod.gen3.left", and a pair with no bud symbols of its own gets the generic bud.
+    static func bud(of symbolName: String, side: String) -> String {
+        let singular = symbolName.replacingOccurrences(of: "airpods.", with: "airpod.")
+        return firstExisting(["\(symbolName).\(side)", "\(singular).\(side)"]) ?? "airpod.\(side)"
+    }
+
+    private static func firstExisting(_ names: [String]) -> String? {
+        names.first { NSImage(systemSymbolName: $0, accessibilityDescription: nil) != nil }
     }
 
     static func isAirPods(_ symbolName: String) -> Bool {

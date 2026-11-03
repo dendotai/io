@@ -47,6 +47,10 @@ _Avoid_: delete, forget
 The AirPods setting with the values Off, Transparency, Adaptive, and Noise Cancellation.
 _Avoid_: noise control, ANC mode
 
+**Battery levels**:
+The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu.
+_Avoid_: battery status, charge
+
 **Panel**:
 What opens when you click the app's menu bar icon.
 _Avoid_: popup, popover, menu

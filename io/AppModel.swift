@@ -11,6 +11,7 @@ final class AppModel {
         let isInUse: Bool
         let canHide: Bool
         let symbolName: String
+        let batteryLevels: BatteryLevels?
         var id: String { device.uid }
     }
 
@@ -25,6 +26,8 @@ final class AppModel {
         input: DeviceList(newDevices: .bottom, store: UserDefaultsStore(key: "inputList"))
     )
     @ObservationIgnored private var reported: [Direction: [AudioDevices.Reported]] = [:]
+    /// Read when a device or a power source changes, so opening the panel reads nothing.
+    @ObservationIgnored private var batteryLevelsByName: [String: BatteryLevels] = [:]
     @ObservationIgnored private let symbolStore = DeviceSymbolStore()
     @ObservationIgnored private lazy var symbols = symbolStore.load()
     @ObservationIgnored private var volumeOutputID: AudioDeviceID?
@@ -36,6 +39,11 @@ final class AppModel {
             onDevicesChange: { [weak self] in self?.devicesChanged() },
             onDefaultChange: { [weak self] in self?.defaultsChanged() }
         )
+        AirPodsBattery.observe { [weak self] in
+            guard let self else { return }
+            batteryLevelsByName = AirPodsBattery.levels()
+            updateRows()
+        }
     }
 
     #if DEBUG
@@ -101,6 +109,7 @@ final class AppModel {
         for direction in Direction.allCases {
             reported[direction] = AudioDevices.devices(direction)
         }
+        batteryLevelsByName = AirPodsBattery.levels()
         var symbols = self.symbols
         for device in reported.values.joined() {
             symbols[device.device.uid] = device.symbolName
@@ -145,12 +154,14 @@ final class AppModel {
                 observeVolume(of: inUse?.id)
             }
             rows[direction] = list.devices.map { device in
-                Row(
+                let isConnected = list.connectedUIDs.contains(device.uid)
+                return Row(
                     device: device,
-                    isConnected: list.connectedUIDs.contains(device.uid),
+                    isConnected: isConnected,
                     isInUse: device.uid == inUse?.device.uid,
                     canHide: list.canHide(device),
-                    symbolName: symbols[device.uid] ?? DeviceSymbol.fallback(direction)
+                    symbolName: symbols[device.uid] ?? DeviceSymbol.fallback(direction),
+                    batteryLevels: isConnected && direction == .output ? batteryLevelsByName[device.name] : nil
                 )
             }
         }
