@@ -4,7 +4,7 @@ The panel opens from an `NSStatusItem` as an `NSMenu` with one `NSMenuItem` per 
 
 Open: whether the menu grows while open when the AirPods row folds open. The ticket that adds the fold checks it.
 
-## Considered options
+## Rejected
 
 - One `NSMenuItem` whose view holds every row: rows slide during a drag, but a row cannot have its own submenu, and a context menu cannot open inside the open menu.
 - Moving the dragged row's item to the slot under the pointer as the drag goes: works, but the row jumps one slot at a time instead of sliding.
