@@ -6,6 +6,8 @@ Feature branches open PRs into `dev`; `dev` merges into `main` for a release.
 
 Write each paragraph, list item, and comment point on one line.
 
+A value copied from the Sound menu comes from `docs/sound-menu.md` (ADR 0002); a code constant that holds one names its element there.
+
 ## Agent skills
 
 ### Issue tracker
