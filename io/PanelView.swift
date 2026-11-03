@@ -20,6 +20,12 @@ enum Metrics {
     /// A shorter move is a click, so a click never reorders.
     static let dragThreshold: CGFloat = 4
     static let chevronSize: CGFloat = 12
+    // The Battery line in `docs/sound-menu.md`; each gap is set so the ink lands where the crop shows it.
+    static let batteryTextSize: CGFloat = 11
+    static let budsGlyphGap: CGFloat = 2
+    static let budGlyphGap: CGFloat = 4
+    static let caseGlyphGap: CGFloat = 4
+    static let batteryGap: CGFloat = 8
     static let hideWidth: CGFloat = 110
     /// A standard menu item's highlight, measured at 2x.
     static let hideRowHeight: CGFloat = 24
@@ -213,8 +219,13 @@ private struct DeviceRowLabel: View {
                         .foregroundStyle(row.isInUse ? Color.white : Color.primary.opacity(0.5))
                         .frame(width: Metrics.iconSize, height: Metrics.iconSize)
                         .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
-                    Text(row.device.name)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(row.device.name)
+                            .lineLimit(1)
+                        if let batteryLevels = row.batteryLevels {
+                            BatteryLine(battery: batteryLevels, symbolName: row.symbolName)
+                        }
+                    }
                 }
                 .opacity(row.isConnected ? 1 : 0.4)
                 Spacer(minLength: 0)
@@ -235,6 +246,38 @@ private struct DeviceRowLabel: View {
         .scaleEffect(isLifted ? Metrics.liftScale : 1)
         .padding(.horizontal, Metrics.edgeInset)
         .frame(width: Metrics.width)
+    }
+}
+
+/// The buds', or each bud's, and the case's levels under a headphones row's name, as in the Sound menu.
+private struct BatteryLine: View {
+    let battery: BatteryLevels
+    let symbolName: String
+
+    var body: some View {
+        HStack(spacing: Metrics.batteryGap) {
+            if let buds = battery.buds {
+                level(buds, symbolName: symbolName, gap: Metrics.budsGlyphGap)
+            }
+            if let left = battery.left {
+                level(left, symbolName: DeviceSymbol.bud(of: symbolName, side: "left"), gap: Metrics.budGlyphGap)
+            }
+            if let right = battery.right {
+                level(right, symbolName: DeviceSymbol.bud(of: symbolName, side: "right"), gap: Metrics.budGlyphGap)
+            }
+            if let chargingCase = battery.chargingCase {
+                level(chargingCase, symbolName: DeviceSymbol.chargingCase(of: symbolName), gap: Metrics.caseGlyphGap)
+            }
+        }
+        .font(.system(size: Metrics.batteryTextSize))
+        .foregroundStyle(.secondary)
+    }
+
+    private func level(_ percent: Int, symbolName: String, gap: CGFloat) -> some View {
+        HStack(spacing: gap) {
+            Image(systemName: symbolName)
+            Text("\(percent)%")
+        }
     }
 }
 
