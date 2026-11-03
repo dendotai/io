@@ -11,6 +11,10 @@ enum Metrics {
     static let deviceRowHeight: CGFloat = 32
     static let menuRowHeight: CGFloat = 22
     static let iconSize: CGFloat = 26
+    static let glyphSize: CGFloat = 13
+    static let trackHeight: CGFloat = 6
+    static let knobWidth: CGFloat = 20
+    static let knobHeight: CGFloat = 16
     /// Half the menu row height: the Sound menu's highlight on "Sound Settings…" is a capsule.
     static let highlightRadius: CGFloat = 11
     /// A shorter move is a click, so a click never reorders.
@@ -31,14 +35,99 @@ struct PanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            VolumeSlider(model: model)
+            PanelSeparator(inset: Metrics.contentInset)
             ForEach(Direction.allCases, id: \.self) { direction in
                 SectionHeader(direction: direction)
                 ForEach(model.rows[direction] ?? []) { row in
                     DeviceRow(model: model, direction: direction, device: row.device)
                 }
-                PanelSeparator(direction: direction)
+                PanelSeparator(inset: direction.separatorInset)
             }
+            if model.airPodsName != nil {
+                AirPodsSettingsRow(model: model, action: model.openAirPodsSettings)
+            }
+            MenuRow(title: "Sound Settings…", action: model.openSoundSettings)
+            PanelSeparator(inset: Metrics.edgeInset)
             PanelFooter()
+        }
+    }
+}
+
+/// "Sound" and the slider for the volume of the output in use, at the top of the panel.
+/// Drawn by hand, because a system `Slider` in a menu draws in its inactive grey, where the Sound menu's fill is the accent colour.
+struct VolumeSlider: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sound")
+                .font(.system(size: 13, weight: .bold))
+                .padding(.leading, Metrics.contentInset)
+            HStack(spacing: 3.5) {
+                Image(systemName: "speaker.fill")
+                Track(value: model.volume ?? 0, set: model.setVolume)
+                Image(systemName: "speaker.wave.3.fill")
+            }
+            .font(.system(size: 16))
+            .foregroundStyle(Color.primary.opacity(0.55))
+            .padding(.leading, 15)
+            .padding(.trailing, 16)
+            .disabled(model.volume == nil)
+            .opacity(model.volume == nil ? 0.4 : 1)
+        }
+        .padding(.top, Metrics.topInset + 3)
+        .padding(.bottom, 5)
+        .frame(width: Metrics.width, alignment: .leading)
+    }
+
+    private struct Track: View {
+        let value: Float
+        let set: (Float) -> Void
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            GeometryReader { geometry in
+                let travel = geometry.size.width - Metrics.knobWidth
+                let knobX = travel * CGFloat(value)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.08))
+                        .frame(height: Metrics.trackHeight)
+                    Capsule().fill(Color.accentColor)
+                        .frame(width: knobX + Metrics.knobWidth / 2, height: Metrics.trackHeight)
+                    Knob().fill(.white)
+                        .shadow(color: .black.opacity(0.16), radius: 1.5, y: 2)
+                        .frame(width: Metrics.knobWidth, height: Metrics.knobHeight)
+                        .offset(x: knobX)
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { drag in
+                            guard isEnabled, travel > 0 else { return }
+                            let fraction = (drag.location.x - Metrics.knobWidth / 2) / travel
+                            set(Float(min(max(fraction, 0), 1)))
+                        })
+            }
+            .frame(height: Metrics.knobHeight)
+        }
+    }
+
+    /// A superellipse: the Sound menu's knob is fuller than an ellipse and rounder than a rounded rectangle, and an exponent of 2.3 fits its outline row by row at 2x.
+    nonisolated private struct Knob: Shape {
+        func path(in rect: CGRect) -> Path {
+            let exponent = 2.3
+            var path = Path()
+            for step in 0...120 {
+                let angle = Double(step) / 120 * 2 * .pi
+                let x = pow(abs(cos(angle)), 2 / exponent) * (cos(angle) < 0 ? -1 : 1)
+                let y = pow(abs(sin(angle)), 2 / exponent) * (sin(angle) < 0 ? -1 : 1)
+                let point = CGPoint(x: rect.midX + x * rect.width / 2, y: rect.midY + y * rect.height / 2)
+                step == 0 ? path.move(to: point) : path.addLine(to: point)
+            }
+            path.closeSubpath()
+            return path
         }
     }
 }
@@ -48,17 +137,8 @@ extension Direction {
         self == .output ? "Output" : "Input"
     }
 
-    fileprivate var symbolName: String {
-        self == .output ? DeviceSymbol.speaker : DeviceSymbol.microphone
-    }
-
-    /// Output is the first section, so its header sits below the panel's top edge.
-    fileprivate var headerTopInset: CGFloat {
-        self == .output ? Metrics.topInset : 0
-    }
-
     /// The Sound menu insets the line between device sections to the text, and the line above the settings links to the highlight.
-    fileprivate var separatorInset: CGFloat {
+    var separatorInset: CGFloat {
         self == .output ? Metrics.contentInset : Metrics.edgeInset
     }
 }
@@ -72,7 +152,6 @@ struct SectionHeader: View {
             .foregroundStyle(Color.primary.opacity(0.48))
             .padding(.horizontal, Metrics.contentInset)
             .frame(width: Metrics.width, height: Metrics.headerHeight, alignment: .leading)
-            .padding(.top, direction.headerTopInset)
     }
 }
 
@@ -129,11 +208,11 @@ private struct DeviceRowLabel: View {
         HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen, logName: "\(direction.title) \"\(row.device.name)\"") {
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
-                    Image(systemName: direction.symbolName)
-                        .font(.system(size: 12))
-                        .foregroundStyle(row.isInUse ? .white : .primary)
+                    Image(systemName: row.symbolName)
+                        .font(.system(size: Metrics.glyphSize))
+                        .foregroundStyle(row.isInUse ? Color.white : Color.primary.opacity(0.5))
                         .frame(width: Metrics.iconSize, height: Metrics.iconSize)
-                        .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.09)))
+                        .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
                     Text(row.device.name)
                         .lineLimit(1)
                 }
@@ -260,13 +339,13 @@ struct PanelFooter: View {
 }
 
 struct PanelSeparator: View {
-    let direction: Direction
+    let inset: CGFloat
 
     var body: some View {
         Rectangle()
             .fill(Color.primary.opacity(0.08))
             .frame(height: 1)
-            .padding(.horizontal, direction.separatorInset)
+            .padding(.horizontal, inset)
             .padding(.top, 5)
             .padding(.bottom, 4)
             .frame(width: Metrics.width)
@@ -289,7 +368,17 @@ struct HideRow: View {
     }
 }
 
-private struct MenuRow: View {
+/// Shown only while AirPods are connected; it follows a rename while the menu is open.
+struct AirPodsSettingsRow: View {
+    let model: AppModel
+    let action: () -> Void
+
+    var body: some View {
+        MenuRow(title: "\(model.airPodsName ?? "AirPods") Settings…", action: action)
+    }
+}
+
+struct MenuRow: View {
     let title: String
     let action: () -> Void
 
@@ -301,6 +390,7 @@ private struct MenuRow: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, Metrics.edgeInset)
+        .frame(width: Metrics.width)
     }
 }
 
