@@ -2,14 +2,14 @@ import Foundation
 import Observation
 import Sparkle
 
-/// Sparkle with no window of its own: a newer version shows the panel's "Update Available…" row, and a click on the row installs it and relaunches the app.
+/// Sparkle with no window of its own: a newer version shows the panel's "Update to <version>" row, and a click on the row installs it and relaunches the app.
 @Observable
 final class AppUpdater: NSObject, SPUUserDriver {
-    private var replyToUpdateFound: ((SPUUserUpdateChoice) -> Void)?
+    private var pendingUpdate: (version: String, reply: (SPUUserUpdateChoice) -> Void)?
     /// Held only to keep Sparkle running.
     @ObservationIgnored private var updater: SPUUpdater?
 
-    var isUpdateAvailable: Bool { replyToUpdateFound != nil }
+    var availableVersion: String? { pendingUpdate?.version }
 
     /// Only the release script sets `PUBLISHED_RELEASE`, so a local build never replaces itself with a published release.
     func start() {
@@ -24,9 +24,15 @@ final class AppUpdater: NSObject, SPUUserDriver {
         #endif
     }
 
+    #if DEBUG
+        func showUpdateWithoutChecking(version: String) {
+            pendingUpdate = (version, { _ in })
+        }
+    #endif
+
     func installUpdate() {
-        replyToUpdateFound?(.install)
-        replyToUpdateFound = nil
+        pendingUpdate?.reply(.install)
+        pendingUpdate = nil
     }
 
     func show(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
@@ -41,7 +47,7 @@ final class AppUpdater: NSObject, SPUUserDriver {
         if appcastItem.isInformationOnlyUpdate {
             reply(.dismiss)
         } else {
-            replyToUpdateFound = reply
+            pendingUpdate = (appcastItem.displayVersionString, reply)
         }
     }
 
@@ -80,6 +86,6 @@ final class AppUpdater: NSObject, SPUUserDriver {
     }
 
     func dismissUpdateInstallation() {
-        replyToUpdateFound = nil
+        pendingUpdate = nil
     }
 }

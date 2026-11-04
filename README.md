@@ -9,7 +9,7 @@ A macOS menu bar app that remembers the priority order of your audio devices and
 - Click a device to use it for now. Your choice holds until that device disconnects or a device higher in the list connects. A choice in the system Sound menu works the same way.
 - To hide a disconnected device, hover the row with › and choose Hide. If it connects again, it counts as new. Built-in devices, such as MacBook Pro Speakers, stay in the list.
 
-When a newer version exists, "Update Available…" appears at the bottom of the panel. One click installs it and relaunches io.
+When a newer version exists, "Update to <version>" appears at the bottom of the panel. One click installs it and relaunches io.
 
 Requires macOS 27 or later.
 

@@ -51,7 +51,7 @@ final class StatusItemController {
         })
         footerSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
         footer = Self.item(PanelFooter())
-        updateAvailableRow = Self.item(MenuRow(title: "Update Available…") {
+        updateAvailableRow = Self.item(UpdateRow(updater: updater) {
             menu.cancelTracking()
             updater.installUpdate()
         })
@@ -80,7 +80,7 @@ final class StatusItemController {
     /// Moves existing items instead of making new ones, so a row keeps its view.
     private func updateItems() {
         let (rows, airPodsName, isUpdateAvailable) = withObservationTracking {
-            (model.rows, model.airPodsName, updater.isUpdateAvailable)
+            (model.rows, model.airPodsName, updater.availableVersion != nil)
         } onChange: { [weak self] in
             // Common modes, so the menu follows a connect while it is open.
             RunLoop.main.perform(inModes: [.common]) { self?.updateItems() }
@@ -132,7 +132,7 @@ final class StatusItemController {
         items += [soundSettings, footerSeparator, footer]
         if isUpdateAvailable {
             items.append(updateAvailableRow)
-            names[ObjectIdentifier(updateAvailableRow)] = "Update Available"
+            names[ObjectIdentifier(updateAvailableRow)] = "Update"
         }
         if let foldAnimation, drag == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
             let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
