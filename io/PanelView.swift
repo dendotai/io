@@ -58,6 +58,7 @@ enum Metrics {
 /// The panel's pieces stacked in one view, for `-renderPanelTo`. The menu itself shows each piece as its own `NSMenuItem` (ADR 0001).
 struct PanelView: View {
     let model: AppModel
+    let updater: AppUpdater
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -79,6 +80,9 @@ struct PanelView: View {
             MenuRow(title: "Sound Settings…", action: model.openSoundSettings)
             PanelSeparator(inset: Metrics.edgeInset)
             PanelFooter()
+            if updater.availableVersion != nil {
+                UpdateRow(updater: updater, isHighlighted: UserDefaults.standard.bool(forKey: "renderUpdateHighlighted"), action: updater.installUpdate)
+            }
         }
     }
 }
@@ -591,6 +595,25 @@ struct AirPodsSettingsRow: View {
     }
 }
 
+/// Blue at rest and under the pointer, because it is the one row that acts on the app itself. It has no "…", because a click installs at once.
+struct UpdateRow: View {
+    let updater: AppUpdater
+    var isHighlighted = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HoverRow(height: Metrics.menuRowHeight, isHighlighted: isHighlighted, highlightColor: Color.accentColor.opacity(0.18)) {
+                Text("Update to \(updater.availableVersion ?? "")")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Metrics.edgeInset)
+        .frame(width: Metrics.width)
+    }
+}
+
 struct MenuRow: View {
     let title: String
     let action: () -> Void
@@ -616,6 +639,7 @@ private struct HoverRow<Content: View>: View {
     /// The Sound menu's AirPods row shows no highlight with the pointer on its ⌄.
     var isHoverHighlightHidden = false
     var isAccented = false
+    var highlightColor: Color?
     var logName: String?
     @ViewBuilder let content: () -> Content
     @State private var isHovered = false
@@ -628,7 +652,7 @@ private struct HoverRow<Content: View>: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: radius)
-                    .fill((isHovered && !isHoverHighlightHidden) || isHighlighted ? (isAccented ? Color.accentColor : Color.primary.opacity(0.09)) : .clear)
+                    .fill((isHovered && !isHoverHighlightHidden) || isHighlighted ? (highlightColor ?? (isAccented ? Color.accentColor : Color.primary.opacity(0.09))) : .clear)
             )
             .onHover { hovering in
                 isHovered = hovering
