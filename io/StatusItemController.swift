@@ -16,12 +16,18 @@ final class StatusItemController {
     private let footerSeparator: NSMenuItem
     private let footer: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
+    /// Each AirPods row's group while folded open, built when it first folds open and again if its supported modes change.
+    private var listeningGroups: [String: (modes: [ListeningMode], item: NSMenuItem)] = [:]
+    private var foldedOpenUIDs: Set<String> = []
+    /// Each AirPods row's fold layer, built when the panel opens.
+    private var foldAnimations: [String: FoldAnimation] = [:]
+    private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
     private var drag: (direction: Direction, startY: CGFloat, timer: Timer, ticksSinceButtonUp: Int)?
     /// Built with the panel, so a drag starts without building a view.
     private let dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)]
     private let openSubmenu = OpenSubmenu()
-    private let menuLog = MenuLog()
+    private let panelDelegate: PanelDelegate
 
     init(model: AppModel) {
         self.model = model
@@ -48,7 +54,9 @@ final class StatusItemController {
             dragLayers[direction] = (state, Self.item(DragLayer(model: model, drag: state)))
         }
         self.dragLayers = dragLayers
-        menu.delegate = menuLog
+        panelDelegate = PanelDelegate(model: model)
+        menu.delegate = panelDelegate
+        panelDelegate.didOpen = { [weak self] in self?.prepareFoldAnimations() }
         statusItem.menu = menu
         updateItems()
         updateIcon()
@@ -71,6 +79,8 @@ final class StatusItemController {
             RunLoop.main.perform(inModes: [.common]) { self?.updateItems() }
         }
 
+        startFoldAnimations(rows[.output] ?? [])
+
         var items: [NSMenuItem] = [volumeSlider, volumeSeparator]
         var names: [ObjectIdentifier: String] = [:]
         for direction in Direction.allCases {
@@ -92,6 +102,18 @@ final class StatusItemController {
                 kept[row.id] = item
                 names[ObjectIdentifier(item)] = "\(direction) \"\(row.device.name)\""
                 items.append(item)
+                if foldAnimation?.uid != row.id, let idle = foldAnimations[row.id] {
+                    names[ObjectIdentifier(idle.item)] = "idle fold"
+                    items.append(idle.item)
+                }
+                if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
+                    if listeningGroups[row.id]?.modes != modes {
+                        listeningGroups[row.id] = (modes, Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
+                    }
+                    let groupItem = listeningGroups[row.id]!.item
+                    names[ObjectIdentifier(groupItem)] = "listening mode of \"\(row.device.name)\""
+                    items.append(groupItem)
+                }
             }
             deviceItems[direction] = kept
             items.append(separators[direction]!)
@@ -101,6 +123,12 @@ final class StatusItemController {
             names[ObjectIdentifier(airPodsSettings)] = "AirPods Settings"
         }
         items += [soundSettings, footerSeparator, footer]
+        if let foldAnimation, drag == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
+            let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
+        {
+            items.replaceSubrange((start + 1)..<end, with: [foldAnimation.item])
+            names[ObjectIdentifier(foldAnimation.item)] = "fold"
+        }
 
         var moved: [String] = []
         for (index, item) in items.enumerated() where !menu.items.indices.contains(index) || menu.items[index] !== item {
@@ -116,6 +144,40 @@ final class StatusItemController {
         }
         if !moved.isEmpty || removedCount > 0 {
             panelLog.notice("items inserted: \(moved.joined(separator: ", "), privacy: .public); removed from the end: \(removedCount)")
+        }
+    }
+
+    /// Runs after the panel has opened, so it never delays the open.
+    private func prepareFoldAnimations() {
+        RunLoop.main.perform(inModes: [.common]) { [weak self] in
+            guard let self else { return }
+            for row in model.rows[.output] ?? [] {
+                guard let modes = row.listening?.supported, foldAnimations[row.id]?.modes != modes else { continue }
+                foldAnimations[row.id] = FoldAnimation(model: model, device: row.device, modes: modes)
+            }
+            updateItems()
+        }
+    }
+
+    /// A fold animates only while the panel shows and no drag runs; otherwise the row takes its end state at once.
+    private func startFoldAnimations(_ rows: [AppModel.Row]) {
+        for row in rows where row.isFoldedOpen != foldedOpenUIDs.contains(row.id) {
+            if row.isFoldedOpen {
+                foldedOpenUIDs.insert(row.id)
+            } else {
+                foldedOpenUIDs.remove(row.id)
+            }
+            let isPanelOpen = menu.items.first?.view?.window?.isVisible == true
+            guard isPanelOpen, drag == nil, let modes = row.listening?.supported else { continue }
+            let animation = foldAnimations[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? FoldAnimation(model: model, device: row.device, modes: modes)
+            foldAnimations[row.id] = animation
+            foldAnimation = animation
+            animation.start(isOpening: row.isFoldedOpen) { [weak self, weak animation] in
+                guard let self, foldAnimation === animation else { return }
+                let window = animation?.window
+                foldAnimation = nil
+                updateItemsUnderRestingPointer(in: window)
+            }
         }
     }
 
@@ -237,5 +299,26 @@ final class StatusItemController {
             Task { @MainActor in self?.updateIcon() }
         }
         statusItem.button?.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "io")
+    }
+}
+
+/// Reads what can change while the panel is closed, before it shows.
+private final class PanelDelegate: NSObject, NSMenuDelegate {
+    private let model: AppModel
+    private let log = MenuLog()
+    var didOpen: (() -> Void)?
+
+    init(model: AppModel) {
+        self.model = model
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        log.menuWillOpen(menu)
+        model.panelWillOpen()
+        didOpen?()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        log.menuDidClose(menu)
     }
 }

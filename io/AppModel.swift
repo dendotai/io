@@ -12,6 +12,9 @@ final class AppModel {
         let canHide: Bool
         let symbolName: String
         let batteryLevels: BatteryLevels?
+        /// nil when the row has no ⌄: not connected AirPods with noise cancellation, or the setting stopped answering.
+        let listening: AirPodsListeningMode.State?
+        let isFoldedOpen: Bool
         var id: String { device.uid }
     }
 
@@ -28,12 +31,19 @@ final class AppModel {
     @ObservationIgnored private var reported: [Direction: [AudioDevices.Reported]] = [:]
     /// Read when a device or a power source changes, so opening the panel reads nothing.
     @ObservationIgnored private var batteryLevelsByName: [String: BatteryLevels] = [:]
+    @ObservationIgnored private var listeningModesByAddress: [String: AirPodsListeningMode.State] = [:]
+    /// False once the private setting is missing or a set does not read back within 4 s; the ⌄ stays hidden until the app restarts.
+    @ObservationIgnored private var listeningModeAnswers = false
+    /// Only the newest set of a pair is read back, so two quick clicks do not read each other's mode.
+    @ObservationIgnored private var lastSetModeByAddress: [String: ListeningMode] = [:]
+    @ObservationIgnored private var foldedOpenUIDs: Set<String> = []
     @ObservationIgnored private let symbolStore = DeviceSymbolStore()
     @ObservationIgnored private lazy var symbols = symbolStore.load()
     @ObservationIgnored private var volumeOutputID: AudioDeviceID?
     @ObservationIgnored private var stopVolumeObservation: (() -> Void)?
 
     func start() {
+        listeningModeAnswers = AirPodsListeningMode.start()
         devicesChanged()
         AudioDevices.observe(
             onDevicesChange: { [weak self] in self?.devicesChanged() },
@@ -67,6 +77,45 @@ final class AppModel {
     func hide(_ device: Device, in direction: Direction) {
         switcher.hide(device, in: direction)
         updateRows()
+    }
+
+    /// The mode can change on the AirPods themselves, and macOS posts no notification for it.
+    func panelWillOpen() {
+        readListeningModes()
+        updateRows()
+    }
+
+    func toggleListeningModes(of device: Device) {
+        if !foldedOpenUIDs.insert(device.uid).inserted {
+            foldedOpenUIDs.remove(device.uid)
+        }
+        updateRows()
+    }
+
+    func setListeningMode(_ mode: ListeningMode, of device: Device) {
+        let address = AirPodsListeningMode.address(of: device)
+        guard let state = listeningModesByAddress[address] else { return }
+        guard AirPodsListeningMode.set(mode, address: address) else {
+            stopListeningModes()
+            return
+        }
+        listeningModesByAddress[address] = AirPodsListeningMode.State(supported: state.supported, current: mode)
+        lastSetModeByAddress[address] = mode
+        updateRows()
+        // On macOS 27 the AirPods apply sets one at a time: after two sets 200 ms apart, the peer reports the first at 0.8 s and the second at 3 s.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self, listeningModeAnswers, lastSetModeByAddress[address] == mode else { return }
+            lastSetModeByAddress[address] = nil
+            readListeningModes()
+            let current = listeningModesByAddress[address]?.current
+            // A pair that disconnected within the second has no mode to read back.
+            if current != mode && AirPodsListeningMode.isConnected(address: address) {
+                panelLog.notice("listening mode set to \(mode.rawValue) reads back \(current.map { "\($0.rawValue)" } ?? "nothing", privacy: .public)")
+                stopListeningModes()
+            } else {
+                updateRows()
+            }
+        }
     }
 
     func setVolume(_ volume: Float) {
@@ -110,6 +159,7 @@ final class AppModel {
             reported[direction] = AudioDevices.devices(direction)
         }
         batteryLevelsByName = AirPodsBattery.levels()
+        readListeningModes()
         var symbols = self.symbols
         for device in reported.values.joined() {
             symbols[device.device.uid] = device.symbolName
@@ -123,6 +173,22 @@ final class AppModel {
             inUse: inUse(),
             at: .now
         )
+    }
+
+    /// A pair with a set not yet read back shows the mode set, not the earlier mode the AirPods still report.
+    private func readListeningModes() {
+        listeningModesByAddress = listeningModeAnswers ? AirPodsListeningMode.states() : [:]
+        for (address, mode) in lastSetModeByAddress {
+            if let state = listeningModesByAddress[address] {
+                listeningModesByAddress[address] = AirPodsListeningMode.State(supported: state.supported, current: mode)
+            }
+        }
+    }
+
+    private func stopListeningModes() {
+        listeningModeAnswers = false
+        listeningModesByAddress = [:]
+        updateRows()
     }
 
     private func inUse() -> [Direction: Device] {
@@ -155,13 +221,17 @@ final class AppModel {
             }
             rows[direction] = list.devices.map { device in
                 let isConnected = list.connectedUIDs.contains(device.uid)
+                let isConnectedOutput = isConnected && direction == .output
+                let listening = isConnectedOutput ? listeningModesByAddress[AirPodsListeningMode.address(of: device)] : nil
                 return Row(
                     device: device,
                     isConnected: isConnected,
                     isInUse: device.uid == inUse?.device.uid,
                     canHide: list.canHide(device),
                     symbolName: symbols[device.uid] ?? DeviceSymbol.fallback(direction),
-                    batteryLevels: isConnected && direction == .output ? batteryLevelsByName[device.name] : nil
+                    batteryLevels: isConnectedOutput ? batteryLevelsByName[device.name] : nil,
+                    listening: listening,
+                    isFoldedOpen: listening != nil && foldedOpenUIDs.contains(device.uid)
                 )
             }
         }

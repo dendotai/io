@@ -26,6 +26,22 @@ enum Metrics {
     static let budGlyphGap: CGFloat = 4
     static let caseGlyphGap: CGFloat = 4
     static let batteryGap: CGFloat = 8
+    // The Listening mode row and the heading text in `docs/sound-menu.md`: the heading 19 below the AirPods row, the rows 3 below the heading and 24 apart, the next device row 10 below the last row's 26.
+    static let listeningHeadingTop: CGFloat = 19
+    static let listeningHeadingTextHeight: CGFloat = 15
+    static let listeningRowsTop: CGFloat = 3
+    static let listeningRowPitch: CGFloat = 24
+    static let listeningGroupBottom: CGFloat = 12
+    // From one 2x crop of the Sound menu in Dark Mode (`docs/sound-menu.md`, Listening mode row): the band behind the group starts 4.5 below the AirPods row and ends 5 below the last mode row. The columns are set so the checkmark, glyph, and text ink lands 20, 49, and 73 in from the body's edge, as in the crop.
+    static let listeningBandTop: CGFloat = 4.5
+    static let listeningBandBottom: CGFloat = 5
+    static let listeningCheckmarkInset: CGFloat = 5
+    static let listeningCheckmarkColumn: CGFloat = 32
+    static let listeningIconColumn: CGFloat = 27
+    static let listeningIconSize: CGFloat = 18
+    /// The fold's "›" and "⌄" turn around one centre 22 in from the body's edge, with a lighter stroke than the "›" of a submenu: a 2x crop of the Sound menu in Dark Mode, peak grey 128 on 51.
+    static let foldChevronWidth: CGFloat = 16
+    static let foldChevronOpacity: CGFloat = 0.45
     static let hideWidth: CGFloat = 110
     /// A standard menu item's highlight, measured at 2x.
     static let hideRowHeight: CGFloat = 24
@@ -47,6 +63,9 @@ struct PanelView: View {
                 SectionHeader(direction: direction)
                 ForEach(model.rows[direction] ?? []) { row in
                     DeviceRow(model: model, direction: direction, device: row.device)
+                    if row.isFoldedOpen, let modes = row.listening?.supported {
+                        ListeningModeGroup(model: model, device: row.device, modes: modes)
+                    }
                 }
                 PanelSeparator(inset: direction.separatorInset)
             }
@@ -177,12 +196,15 @@ struct DeviceRow: View {
 
     var body: some View {
         if let row = model.rows[direction]?.first(where: { $0.id == device.uid }) {
-            DeviceRowLabel(row: row, direction: direction, isLifted: false, isSubmenuOpen: openSubmenu?.uid == device.uid)
-                .gesture(reorderOrUse(row))
+            DeviceRowLabel(row: row, direction: direction, isLifted: false, isSubmenuOpen: openSubmenu?.uid == device.uid) {
+                model.toggleListeningModes(of: device)
+            }
+            .gesture(reorderOrUse(row))
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in dragActions?.pressed(device, direction) }
                         .onEnded { _ in dragActions?.released() })
+                .accessibilityElement(children: .contain)
                 .accessibilityAddTraits(row.isConnected ? .isButton : [])
                 .accessibilityAction {
                     if row.isConnected {
@@ -209,6 +231,8 @@ private struct DeviceRowLabel: View {
     let direction: Direction
     let isLifted: Bool
     var isSubmenuOpen = false
+    /// nil in the drag layer, where the ⌄ only shows.
+    var toggleListeningModes: (() -> Void)?
 
     var body: some View {
         HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen, logName: "\(direction.title) \"\(row.device.name)\"") {
@@ -233,6 +257,20 @@ private struct DeviceRowLabel: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: Metrics.chevronSize, weight: .semibold))
                         .foregroundStyle(Color.primary.opacity(0.7))
+                } else if row.listening != nil {
+                    Button {
+                        toggleListeningModes?()
+                    } label: {
+                        Image(systemName: row.isFoldedOpen ? "chevron.down" : "chevron.right")
+                            .font(.system(size: Metrics.chevronSize))
+                            .foregroundStyle(Color.primary.opacity(Metrics.foldChevronOpacity))
+                            .contentTransition(.symbolEffect(.replace))
+                            .animation(.default, value: row.isFoldedOpen)
+                            .frame(width: Metrics.foldChevronWidth, height: Metrics.iconSize)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Listening Mode")
                 }
             }
         }
@@ -246,6 +284,133 @@ private struct DeviceRowLabel: View {
         .scaleEffect(isLifted ? Metrics.liftScale : 1)
         .padding(.horizontal, Metrics.edgeInset)
         .frame(width: Metrics.width)
+    }
+}
+
+/// What a fold holds: the heading and one row per mode.
+struct ListeningModeGroup: View {
+    let model: AppModel
+    let device: Device
+    let modes: [ListeningMode]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ListeningModeHeading()
+            ForEach(modes, id: \.self) { mode in
+                ListeningModeRow(model: model, device: device, mode: mode)
+            }
+        }
+        .background(ListeningBand().padding(.top, Metrics.listeningBandTop).padding(.bottom, Metrics.listeningBandBottom))
+    }
+}
+
+/// "Listening Mode" under an AirPods row folded open, with the gap above it that the Sound menu leaves.
+struct ListeningModeHeading: View {
+    var body: some View {
+        Text("Listening Mode")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.primary.opacity(0.48))
+            .frame(height: Metrics.listeningHeadingTextHeight)
+            .padding(.top, Metrics.listeningHeadingTop)
+            .padding(.bottom, Metrics.listeningRowsTop)
+            .padding(.horizontal, Metrics.contentInset)
+            .frame(width: Metrics.width, alignment: .leading)
+    }
+}
+
+/// The band behind the listening mode group, edge to edge, with a 1 pt line on its top and bottom edges, as in the Sound menu. In Dark Mode the line and the band are one grey (`docs/sound-menu.md`, Listening mode band).
+private struct ListeningBand: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            line
+            Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.083))
+            line
+        }
+    }
+
+    private var line: some View {
+        Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.145)).frame(height: 1)
+    }
+}
+
+/// The rows a fold moves: the rest of the Output list and the Input list, drawn with no gestures for the length of the fold.
+struct FoldBelowRows: View {
+    let model: AppModel
+    let uid: String
+
+    var body: some View {
+        let output = model.rows[.output] ?? []
+        let start = output.firstIndex { $0.id == uid }.map { $0 + 1 } ?? output.count
+        VStack(spacing: 0) {
+            ForEach(output[start...]) { row in
+                DeviceRowLabel(row: row, direction: .output, isLifted: false)
+                if row.isFoldedOpen, let modes = row.listening?.supported {
+                    ListeningModeGroup(model: model, device: row.device, modes: modes)
+                }
+            }
+            PanelSeparator(inset: Direction.output.separatorInset)
+            SectionHeader(direction: .input)
+            ForEach(model.rows[.input] ?? []) { row in
+                DeviceRowLabel(row: row, direction: .input, isLifted: false)
+            }
+            PanelSeparator(inset: Direction.input.separatorInset)
+        }
+    }
+}
+
+
+/// One mode under "Listening Mode", with a checkmark on the current one. The last row carries the gap to the next device row.
+struct ListeningModeRow: View {
+    let model: AppModel
+    let device: Device
+    let mode: ListeningMode
+
+    private var row: AppModel.Row? { model.rows[.output]?.first { $0.id == device.uid } }
+    private var isLast: Bool { row?.listening?.supported.last == mode }
+
+    var body: some View {
+        Button {
+            model.setListeningMode(mode, of: device)
+        } label: {
+            HoverRow(height: Metrics.listeningRowPitch) {
+                HStack(spacing: 0) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .opacity(row?.listening?.current == mode ? 1 : 0)
+                        .padding(.leading, Metrics.listeningCheckmarkInset)
+                        .frame(width: Metrics.listeningCheckmarkColumn, alignment: .leading)
+                    Group {
+                        if let icon = ListeningModeIcon.images[mode] {
+                            Image(nsImage: icon)
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: Metrics.listeningIconSize, height: Metrics.listeningIconSize)
+                                .foregroundStyle(Color.primary.opacity(0.5))
+                        }
+                    }
+                    .frame(width: Metrics.listeningIconColumn, alignment: .leading)
+                    Text(mode.title)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Metrics.edgeInset)
+        .padding(.bottom, isLast ? Metrics.listeningGroupBottom : 0)
+        .frame(width: Metrics.width)
+        .accessibilityAddTraits(row?.listening?.current == mode ? .isSelected : [])
+    }
+}
+
+extension ListeningMode {
+    var title: String {
+        switch self {
+        case .off: "Off"
+        case .transparency: "Transparency"
+        case .adaptive: "Adaptive"
+        case .noiseCancellation: "Noise Cancellation"
+        }
     }
 }
 
