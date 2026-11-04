@@ -11,6 +11,7 @@ struct IOApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = AppModel()
+    private let updater = AppUpdater()
     private var statusItem: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         LoginItem.registerOnFirstLaunch()
         model.start()
-        statusItem = StatusItemController(model: model)
+        updater.start()
+        statusItem = StatusItemController(model: model, updater: updater)
     }
 }

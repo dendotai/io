@@ -6,6 +6,7 @@ import SwiftUI
 final class StatusItemController {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let model: AppModel
+    private let updater: AppUpdater
     private let menu: NSMenu
     private let volumeSlider: NSMenuItem
     private let volumeSeparator: NSMenuItem
@@ -15,6 +16,7 @@ final class StatusItemController {
     private let soundSettings: NSMenuItem
     private let footerSeparator: NSMenuItem
     private let footer: NSMenuItem
+    private let updateAvailable: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
     /// Each AirPods row's group while folded open, built when it first folds open and again if its supported modes change.
     private var listeningGroups: [String: (modes: [ListeningMode], item: NSMenuItem)] = [:]
@@ -29,8 +31,9 @@ final class StatusItemController {
     private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
 
-    init(model: AppModel) {
+    init(model: AppModel, updater: AppUpdater) {
         self.model = model
+        self.updater = updater
         volumeSlider = Self.item(VolumeSlider(model: model))
         volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
         headers = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(SectionHeader(direction: $0))) })
@@ -48,6 +51,10 @@ final class StatusItemController {
         })
         footerSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
         footer = Self.item(PanelFooter())
+        updateAvailable = Self.item(MenuRow(title: "Update Available…") {
+            menu.cancelTracking()
+            updater.installUpdate()
+        })
         var dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)] = [:]
         for direction in Direction.allCases {
             let state = RowDrag(direction: direction)
@@ -72,8 +79,8 @@ final class StatusItemController {
 
     /// Moves existing items instead of making new ones, so a row keeps its view.
     private func updateItems() {
-        let (rows, airPodsName) = withObservationTracking {
-            (model.rows, model.airPodsName)
+        let (rows, airPodsName, isUpdateAvailable) = withObservationTracking {
+            (model.rows, model.airPodsName, updater.isUpdateAvailable)
         } onChange: { [weak self] in
             // Common modes, so the menu follows a connect while it is open.
             RunLoop.main.perform(inModes: [.common]) { self?.updateItems() }
@@ -123,6 +130,10 @@ final class StatusItemController {
             names[ObjectIdentifier(airPodsSettings)] = "AirPods Settings"
         }
         items += [soundSettings, footerSeparator, footer]
+        if isUpdateAvailable {
+            items.append(updateAvailable)
+            names[ObjectIdentifier(updateAvailable)] = "Update Available"
+        }
         if let foldAnimation, drag == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
             let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
         {
