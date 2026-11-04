@@ -1,0 +1,61 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  # Runs queue: semantic-release pushes the tag before it writes the GitHub release, and a cancel between the two leaves a tag with no release.
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: xcode-27
+    # Holds the signing, notarization, and update signing secrets, and only `main` can read it.
+    environment: prod
+    permissions:
+      contents: write # semantic-release pushes the tag and writes the GitHub release
+      pull-requests: write # `Rename the merged release PR` edits the PR title
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0 # semantic-release reads every tag and commit since the last release
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.3
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - run: bun install --frozen-lockfile
+
+      # Its prepare step runs scripts/build-release.sh before the tag, so a failed build publishes nothing. RELEASING.md has the flow.
+      - name: Release
+        run: bunx semantic-release@25.0.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEVELOPER_ID_APPLICATION_CERTIFICATE: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE }}
+          DEVELOPER_ID_APPLICATION_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_PASSWORD }}
+          ASC_KEY: ${{ secrets.ASC_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          SPARKLE_EDDSA_PRIVATE_KEY: ${{ secrets.SPARKLE_EDDSA_PRIVATE_KEY }}
+
+      # A release PR opens as "Release TBD", because the version does not exist until the Release step computes it. Cosmetic: the release is already out, so a failure here must not fail the run.
+      - name: Rename the merged release PR
+        continue-on-error: true
+        run: |
+          tag=$(git tag --points-at "$GITHUB_SHA" | grep '^v' | head -1 || true)
+          if [ -z "$tag" ]; then
+            echo "no release tag on $GITHUB_SHA: nothing was released"
+            exit 0
+          fi
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number' || true)
+          if [ -z "$pr" ] || [ "$pr" = null ]; then
+            echo "no PR behind $GITHUB_SHA (a direct push)"
+            exit 0
+          fi
+          gh pr edit "$pr" --title "Release $tag"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

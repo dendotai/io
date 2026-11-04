@@ -6,3 +6,5 @@ build/
 .swiftpm/
 *.xcuserstate
 .scratch/
+dist/
+node_modules/
