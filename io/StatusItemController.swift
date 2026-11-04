@@ -56,7 +56,7 @@ final class StatusItemController {
         self.dragLayers = dragLayers
         panelDelegate = PanelDelegate(model: model)
         menu.delegate = panelDelegate
-        panelDelegate.didOpen = { [weak self] in self?.prepareFoldAnimations() }
+        panelDelegate.willOpen = { [weak self] in self?.prepareFoldAnimations() }
         statusItem.menu = menu
         updateItems()
         updateIcon()
@@ -147,16 +147,13 @@ final class StatusItemController {
         }
     }
 
-    /// Runs after the panel has opened, so it never delays the open.
+    /// Runs before the panel shows, because an item inserted into an open menu leaves the panel empty, on most first opens after launch, for over a second.
     private func prepareFoldAnimations() {
-        RunLoop.main.perform(inModes: [.common]) { [weak self] in
-            guard let self else { return }
-            for row in model.rows[.output] ?? [] {
-                guard let modes = row.listening?.supported, foldAnimations[row.id]?.modes != modes else { continue }
-                foldAnimations[row.id] = FoldAnimation(model: model, device: row.device, modes: modes)
-            }
-            updateItems()
+        for row in model.rows[.output] ?? [] {
+            guard let modes = row.listening?.supported, foldAnimations[row.id]?.modes != modes else { continue }
+            foldAnimations[row.id] = FoldAnimation(model: model, device: row.device, modes: modes)
         }
+        updateItems()
     }
 
     /// A fold animates only while the panel shows and no drag runs; otherwise the row takes its end state at once.
@@ -174,9 +171,8 @@ final class StatusItemController {
             foldAnimation = animation
             animation.start(isOpening: row.isFoldedOpen) { [weak self, weak animation] in
                 guard let self, foldAnimation === animation else { return }
-                let window = animation?.window
                 foldAnimation = nil
-                updateItemsUnderRestingPointer(in: window)
+                updateItemsUnderRestingPointer(in: menu.items.first?.view?.window)
             }
         }
     }
@@ -306,7 +302,7 @@ final class StatusItemController {
 private final class PanelDelegate: NSObject, NSMenuDelegate {
     private let model: AppModel
     private let log = MenuLog()
-    var didOpen: (() -> Void)?
+    var willOpen: (() -> Void)?
 
     init(model: AppModel) {
         self.model = model
@@ -315,7 +311,7 @@ private final class PanelDelegate: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         log.menuWillOpen(menu)
         model.panelWillOpen()
-        didOpen?()
+        willOpen?()
     }
 
     func menuDidClose(_ menu: NSMenu) {
