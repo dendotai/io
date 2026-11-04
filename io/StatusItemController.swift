@@ -16,7 +16,7 @@ final class StatusItemController {
     private let soundSettings: NSMenuItem
     private let footerSeparator: NSMenuItem
     private let footer: NSMenuItem
-    private let updateAvailable: NSMenuItem
+    private let updateAvailableRow: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
     /// Each AirPods row's group while folded open, built when it first folds open and again if its supported modes change.
     private var listeningGroups: [String: (modes: [ListeningMode], item: NSMenuItem)] = [:]
@@ -51,7 +51,7 @@ final class StatusItemController {
         })
         footerSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
         footer = Self.item(PanelFooter())
-        updateAvailable = Self.item(MenuRow(title: "Update Available…") {
+        updateAvailableRow = Self.item(MenuRow(title: "Update Available…") {
             menu.cancelTracking()
             updater.installUpdate()
         })
@@ -131,8 +131,8 @@ final class StatusItemController {
         }
         items += [soundSettings, footerSeparator, footer]
         if isUpdateAvailable {
-            items.append(updateAvailable)
-            names[ObjectIdentifier(updateAvailable)] = "Update Available"
+            items.append(updateAvailableRow)
+            names[ObjectIdentifier(updateAvailableRow)] = "Update Available"
         }
         if let foldAnimation, drag == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
             let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)

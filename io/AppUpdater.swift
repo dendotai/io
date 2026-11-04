@@ -5,9 +5,11 @@ import Sparkle
 /// Sparkle with no window of its own: a newer version shows the panel's "Update Available…" row, and a click on the row installs it and relaunches the app.
 @Observable
 final class AppUpdater: NSObject, SPUUserDriver {
-    private(set) var isUpdateAvailable = false
-    @ObservationIgnored private var replyToUpdateFound: ((SPUUserUpdateChoice) -> Void)?
+    private var replyToUpdateFound: ((SPUUserUpdateChoice) -> Void)?
+    /// Held only to keep Sparkle running.
     @ObservationIgnored private var updater: SPUUpdater?
+
+    var isUpdateAvailable: Bool { replyToUpdateFound != nil }
 
     /// Only the release script sets `PUBLISHED_RELEASE`, so a local build never replaces itself with a published release.
     func start() {
@@ -23,7 +25,6 @@ final class AppUpdater: NSObject, SPUUserDriver {
     }
 
     func installUpdate() {
-        isUpdateAvailable = false
         replyToUpdateFound?(.install)
         replyToUpdateFound = nil
     }
@@ -36,8 +37,12 @@ final class AppUpdater: NSObject, SPUUserDriver {
 
     /// Sparkle starts no other check while this reply waits, so the row stays until the click.
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
-        replyToUpdateFound = reply
-        isUpdateAvailable = true
+        // An information-only item has nothing to install, and Sparkle's documentation forbids an install reply to it.
+        if appcastItem.isInformationOnlyUpdate {
+            reply(.dismiss)
+        } else {
+            replyToUpdateFound = reply
+        }
     }
 
     func showUpdateReleaseNotes(with downloadData: SPUDownloadData) {}
@@ -75,7 +80,6 @@ final class AppUpdater: NSObject, SPUUserDriver {
     }
 
     func dismissUpdateInstallation() {
-        isUpdateAvailable = false
         replyToUpdateFound = nil
     }
 }
