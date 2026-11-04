@@ -41,7 +41,11 @@ enum Metrics {
     static let listeningIconSize: CGFloat = 18
     /// The fold's "›" and "⌄" turn around one centre 22 in from the body's edge, with a lighter stroke than the "›" of a submenu: a 2x crop of the Sound menu in Dark Mode, peak grey 128 on 51.
     static let foldChevronWidth: CGFloat = 16
+    /// The swap's length in `docs/sound-menu.md`, Fold animation. Linear, because `.default` reached the last pixel 333 ms after the one before, against 17-50 ms in the Sound menu.
+    static let foldChevronSwapDuration: TimeInterval = 0.45
     static let foldChevronOpacity: CGFloat = 0.45
+    /// The Sound menu's ⌄ ink strengthens during a press (`docs/sound-menu.md`, Fold chevron, real pointer): grey 150 to 38; io's ink at 0.85 read 66, so the press takes the full primary colour.
+    static let foldChevronPressedOpacity: CGFloat = 1
     static let hideWidth: CGFloat = 110
     /// A standard menu item's highlight, measured at 2x.
     static let hideRowHeight: CGFloat = 24
@@ -233,9 +237,10 @@ private struct DeviceRowLabel: View {
     var isSubmenuOpen = false
     /// nil in the drag layer, where the ⌄ only shows.
     var toggleListeningModes: (() -> Void)?
+    @State private var isFoldChevronHovered = false
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen, logName: "\(direction.title) \"\(row.device.name)\"") {
+        HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen, isHoverHighlightHidden: isFoldChevronHovered, logName: "\(direction.title) \"\(row.device.name)\"") {
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: row.symbolName)
@@ -263,13 +268,13 @@ private struct DeviceRowLabel: View {
                     } label: {
                         Image(systemName: row.isFoldedOpen ? "chevron.down" : "chevron.right")
                             .font(.system(size: Metrics.chevronSize))
-                            .foregroundStyle(Color.primary.opacity(Metrics.foldChevronOpacity))
                             .contentTransition(.symbolEffect(.replace))
-                            .animation(.default, value: row.isFoldedOpen)
+                            .animation(.linear(duration: Metrics.foldChevronSwapDuration), value: row.isFoldedOpen)
                             .frame(width: Metrics.foldChevronWidth, height: Metrics.iconSize)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(FoldChevronButtonStyle())
+                    .onHover { isFoldChevronHovered = $0 }
                     .accessibilityLabel("Listening Mode")
                 }
             }
@@ -325,13 +330,13 @@ private struct ListeningBand: View {
     var body: some View {
         VStack(spacing: 0) {
             line
-            Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.083))
+            Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.046))
             line
         }
     }
 
     private var line: some View {
-        Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.145)).frame(height: 1)
+        Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.095)).frame(height: 1)
     }
 }
 
@@ -608,6 +613,8 @@ private struct HoverRow<Content: View>: View {
     var radius = Metrics.highlightRadius
     var textInset = Metrics.contentInset - Metrics.edgeInset
     var isHighlighted = false
+    /// The Sound menu's AirPods row shows no highlight with the pointer on its ⌄.
+    var isHoverHighlightHidden = false
     var isAccented = false
     var logName: String?
     @ViewBuilder let content: () -> Content
@@ -621,7 +628,7 @@ private struct HoverRow<Content: View>: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: radius)
-                    .fill(isHovered || isHighlighted ? (isAccented ? Color.accentColor : Color.primary.opacity(0.09)) : .clear)
+                    .fill((isHovered && !isHoverHighlightHidden) || isHighlighted ? (isAccented ? Color.accentColor : Color.primary.opacity(0.09)) : .clear)
             )
             .onHover { hovering in
                 isHovered = hovering
@@ -629,5 +636,12 @@ private struct HoverRow<Content: View>: View {
                     panelLog.notice("hover \(hovering ? "enter" : "exit", privacy: .public) \(logName, privacy: .public)")
                 }
             }
+    }
+}
+
+private struct FoldChevronButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.primary.opacity(configuration.isPressed ? Metrics.foldChevronPressedOpacity : Metrics.foldChevronOpacity))
     }
 }

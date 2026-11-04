@@ -17,9 +17,7 @@ final class FoldAnimation {
     private var isOpening = true
     private var height: CGFloat = 0
 
-    var window: NSWindow? { container.window }
-
-    /// Built when the panel opens, and kept in the menu at no height, because building and first drawing these views at the click delays the first frame.
+    /// Built when the panel opens, because building these views at the click delays the first frame.
     init(model: AppModel, device: Device, modes: [ListeningMode]) {
         uid = device.uid
         self.modes = modes
@@ -75,6 +73,8 @@ final class FoldAnimation {
     }
 
     private func layOut() {
+        // `NSMenu` gives a shown item at least 1 pt, and the rows below would jump by that much as a fold starts and ends.
+        item.isHidden = isIdle
         let total = isIdle ? 0 : rows.frame.height + height
         container.setFrameSize(NSSize(width: Metrics.width, height: total))
         let visibleGroup = isOpening ? height : groupHeight
