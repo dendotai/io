@@ -13,6 +13,12 @@ When a newer version exists, "Update to <version>" appears at the bottom of the 
 
 Requires macOS 27 or later.
 
+## Install
+
+```bash
+curl -fsSL https://github.com/dendotai/io/releases/latest/download/io.zip -o /tmp/io.zip && ditto -x -k /tmp/io.zip /Applications && open /Applications/io.app
+```
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
