@@ -55,6 +55,10 @@ _Avoid_: unfold, expand
 The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu.
 _Avoid_: battery status, charge
 
+**Update**:
+A newer released version of the app, which the app installs in one click.
+_Avoid_: upgrade
+
 **Panel**:
 What opens when you click the app's menu bar icon.
 _Avoid_: popup, popover, menu

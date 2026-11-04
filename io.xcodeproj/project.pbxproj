@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1000000000000000000000C /* Priority in Frameworks */ = {isa = PBXBuildFile; productRef = A1000000000000000000000A /* Priority */; };
+		A10000000000000000000015 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000014 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000000C /* Priority in Frameworks */,
+				A10000000000000000000015 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = io;
 			packageProductDependencies = (
 				A1000000000000000000000A /* Priority */,
+				A10000000000000000000014 /* Sparkle */,
 			);
 			productName = io;
 			productReference = A10000000000000000000005 /* io.app */;
@@ -97,6 +100,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A1000000000000000000000B /* XCLocalSwiftPackageReference "Packages/Priority" */,
+				A10000000000000000000013 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A10000000000000000000004 /* Products */;
@@ -164,8 +168,8 @@
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_DEBUG_DYLIB = NO;
-				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "io-Info.plist";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "io reads and sets the listening mode of your AirPods.";
 				INFOPLIST_KEY_CFBundleDisplayName = io;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -190,8 +194,8 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "io-Info.plist";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "io reads and sets the listening mode of your AirPods.";
 				INFOPLIST_KEY_CFBundleDisplayName = io;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -239,10 +243,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A10000000000000000000013 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A1000000000000000000000A /* Priority */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Priority;
+		};
+		A10000000000000000000014 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000013 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
