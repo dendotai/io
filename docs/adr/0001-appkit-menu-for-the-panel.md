@@ -2,7 +2,7 @@
 
 The panel opens from an `NSStatusItem` as an `NSMenu` with one `NSMenuItem` per section header, device row, separator, and footer, each with an `NSHostingView` of its SwiftUI content as its view. The panel copies the system Sound menu, which the ControlCenter process draws with private code; an `NSMenu` is the public way to get the same corners, glass, shadow, gap below the menu bar, closing on a click outside, and the move to the next menu when the pointer hovers another menu bar icon. One item per row gives a row its own native submenu ("Hide"), which AppKit opens on hover for an item with a custom view. An item's view is cut off at its own frame, so a drag swaps the section's row items for one item that holds the whole section, and the dragged row slides over its neighbours in it. The dragged row's gesture keeps reporting after its item leaves the menu, with a wrong distance, so the drag reads the pointer position instead, on macOS 27. A release that reaches the menu over a row with a submenu keeps that submenu closed until the pointer moves, so the drag swaps the row items back only after the menu has handled the release. Inside an open `NSMenu`, a right-click reaches only `hitTest`, and the pointer stays an arrow (`pointerStyle`, `NSCursor.set`, and a cursor rect tried).
 
-Open: whether the menu grows while open when the AirPods row folds open. The ticket that adds the fold checks it.
+The menu grows while open when an item's frame changes, so a fold is one item whose height a timer drives; like a drag, it stands in for the rows below it, because they overlap the group.
 
 ## Rejected
 
