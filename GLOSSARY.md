@@ -9,8 +9,11 @@ An audio output or input that macOS reports, such as AirPods Pro D1 or MacBook P
 _Avoid_: source, endpoint
 
 **Remembered device**:
-A device the app has seen at least once. It stays in its list, connected or not, until it is forgotten.
+A device the app has seen at least once. It stays in its list, connected or not, until it is hidden.
 _Avoid_: known device, stored device
+
+**Built-in device**:
+A device that is part of the Mac, such as MacBook Pro Speakers or MacBook Pro Microphone. It can never be hidden.
 
 **Output list**:
 The ordered list of remembered output devices. Its order is the priority.
@@ -20,17 +23,41 @@ _Avoid_: speaker list, priority list
 The ordered list of remembered input devices. Its order is the priority.
 _Avoid_: microphone list, priority list
 
+**Device list**:
+The Output list or the Input list.
+_Avoid_: priority list
+
 **Priority**:
 A device's place in its list. The app uses the highest connected device.
 _Avoid_: rank, number
 
-**Forget**:
+**Reorder**:
+Dragging a row in the panel to change its priority. It never switches the device in use.
+_Avoid_: sort, rearrange
+
+**Hand pick**:
+A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects or a device above it connects.
+_Avoid_: override, manual mode
+
+**Hide**:
 Removing a disconnected remembered device from its list.
-_Avoid_: delete, hide
+_Avoid_: delete, forget
 
 **Listening mode**:
 The AirPods setting with the values Off, Transparency, Adaptive, and Noise Cancellation.
 _Avoid_: noise control, ANC mode
+
+**Fold open**:
+A click on the ⌄ of a connected AirPods row, which shows its listening mode inside the panel.
+_Avoid_: unfold, expand
+
+**Battery levels**:
+The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu.
+_Avoid_: battery status, charge
+
+**Update**:
+A newer released version of the app, which the app installs in one click.
+_Avoid_: upgrade
 
 **Panel**:
 What opens when you click the app's menu bar icon.

@@ -1,0 +1,47 @@
+{
+  "name": "io",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "bun@1.4.3",
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@semantic-release/exec": "7.1.0"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "plugins": [
+      [
+        "@semantic-release/commit-analyzer",
+        {
+          "releaseRules": [
+            {
+              "type": "perf",
+              "release": false
+            }
+          ]
+        }
+      ],
+      "@semantic-release/release-notes-generator",
+      [
+        "@semantic-release/exec",
+        {
+          "prepareCmd": "scripts/build-release.sh ${nextRelease.version}"
+        }
+      ],
+      [
+        "@semantic-release/github",
+        {
+          "assets": [
+            "dist/io.zip",
+            "dist/appcast.xml"
+          ],
+          "successComment": false,
+          "failComment": false
+        }
+      ]
+    ]
+  }
+}
