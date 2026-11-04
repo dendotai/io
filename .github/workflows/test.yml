@@ -22,6 +22,8 @@ jobs:
 
   # Runs the pinned semantic-release in dry-run mode, so a version or config that cannot load fails its pull request instead of the next release on main.
   semantic-release-dry-run:
+    # A fork's token is read-only, and the dry run needs write access.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     permissions:
       contents: write # the dry run still checks it may push (`git push --dry-run`); it pushes nothing

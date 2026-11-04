@@ -16,14 +16,20 @@ A release is a `dev` → `main` pull request. Its merge builds, signs, and notar
 
 ## Which prefix raises which part
 
-| Commits since the last tag                              | Release             |
-| ------------------------------------------------------- | ------------------- |
-| a `fix:`                                                | `v0.1.0` → `v0.1.1` |
-| a `feat:`                                               | `v0.1.1` → `v0.2.0` |
-| a `!` after the type, or `BREAKING CHANGE:` in the body | `v0.2.0` → `v1.0.0` |
-| only `chore:`, `docs:`, `test:`, `refactor:`, …         | no release          |
+| Commits since the last tag                      | Release             |
+| ----------------------------------------------- | ------------------- |
+| a `fix:`                                        | `v0.1.0` → `v0.1.1` |
+| a `feat:`                                       | `v0.1.1` → `v0.2.0` |
+| `BREAKING CHANGE:` in the body                  | `v0.2.0` → `v1.0.0` |
+| only `chore:`, `docs:`, `test:`, `perf:`, …     | no release          |
+
+A `!` after the type raises nothing, because semantic-release's default preset does not read it.
 
 The tag `v0.0.0` on the commit before the first release makes that release `v0.1.0`, because semantic-release starts at `1.0.0` in a repo with no tag.
+
+## A failed upload
+
+A failed upload leaves a pushed tag and a draft release, and a rerun finds no new commits. Delete the draft and the tag, then rerun the workflow.
 
 ## How an update reaches the app
 

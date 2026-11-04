@@ -34,7 +34,7 @@ xcodebuild -quiet -project "$root/io.xcodeproj" -scheme io -configuration Releas
   build
 
 app=$work/build/Build/Products/Release/io.app
-framework=$app/Contents/Frameworks/Sparkle.framework/Versions/B
+sparkle=$app/Contents/Frameworks/Sparkle.framework
 sparkle_bin=$packages/artifacts/sparkle/Sparkle/bin
 
 keychain_password=$(uuidgen)
@@ -47,22 +47,23 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain
 sign() {
   codesign --force --timestamp --options runtime --keychain "$keychain" --sign "Developer ID Application" "$@"
 }
-# Inside out, in the order Sparkle's documentation gives for a re-sign. The local build's ad-hoc signatures have no hardened runtime, and notarization requires it.
-sign "$framework/XPCServices/Installer.xpc"
-sign --preserve-metadata=entitlements "$framework/XPCServices/Downloader.xpc"
-sign "$framework/Autoupdate"
-sign "$framework/Updater.app"
-sign "$app/Contents/Frameworks/Sparkle.framework"
+# Inside out, in the order Sparkle's documentation gives for a re-sign. xcodebuild leaves ad-hoc signatures with no hardened runtime, and notarization requires a Developer ID signature with it.
+sign "$sparkle/Versions/B/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "$sparkle/Versions/B/XPCServices/Downloader.xpc"
+sign "$sparkle/Versions/B/Autoupdate"
+sign "$sparkle/Versions/B/Updater.app"
+sign "$sparkle"
 sign "$app"
 codesign --verify --deep --strict "$app"
 
 printf '%s' "$ASC_KEY" >"$work/asc-key.p8"
+notary_key=(--key "$work/asc-key.p8" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID")
 ditto -c -k --sequesterRsrc --keepParent "$app" "$work/notarize.zip"
 # `notarytool --wait` exits 0 on a rejected build too, so the status is read from its output.
-submission=$(xcrun notarytool submit "$work/notarize.zip" --key "$work/asc-key.p8" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait --output-format json)
+submission=$(xcrun notarytool submit "$work/notarize.zip" "${notary_key[@]}" --wait --output-format json)
 status=$(jq -r .status <<<"$submission")
 if [ "$status" != Accepted ]; then
-  xcrun notarytool log "$(jq -r .id <<<"$submission")" --key "$work/asc-key.p8" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID"
+  xcrun notarytool log "$(jq -r .id <<<"$submission")" "${notary_key[@]}"
   echo "notarization status: $status" >&2
   exit 1
 fi
@@ -75,3 +76,6 @@ ditto -c -k --sequesterRsrc --keepParent "$app" "$dist/io.zip"
 "$sparkle_bin/generate_appcast" --ed-key-file - \
   --download-url-prefix "https://github.com/dendotai/io/releases/download/v$version/" \
   --maximum-deltas 0 "$dist" <<<"$SPARKLE_EDDSA_PRIVATE_KEY"
+# semantic-release skips a missing asset and publishes without it, and the feed must never lack its update.
+test -s "$dist/io.zip"
+test -s "$dist/appcast.xml"
