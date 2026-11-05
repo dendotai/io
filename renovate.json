@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":pinAllExceptPeerDependencies",
+    "helpers:pinGitHubActionDigests",
+    "group:allNonMajor"
+  ],
+  "packageRules": [
+    {
+      "description": "A closed PR skips the version its title names. The default major title names only the major (`to v5`), so closing it would skip every later v5 release.",
+      "matchUpdateTypes": ["major"],
+      "commitMessageExtra": "to {{{newVersion}}}"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "semantic-release runs through bunx, outside package.json, so every line that names its version is bumped here.",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": ["\\bsemantic-release@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "semantic-release",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Renovate's Swift manager reads only Package.swift, and an Xcode project stores its resolved packages here. One match edits revision and version together.",
+      "managerFilePatterns": [
+        "/^io\\.xcodeproj/project\\.xcworkspace/xcshareddata/swiftpm/Package\\.resolved$/"
+      ],
+      "matchStrings": [
+        "\"location\" : \"https://github\\.com/sparkle-project/Sparkle\",\\s*\"state\" : \\{\\s*\"revision\" : \"(?<currentDigest>[0-9a-f]{40})\",\\s*\"version\" : \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "sparkle-project/Sparkle",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "A move to Sparkle 3 fails `upToNextMajorVersion` unless minimumVersion moves with it. The same depName puts this edit in the same PR as Package.resolved.",
+      "managerFilePatterns": ["/^io\\.xcodeproj/project\\.pbxproj$/"],
+      "matchStrings": [
+        "repositoryURL = \"https://github\\.com/sparkle-project/Sparkle\";\\s*requirement = \\{\\s*kind = upToNextMajorVersion;\\s*minimumVersion = (?<currentValue>\\d+\\.\\d+\\.\\d+);"
+      ],
+      "depNameTemplate": "sparkle-project/Sparkle",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    }
+  ]
+}
