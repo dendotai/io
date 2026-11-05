@@ -9,6 +9,7 @@ A release is a `dev` → `main` pull request. Its merge builds, signs, and notar
 - Merge it with a **merge commit**. A squash merge turns the pull request title into the one commit semantic-release reads, and `Release TBD` carries no prefix.
 - The push to `main` runs `.github/workflows/release.yml`. Its `Release` step runs semantic-release, which reads the commits since the last tag and picks the version.
 - semantic-release's prepare step runs `scripts/build-release.sh`, which writes `dist/io.zip` and `dist/appcast.xml`. A failure there stops the run before the tag, so nothing is published.
+- `scripts/build-release.sh` builds the app with `scripts/build-app.sh`, the script the `build` job in `.github/workflows/test.yml` runs on every pull request.
 - semantic-release then pushes the tag (`v0.1.0`) and writes the GitHub release with its notes and both files.
 - The `Rename the merged release PR` step renames the merged pull request to `Release v0.1.0`.
 
@@ -54,4 +55,4 @@ The public half of the EdDSA key is `SUPublicEDKey` in `io-Info.plist`. A new ke
 
 ## A local run
 
-`scripts/build-release.sh <version>` runs on a Mac with the secrets above in its environment and writes `dist/`. Set `SOURCE_PACKAGES_DIR` to a folder that holds already fetched packages, because a fetch into an empty folder can open a login keychain dialog.
+`scripts/build-release.sh <version>` runs on a Mac with the secrets above in its environment and writes `dist/`. Set `SOURCE_PACKAGES_DIR` to the absolute path of a folder that holds already fetched packages, because a fetch into an empty folder can open a login keychain dialog.

@@ -3,7 +3,32 @@ name: test
 on:
   pull_request:
 
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+# One job per check, so each PR check line names what failed (`test / unit`, `test / build`, …) and the checks run in parallel.
 jobs:
+  # `unit` and `build` use xcode-27, the only GitHub-hosted label with the macOS 27 the package and the app require.
+  unit:
+    runs-on: xcode-27
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - run: swift test --package-path Packages/Priority
+
+  build:
+    runs-on: xcode-27
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # This build is never uploaded, so it needs no real version.
+      - run: scripts/build-app.sh 0.0.0 "$RUNNER_TEMP/build-output"
+
   commitlint:
     if: github.base_ref == 'dev'
     runs-on: ubuntu-24.04

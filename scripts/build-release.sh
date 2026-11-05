@@ -20,22 +20,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# A local run reuses packages it already fetched, because a fetch into an empty folder can open a login keychain dialog.
-packages=${SOURCE_PACKAGES_DIR:-$work/packages}
-package_flags=(-disableAutomaticPackageResolution)
-if [ -n "${SOURCE_PACKAGES_DIR:-}" ]; then
-  package_flags+=(-skipPackageUpdates)
-fi
+"$root/scripts/build-app.sh" "$version" "$work"
 
-xcodebuild -quiet -project "$root/io.xcodeproj" -scheme io -configuration Release \
-  -derivedDataPath "$work/build" -clonedSourcePackagesDirPath "$packages" "${package_flags[@]}" \
-  MARKETING_VERSION="$version" CURRENT_PROJECT_VERSION="$version" \
-  SWIFT_ACTIVE_COMPILATION_CONDITIONS=PUBLISHED_RELEASE \
-  build
-
-app=$work/build/Build/Products/Release/io.app
+app=$work/io.app
 sparkle=$app/Contents/Frameworks/Sparkle.framework
-sparkle_bin=$packages/artifacts/sparkle/Sparkle/bin
+sparkle_bin=$work/sparkle-bin
 
 keychain_password=$(uuidgen)
 security create-keychain -p "$keychain_password" "$keychain"
