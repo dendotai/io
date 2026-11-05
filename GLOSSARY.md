@@ -60,5 +60,8 @@ A newer released version of the app, which the app installs in one click.
 _Avoid_: upgrade
 
 **Panel**:
-What opens when you click the app's menu bar icon.
+What opens when you left-click the app's menu bar icon.
 _Avoid_: popup, popover, menu
+
+**Right-click menu**:
+What opens when you right-click the app's menu bar icon. It holds the app's own items, "Open at Login" and "Quit io".

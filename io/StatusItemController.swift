@@ -2,7 +2,7 @@ import AppKit
 import Priority
 import SwiftUI
 
-/// The panel is an `NSMenu` with one item per header, device row, separator, and footer, each hosting SwiftUI content (ADR 0001).
+/// The panel is an `NSMenu` with one item per header, device row, and separator, each hosting SwiftUI content (ADR 0001).
 final class StatusItemController {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let model: AppModel
@@ -14,8 +14,7 @@ final class StatusItemController {
     private let separators: [Direction: NSMenuItem]
     private let airPodsSettings: NSMenuItem
     private let soundSettings: NSMenuItem
-    private let footerSeparator: NSMenuItem
-    private let footer: NSMenuItem
+    private let updateSeparator: NSMenuItem
     private let updateAvailableRow: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
     /// Each AirPods row's group while folded open, built when it first folds open and again if its supported modes change.
@@ -30,6 +29,8 @@ final class StatusItemController {
     private let dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)]
     private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
+    private let rightClickMenu = NSMenu()
+    private let rightClickMenuDelegate: RightClickMenuDelegate
 
     init(model: AppModel, updater: AppUpdater) {
         self.model = model
@@ -49,8 +50,7 @@ final class StatusItemController {
             menu.cancelTracking()
             model.openSoundSettings()
         })
-        footerSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
-        footer = Self.item(PanelFooter())
+        updateSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
         updateAvailableRow = Self.item(UpdateRow(updater: updater) {
             menu.cancelTracking()
             updater.installUpdate()
@@ -62,11 +62,25 @@ final class StatusItemController {
         }
         self.dragLayers = dragLayers
         panelDelegate = PanelDelegate(model: model)
+        rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
         menu.delegate = panelDelegate
         panelDelegate.willOpen = { [weak self] in self?.prepareFoldAnimations() }
         statusItem.menu = menu
+        rightClickMenu.delegate = rightClickMenuDelegate
+        rightClickMenuDelegate.didClose = { [weak self] in self?.statusItem.menu = menu }
+        watchRightClicks()
         updateItems()
         updateIcon()
+    }
+
+    /// The panel stays set as `statusItem.menu`, so a hover from another menu bar menu opens it (ADR 0001); a right-click swaps the menu just before the native click opens it. AppKit reports a Control-click here as a `rightMouseDown` too. If a later macOS stops this event, a right-click opens the panel (https://developer.apple.com/forums/thread/832823).
+    private func watchRightClicks() {
+        NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+            if let self, event.window === statusItem.button?.window {
+                statusItem.menu = rightClickMenu
+            }
+            return event
+        }
     }
 
     private static func item(_ view: some View) -> NSMenuItem {
@@ -129,9 +143,9 @@ final class StatusItemController {
             items.append(airPodsSettings)
             names[ObjectIdentifier(airPodsSettings)] = "AirPods Settings"
         }
-        items += [soundSettings, footerSeparator, footer]
+        items.append(soundSettings)
         if isUpdateAvailable {
-            items.append(updateAvailableRow)
+            items += [updateSeparator, updateAvailableRow]
             names[ObjectIdentifier(updateAvailableRow)] = "Update"
         }
         if let foldAnimation, drag == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
@@ -154,7 +168,7 @@ final class StatusItemController {
             menu.removeItem(at: items.count)
         }
         if !moved.isEmpty || removedCount > 0 {
-            panelLog.notice("items inserted: \(moved.joined(separator: ", "), privacy: .public); removed from the end: \(removedCount)")
+            panelLog.notice("items inserted: \(moved.joined(separator: ", ")); removed from the end: \(removedCount)")
         }
     }
 
@@ -234,7 +248,7 @@ final class StatusItemController {
         RunLoop.main.add(timer, forMode: .common)
         // The first event's translation is still right, and holds the move made before the drag began.
         drag = (direction, pointerY + translation, timer, 0)
-        panelLog.notice("drag start \(String(describing: direction), privacy: .public) \"\(device.name, privacy: .public)\"")
+        panelLog.notice("drag start \(String(describing: direction)) \"\(device.name)\"")
         updateItems()
     }
 
@@ -327,5 +341,51 @@ private final class PanelDelegate: NSObject, NSMenuDelegate {
 
     func menuDidClose(_ menu: NSMenu) {
         log.menuDidClose(menu)
+    }
+
+    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        log.menu(menu, willHighlight: item)
+    }
+}
+
+/// Builds the right-click menu each time it opens, because the login item can change in System Settings while io runs.
+private final class RightClickMenuDelegate: NSObject, NSMenuDelegate {
+    private let updater: AppUpdater
+    var didClose: (() -> Void)?
+
+    init(updater: AppUpdater) {
+        self.updater = updater
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        if let updateTitle = updater.updateTitle {
+            menu.addItem(item(updateTitle, #selector(installUpdate)))
+            menu.addItem(.separator())
+        }
+        let openAtLogin = NSMenuItem()
+        let row = NSHostingView(rootView: OpenAtLoginRow())
+        row.setFrameSize(row.fittingSize)
+        openAtLogin.view = row
+        menu.addItem(openAtLogin)
+        menu.addItem(item("Quit io", #selector(quit)))
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        didClose?()
+    }
+
+    private func item(_ title: String, _ action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @objc private func installUpdate() {
+        updater.installUpdate()
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
     }
 }
