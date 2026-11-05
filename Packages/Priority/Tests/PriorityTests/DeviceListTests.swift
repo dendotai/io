@@ -9,7 +9,7 @@ final class MemoryStore: DeviceListStore {
 }
 
 let speakers = Device(uid: "speakers", name: "MacBook Pro Speakers")
-let airPods = Device(uid: "airpods-1", name: "AirPods Pro D1")
+let airPods = Device(uid: "airpods-1", name: "AirPods Pro")
 let display = Device(uid: "display", name: "Studio Display")
 
 @Test func newOutputGoesToTheTop() {
@@ -211,8 +211,8 @@ let display = Device(uid: "display", name: "Studio Display")
 }
 
 let microphone = Device(uid: "microphone", name: "MacBook Pro Microphone")
-let iPhone = Device(uid: "iphone-1", name: "iPhone D1 Microphone")
-let airPodsMicrophone = Device(uid: "airpods-1-input", name: "AirPods Max D")
+let iPhone = Device(uid: "iphone-1", name: "iPhone Microphone")
+let airPodsMicrophone = Device(uid: "airpods-1-input", name: "AirPods Max")
 
 @Test func newInputGoesToTheBottom() {
     let list = DeviceList(newDevices: .bottom, store: MemoryStore())
@@ -316,6 +316,6 @@ let builtInSpeakers = Device(uid: "built-in-speakers", name: "MacBook Pro Speake
 }
 
 @Test func listSavedWithoutBuiltInStillLoads() throws {
-    let data = Data(#"[{"uid":"airpods-1","name":"AirPods Pro D1"}]"#.utf8)
+    let data = Data(#"[{"uid":"airpods-1","name":"AirPods Pro"}]"#.utf8)
     #expect(try JSONDecoder().decode([Device].self, from: data) == [airPods])
 }
