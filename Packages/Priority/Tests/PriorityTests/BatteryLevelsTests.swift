@@ -17,38 +17,38 @@ func combined(_ name: String, left: Int, right: Int, group: String = "group-1") 
 // Recorded on macOS 27: both buds out of the case, the case open; the Sound menu shows "78%, 62%".
 @Test func aPairReportsItsBudsAndCaseUnderTheBudsName() {
     let levels = BatteryLevels.byName([
-        part("AirPods Pro D1 Case", "Case", 62),
-        combined("AirPods Pro D1", left: 78, right: 79),
+        part("AirPods Pro Case", "Case", 62),
+        combined("AirPods Pro", left: 78, right: 79),
     ])
-    #expect(levels == ["AirPods Pro D1": BatteryLevels(buds: 78, chargingCase: 62)])
+    #expect(levels == ["AirPods Pro": BatteryLevels(buds: 78, chargingCase: 62)])
 }
 
 @Test func aLevelMacOSDoesNotReportIsLeftOut() {
-    let levels = BatteryLevels.byName([combined("AirPods Pro D1", left: 40, right: 45)])
-    #expect(levels == ["AirPods Pro D1": BatteryLevels(buds: 40)])
+    let levels = BatteryLevels.byName([combined("AirPods Pro", left: 40, right: 45)])
+    #expect(levels == ["AirPods Pro": BatteryLevels(buds: 40)])
 }
 
 @Test func aPartMarkedNotPresentIsLeftOut() {
     let levels = BatteryLevels.byName([
-        part("AirPods Pro D1 Case", "Case", 0, isPresent: false),
-        combined("AirPods Pro D1", left: 50, right: 60),
+        part("AirPods Pro Case", "Case", 0, isPresent: false),
+        combined("AirPods Pro", left: 50, right: 60),
     ])
-    #expect(levels == ["AirPods Pro D1": BatteryLevels(buds: 50)])
+    #expect(levels == ["AirPods Pro": BatteryLevels(buds: 50)])
 }
 
 // Recorded on macOS 27: the right bud in the case; the Sound menu shows "74%, 71%, 62%".
 @Test func budsReportedApartKeepTheirOwnLevels() {
     let levels = BatteryLevels.byName([
-        part("AirPods Pro D1 Case", "Case", 62),
-        part("AirPods Pro D1", "Left", 74),
-        part("AirPods Pro D1", "Right", 71),
+        part("AirPods Pro Case", "Case", 62),
+        part("AirPods Pro", "Left", 74),
+        part("AirPods Pro", "Right", 71),
     ])
-    #expect(levels == ["AirPods Pro D1": BatteryLevels(left: 74, right: 71, chargingCase: 62)])
+    #expect(levels == ["AirPods Pro": BatteryLevels(left: 74, right: 71, chargingCase: 62)])
 }
 
 @Test func headphonesWithOneBatteryReportItAsTheBuds() {
-    let levels = BatteryLevels.byName([part("AirPods Max D", "Single", 90, group: "group-2")])
-    #expect(levels == ["AirPods Max D": BatteryLevels(buds: 90)])
+    let levels = BatteryLevels.byName([part("AirPods Max", "Single", 90, group: "group-2")])
+    #expect(levels == ["AirPods Max": BatteryLevels(buds: 90)])
 }
 
 @Test func twoPairsKeepTheirOwnCase() {

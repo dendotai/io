@@ -15,7 +15,7 @@ func makeSwitcher() -> Switcher {
     )
 }
 
-/// AirPods Max D on, MacBook Pro Microphone in use.
+/// AirPods Max on, MacBook Pro Microphone in use.
 func startWearingAirPods(_ switcher: Switcher) {
     switcher.devicesChanged(
         connected: [.output: [speakers, airPods], .input: [microphone, airPodsMicrophone]],
@@ -24,7 +24,7 @@ func startWearingAirPods(_ switcher: Switcher) {
     )
 }
 
-// Recorded on macOS 27: a switch to MacBook Pro Speakers, then macOS moves the output back to AirPods Max D and takes their microphone.
+// Recorded on macOS 27: a switch to MacBook Pro Speakers, then macOS moves the output back to AirPods Max and takes their microphone.
 @Test func macOSTakingTheAirPodsMicrophoneAfterAnOutputSwitchIsUndone() {
     let switcher = makeSwitcher()
     startWearingAirPods(switcher)
@@ -35,7 +35,7 @@ func startWearingAirPods(_ switcher: Switcher) {
     #expect(switcher.chosenDevice(.input) == microphone)
 }
 
-// Recorded on macOS 27: AirPods Max D taken off to the neck disconnect, and put back on connect again.
+// Recorded on macOS 27: AirPods Max taken off to the neck disconnect, and put back on connect again.
 @Test func airPodsTakenOffAndPutBackOnKeepTheMicrophone() {
     let switcher = makeSwitcher()
     startWearingAirPods(switcher)

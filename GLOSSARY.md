@@ -5,7 +5,7 @@ A macOS menu bar app that keeps a priority order of audio devices and switches t
 ## Language
 
 **Device**:
-An audio output or input that macOS reports, such as AirPods Pro D1 or MacBook Pro Microphone.
+An audio output or input that macOS reports, such as AirPods Pro or MacBook Pro Microphone.
 _Avoid_: source, endpoint
 
 **Remembered device**:
