@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import Sparkle
 
-/// Sparkle with no window of its own: a newer version shows the panel's "Update to <version>" row, and a click on the row installs it and relaunches the app.
+/// Sparkle with no window of its own: a newer version shows `updateTitle` in the panel and the right-click menu, and a click there installs the version and relaunches the app.
 @Observable
 final class AppUpdater: NSObject, SPUUserDriver {
     private var pendingUpdate: (version: String, reply: (SPUUserUpdateChoice) -> Void)?
@@ -10,6 +10,7 @@ final class AppUpdater: NSObject, SPUUserDriver {
     @ObservationIgnored private var updater: SPUUpdater?
 
     var availableVersion: String? { pendingUpdate?.version }
+    var updateTitle: String? { availableVersion.map { "Update to \($0)" } }
 
     /// Only the release script sets `PUBLISHED_RELEASE`, so a local build never replaces itself with a published release.
     func start() {

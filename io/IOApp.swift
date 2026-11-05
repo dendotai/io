@@ -16,17 +16,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+            // `io -showUpdateVersion <version>` acts as if that update exists, in the rendered panel and in the running app.
+            if let version = UserDefaults.standard.string(forKey: "showUpdateVersion") {
+                updater.showUpdateWithoutChecking(version: version)
+            }
             // `io -renderPanelTo <png>` writes the panel content at 2x for comparison with a Sound menu screenshot, without opening the menu or reading the user's screen.
             if let path = UserDefaults.standard.string(forKey: "renderPanelTo") {
                 model.showDevicesWithoutSwitching()
-                if let version = UserDefaults.standard.string(forKey: "renderUpdateVersion") {
-                    updater.showUpdateWithoutChecking(version: version)
-                }
                 PanelSnapshot.write(PanelView(model: model, updater: updater), to: URL(fileURLWithPath: path))
                 NSApp.terminate(nil)
                 return
             }
         #endif
+        panelLog.notice("launch \(Bundle.main.bundlePath) version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown") on \(ProcessInfo.processInfo.operatingSystemVersionString)")
         LoginItem.registerOnFirstLaunch()
         model.start()
         updater.start()
