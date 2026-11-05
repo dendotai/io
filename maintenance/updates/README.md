@@ -6,7 +6,7 @@ Every version pin in this repo gets an update rule or a reason why it has none. 
 
 Renovate opens the update PRs. [`.github/workflows/renovate.yml`](../../.github/workflows/renovate.yml) runs it every Monday at 03:17 UTC, and **Run workflow** on the workflow's page in the Actions tab starts a run at any time. It runs as a GitHub App: a PR opened with `GITHUB_TOKEN` starts no workflow, so its checks would never run.
 
-Each update PR runs every check in [`.github/workflows/test.yml`](../../.github/workflows/test.yml) on the new version, so a green PR shows the bump works. Nothing merges unattended. Renovate also keeps one issue, **Dependency Dashboard**, that lists every pending and skipped update.
+Each update PR runs every check in [`.github/workflows/test.yml`](../../.github/workflows/test.yml) on the new version, so a green PR shows the bump works for what those checks run. `test.yml` does not run `renovate.yml` or `maintenance.yml`: the next Renovate run is the proof for a pin in `renovate.yml`, and a pin in `maintenance.yml` has no check on an update PR. Nothing merges unattended. Renovate also keeps one issue, **Dependency Dashboard**, that lists every pending and skipped update.
 
 A bump merged into `dev` ships with the next release, so an update PR needs no `fix:` prefix. Every minor and patch update arrives in one PR a week (`group:allNonMajor`), so a green PR is one merge. Each major update gets its own PR, because a major often needs a code change, and a red major in the weekly PR would hold every other update.
 
