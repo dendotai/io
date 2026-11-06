@@ -68,3 +68,6 @@ _Avoid_: popup, popover, menu
 
 **Right-click menu**:
 What opens when you right-click the app's menu bar icon. It holds the app's own items, "Open at Login" and "Quit io".
+
+**Debug mark**:
+A small mark on the menu bar icon of a Debug build, so it can be told from the installed app. It can be switched off without a rebuild, and a Release build never shows it.
