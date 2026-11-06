@@ -37,7 +37,7 @@ final class StatusItemController {
         self.updater = updater
         volumeSlider = Self.item(VolumeSlider(model: model))
         volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
-        headers = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(SectionHeader(direction: $0))) })
+        headers = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(SectionHeader(model: model, direction: $0))) })
         separators = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(PanelSeparator(inset: $0.separatorInset))) })
         // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
         let menu = NSMenu()

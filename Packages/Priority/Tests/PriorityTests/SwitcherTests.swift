@@ -102,3 +102,22 @@ func startWearingAirPods(_ switcher: Switcher) {
     #expect(switcher.chosenDevice(.output) == airPods)
     #expect(switcher.chosenDevice(.input) == microphone)
 }
+
+@Test func aPickInTheSoundMenuCanEndOnlyInItsOwnList() {
+    let switcher = makeSwitcher()
+    startWearingAirPods(switcher)
+    switcher.defaultsChanged(inUse: [.output: speakers, .input: microphone], at: at(100))
+    #expect(switcher.chosenDevice(.output) == speakers)
+    #expect(switcher.list(.output).canEndHandPick)
+    #expect(!switcher.list(.input).canEndHandPick)
+    switcher.endHandPick(in: .output)
+    #expect(switcher.chosenDevice(.output) == airPods)
+    #expect(!switcher.list(.output).canEndHandPick)
+}
+
+@Test func aPickUndoneInsideTheMacOSSwitchWindowCannotEnd() {
+    let switcher = makeSwitcher()
+    startWearingAirPods(switcher)
+    switcher.defaultsChanged(inUse: [.output: speakers, .input: microphone], at: at(1))
+    #expect(!switcher.list(.output).canEndHandPick)
+}

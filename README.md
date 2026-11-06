@@ -4,9 +4,10 @@ A macOS menu bar app that remembers the priority order of your audio devices and
 
 ## How it works
 
-- Drag a device up or down to set its place. io uses the highest connected device in each list. Dragging never switches the device in use: it stays until it disconnects or a device above it connects.
+- Drag a device up or down to set its place. io uses the highest connected device in each list. Dragging never switches the device in use: it stays until it disconnects, a device above it connects, or you click "Back to Auto".
 - A new output goes to the top, so headphones you connect for the first time play at once. A new input goes to the bottom, so a new microphone never takes over.
-- Click a device to use it for now. Your choice holds until that device disconnects or a device higher in the list connects. A choice in the system Sound menu works the same way.
+- Click a device to use it for now. Your choice holds until that device disconnects, a device higher in the list connects, or you click "Back to Auto". A choice in the system Sound menu works the same way.
+- While the device in use is not the highest connected one in its list, that section's header shows "Back to Auto". Click it to go back to the order: io uses the highest connected device again.
 - To hide a disconnected device, hover the row with › and choose Hide. If it connects again, it counts as new. Built-in devices, such as MacBook Pro Speakers, stay in the list.
 
 Right-click the io icon for "Open at Login" and "Quit io".

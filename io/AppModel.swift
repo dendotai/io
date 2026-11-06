@@ -19,6 +19,7 @@ final class AppModel {
     }
 
     private(set) var rows: [Direction: [Row]] = [:]
+    private(set) var canEndHandPick: [Direction: Bool] = [:]
     private(set) var inUseSymbolName = DeviceSymbol.speaker
     /// The volume of the output in use, or nil when it has no volume control.
     private(set) var volume: Float?
@@ -66,6 +67,13 @@ final class AppModel {
     func use(_ device: Device, in direction: Direction) {
         switcher.pick(device, in: direction)
         switchToChosenDevices()
+        updateRows()
+    }
+
+    func endHandPick(in direction: Direction) {
+        switcher.endHandPick(in: direction)
+        switchToChosenDevices()
+        updateRows()
     }
 
     func reorder(_ device: Device, to index: Int, in direction: Direction) {
@@ -213,6 +221,7 @@ final class AppModel {
     private func updateRows() {
         for direction in Direction.allCases {
             let list = switcher.list(direction)
+            canEndHandPick[direction] = list.canEndHandPick
             let defaultID = AudioDevices.defaultDeviceID(direction)
             let inUse = reported[direction]?.first { $0.id == defaultID }
             if direction == .output {
