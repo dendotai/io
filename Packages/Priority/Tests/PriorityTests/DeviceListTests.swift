@@ -319,3 +319,60 @@ let builtInSpeakers = Device(uid: "built-in-speakers", name: "MacBook Pro Speake
     let data = Data(#"[{"uid":"airpods-1","name":"AirPods Pro"}]"#.utf8)
     #expect(try JSONDecoder().decode([Device].self, from: data) == [airPods])
 }
+
+@Test func endingAHandPickUsesTheHighestConnectedDevice() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    #expect(list.canEndHandPick)
+    list.endHandPick()
+    #expect(list.chosenDevice == airPods)
+    #expect(!list.canEndHandPick)
+}
+
+@Test func endingAHandPickNeverMovesADevice() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    list.endHandPick()
+    #expect(list.devices == [airPods, speakers])
+}
+
+@Test func noHandPickCannotEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    #expect(!list.canEndHandPick)
+}
+
+@Test func pickingTheHighestConnectedDeviceCannotEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    list.pick(airPods)
+    #expect(!list.canEndHandPick)
+}
+
+@Test func aDeviceKeptByAReorderCanEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.reorder(speakers, to: 0)
+    #expect(list.chosenDevice == airPods)
+    #expect(list.canEndHandPick)
+    list.endHandPick()
+    #expect(list.chosenDevice == speakers)
+    #expect(list.devices == [speakers, airPods])
+}
+
+@Test func aReorderThatPutsTheHandPickFirstCannotEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    list.reorder(speakers, to: 0)
+    #expect(!list.canEndHandPick)
+}

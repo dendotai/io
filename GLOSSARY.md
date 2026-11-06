@@ -36,8 +36,11 @@ Dragging a row in the panel to change its priority. It never switches the device
 _Avoid_: sort, rearrange
 
 **Hand pick**:
-A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects or a device above it connects.
+A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects, a device above it connects, or Back to Auto is clicked.
 _Avoid_: override, manual mode
+
+**Back to Auto**:
+The clickable text in the header of a device list's section, shown while the device in use is not the highest connected device there. A click ends the hand pick, so the highest connected device is in use again.
 
 **Hide**:
 Removing a disconnected remembered device from its list.

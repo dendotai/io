@@ -52,7 +52,16 @@ public final class DeviceList {
         if let handPickUID, let device = devices.first(where: { $0.uid == handPickUID }) {
             return device
         }
-        return devices.first { connectedUIDs.contains($0.uid) }
+        return highestConnectedDevice
+    }
+
+    /// False for a hand pick of the highest connected device, which behaves as no hand pick.
+    public var canEndHandPick: Bool {
+        chosenDevice?.uid != highestConnectedDevice?.uid
+    }
+
+    private var highestConnectedDevice: Device? {
+        devices.first { connectedUIDs.contains($0.uid) }
     }
 
     /// Takes every device macOS reports as connected now. The hand pick ends when the picked device disconnects or a device above it connects.
@@ -122,6 +131,10 @@ public final class DeviceList {
     public func pick(_ device: Device) {
         guard connectedUIDs.contains(device.uid) else { return }
         handPickUID = device.uid
+    }
+
+    public func endHandPick() {
+        handPickUID = nil
     }
 }
 

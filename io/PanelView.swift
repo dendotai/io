@@ -70,7 +70,7 @@ struct PanelView: View {
             VolumeSlider(model: model)
             PanelSeparator(inset: Metrics.contentInset)
             ForEach(Direction.allCases, id: \.self) { direction in
-                SectionHeader(direction: direction)
+                SectionHeader(model: model, direction: direction)
                 ForEach(model.rows[direction] ?? []) { row in
                     DeviceRow(model: model, direction: direction, device: row.device)
                     if row.isFoldedOpen, let modes = row.listening?.supported {
@@ -181,14 +181,30 @@ extension Direction {
 }
 
 struct SectionHeader: View {
+    let model: AppModel
     let direction: Direction
 
     var body: some View {
-        Text(direction.title)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Color.primary.opacity(0.48))
-            .padding(.horizontal, Metrics.contentInset)
-            .frame(width: Metrics.width, height: Metrics.headerHeight, alignment: .leading)
+        HStack(spacing: 0) {
+            Text(direction.title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.primary.opacity(0.48))
+            Spacer(minLength: 0)
+            if model.canEndHandPick[direction] == true {
+                Button {
+                    model.endHandPick(in: direction)
+                } label: {
+                    Text("Back to Auto")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, Metrics.contentInset)
+        .frame(width: Metrics.width, height: Metrics.headerHeight)
     }
 }
 
@@ -364,7 +380,8 @@ struct FoldBelowRows: View {
                 }
             }
             PanelSeparator(inset: Direction.output.separatorInset)
-            SectionHeader(direction: .input)
+            SectionHeader(model: model, direction: .input)
+                .allowsHitTesting(false)
             ForEach(model.rows[.input] ?? []) { row in
                 DeviceRowLabel(row: row, direction: .input, isLifted: false)
             }

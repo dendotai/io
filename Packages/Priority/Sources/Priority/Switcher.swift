@@ -61,6 +61,10 @@ public final class Switcher {
         list(direction).pick(device)
     }
 
+    public func endHandPick(in direction: Direction) {
+        list(direction).endHandPick()
+    }
+
     public func reorder(_ device: Device, to index: Int, in direction: Direction) {
         list(direction).reorder(device, to: index)
     }
