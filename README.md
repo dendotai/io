@@ -15,6 +15,8 @@ When a newer version exists, "Update to <version>" appears at the bottom of the 
 
 Requires macOS 27 or later.
 
+Out of scope: the format label and the playing app's icon from the Sound menu's header, because macOS gives no public way to read them.
+
 ## Install
 
 ```bash
