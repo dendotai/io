@@ -51,6 +51,11 @@ enum Metrics {
     static let hideRowHeight: CGFloat = 24
     static let hideHighlightRadius: CGFloat = 7
     static let hideTextInset: CGFloat = 11
+    static let rightClickMenuWidth: CGFloat = 190
+    static let switchWidth: CGFloat = 35
+    static let switchHeight: CGFloat = 15
+    static let switchKnobWidth: CGFloat = 20
+    static let switchKnobInset: CGFloat = 1.5
     static let liftScale: CGFloat = 1.02
     static let slide = Animation.easeOut(duration: 0.15)
 }
@@ -78,9 +83,8 @@ struct PanelView: View {
                 AirPodsSettingsRow(model: model, action: model.openAirPodsSettings)
             }
             MenuRow(title: "Sound Settings…", action: model.openSoundSettings)
-            PanelSeparator(inset: Metrics.edgeInset)
-            PanelFooter()
             if updater.availableVersion != nil {
+                PanelSeparator(inset: Metrics.edgeInset)
                 UpdateRow(updater: updater, isHighlighted: UserDefaults.standard.bool(forKey: "renderUpdateHighlighted"), action: updater.installUpdate)
             }
         }
@@ -383,7 +387,7 @@ struct ListeningModeRow: View {
         Button {
             model.setListeningMode(mode, of: device)
         } label: {
-            HoverRow(height: Metrics.listeningRowPitch) {
+            HoverRow(height: Metrics.listeningRowPitch, logName: "listening mode") {
                 HStack(spacing: 0) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .semibold))
@@ -522,39 +526,6 @@ struct DragLayer: View {
     }
 }
 
-struct PanelFooter: View {
-    @State private var opensAtLogin = LoginItem.isEnabled
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Open at Login")
-                Spacer()
-                Toggle("Open at Login", isOn: opensAtLoginBinding)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-            }
-            .padding(.horizontal, Metrics.contentInset)
-            .frame(height: Metrics.menuRowHeight)
-
-            MenuRow(title: "Quit io") { NSApp.terminate(nil) }
-        }
-        .frame(width: Metrics.width, alignment: .leading)
-        .onAppear { opensAtLogin = LoginItem.isEnabled }
-    }
-
-    private var opensAtLoginBinding: Binding<Bool> {
-        Binding(
-            get: { opensAtLogin },
-            set: { enabled in
-                LoginItem.setEnabled(enabled)
-                opensAtLogin = LoginItem.isEnabled
-            }
-        )
-    }
-}
-
 struct PanelSeparator: View {
     let inset: CGFloat
 
@@ -575,7 +546,7 @@ struct HideRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.hideRowHeight, radius: Metrics.hideHighlightRadius, textInset: Metrics.hideTextInset, isAccented: true) {
+            HoverRow(height: Metrics.hideRowHeight, radius: Metrics.hideHighlightRadius, textInset: Metrics.hideTextInset, isAccented: true, logName: "Hide") {
                 Text("Hide")
             }
         }
@@ -603,8 +574,8 @@ struct UpdateRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.menuRowHeight, isHighlighted: isHighlighted, highlightColor: Color.accentColor.opacity(0.18)) {
-                Text("Update to \(updater.availableVersion ?? "")")
+            HoverRow(height: Metrics.menuRowHeight, isHighlighted: isHighlighted, highlightColor: Color.accentColor.opacity(0.18), logName: "update") {
+                Text(updater.updateTitle ?? "")
                     .foregroundStyle(Color.accentColor)
             }
         }
@@ -614,13 +585,43 @@ struct UpdateRow: View {
     }
 }
 
+/// "Open at Login" in the right-click menu. A system switch draws grey in an open menu (`.tint`, `NSSwitch`, and a key window tried), so this one is drawn here, at the size of a mini system switch. A click keeps the menu open, so the switch shows the new state.
+struct OpenAtLoginRow: View {
+    @State private var isOn = LoginItem.isEnabled
+
+    var body: some View {
+        HStack {
+            Text("Open at Login")
+            Spacer()
+            Button {
+                LoginItem.setEnabled(!isOn)
+                isOn = LoginItem.isEnabled
+            } label: {
+                Capsule()
+                    .fill(isOn ? Color.accentColor : Color.primary.opacity(0.15))
+                    .frame(width: Metrics.switchWidth, height: Metrics.switchHeight)
+                    .overlay(alignment: isOn ? .trailing : .leading) {
+                        Capsule()
+                            .fill(.white)
+                            .frame(width: Metrics.switchKnobWidth, height: Metrics.switchHeight - 2 * Metrics.switchKnobInset)
+                            .padding(.horizontal, Metrics.switchKnobInset)
+                    }
+                    .animation(.easeOut(duration: 0.15), value: isOn)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Metrics.contentInset)
+        .frame(width: Metrics.rightClickMenuWidth, height: Metrics.menuRowHeight)
+    }
+}
+
 struct MenuRow: View {
     let title: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.menuRowHeight) {
+            HoverRow(height: Metrics.menuRowHeight, logName: title) {
                 Text(title)
             }
         }
@@ -640,9 +641,15 @@ private struct HoverRow<Content: View>: View {
     var isHoverHighlightHidden = false
     var isAccented = false
     var highlightColor: Color?
-    var logName: String?
+    let logName: String
     @ViewBuilder let content: () -> Content
     @State private var isHovered = false
+    @State private var id = UUID()
+
+    private var fillReason: String? {
+        if isHighlighted { return "highlighted" }
+        return isHovered && !isHoverHighlightHidden ? "hovered" : nil
+    }
 
     var body: some View {
         content()
@@ -652,13 +659,19 @@ private struct HoverRow<Content: View>: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: radius)
-                    .fill((isHovered && !isHoverHighlightHidden) || isHighlighted ? (highlightColor ?? (isAccented ? Color.accentColor : Color.primary.opacity(0.09))) : .clear)
+                    .fill(fillReason != nil ? (highlightColor ?? (isAccented ? Color.accentColor : Color.primary.opacity(0.09))) : .clear)
             )
-            .onHover { hovering in
-                isHovered = hovering
-                if let logName {
-                    panelLog.notice("hover \(hovering ? "enter" : "exit", privacy: .public) \(logName, privacy: .public)")
+            .background(HoverProbe(id: id, name: logName))
+            .onChange(of: fillReason, initial: true) {
+                ProbeView.attached[id]?.fillReason = fillReason
+                if fillReason != nil || ProbeView.attached[id] != nil {
+                    panelLog.notice("fill \(fillReason ?? "none"): \(ProbeView.report(id))")
                 }
+            }
+            .onHover { hovering in
+                panelLog.notice("hover \(hovering ? "enter" : "exit"): \(ProbeView.report(id))")
+                isHovered = hovering
+                ProbeView.noteHover(of: id, hovering: hovering)
             }
     }
 }
