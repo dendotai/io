@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = AppModel()
     private let updater = AppUpdater()
     private var statusItem: StatusItemController?
+    #if DEBUG
+        private var debugPick: DebugPick?
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
@@ -32,10 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LoginItem.registerOnFirstLaunch()
         model.start()
         #if DEBUG
-            // `io -pickOutput <name>` picks that output as a click in the panel does, because io sets back a change another process makes.
-            if let name = UserDefaults.standard.string(forKey: "pickOutput") {
-                model.pickOutput(named: name)
-            }
+            debugPick = DebugPick(model: model)
         #endif
         updater.start()
         statusItem = StatusItemController(model: model, updater: updater)
