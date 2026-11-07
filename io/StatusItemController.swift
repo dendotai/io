@@ -11,8 +11,7 @@ final class StatusItemController {
     private let menu: NSMenu
     private let volumeSlider: NSMenuItem
     private let volumeSeparator: NSMenuItem
-    private let headers: [Direction: NSMenuItem]
-    private let separators: [Direction: NSMenuItem]
+    private let sections: PerDirection<SectionItems>
     private let airPodsSettings: NSMenuItem
     private let soundSettings: NSMenuItem
     private let updateSeparator: NSMenuItem
@@ -26,8 +25,6 @@ final class StatusItemController {
     private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
     private var drag: (direction: Direction, startY: CGFloat, timer: Timer, ticksSinceButtonUp: Int)?
-    /// Built with the panel, so a drag starts without building a view.
-    private let dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)]
     private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
@@ -42,8 +39,13 @@ final class StatusItemController {
         self.updater = updater
         volumeSlider = Self.item(VolumeSlider(model: model))
         volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
-        headers = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(SectionHeader(model: model, direction: $0))) })
-        separators = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(PanelSeparator(inset: $0.separatorInset))) })
+        sections = PerDirection { direction in
+            let drag = RowDrag(direction: direction)
+            return SectionItems(
+                header: Self.item(SectionHeader(model: model, direction: direction)),
+                separator: Self.item(PanelSeparator(inset: direction.separatorInset)),
+                dragLayer: DragLayerItem(drag: drag, item: Self.item(DragLayer(model: model, drag: drag))))
+        }
         // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
         let menu = NSMenu()
         self.menu = menu
@@ -60,12 +62,6 @@ final class StatusItemController {
             menu.cancelTracking()
             updater.installUpdate()
         })
-        var dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)] = [:]
-        for direction in Direction.allCases {
-            let state = RowDrag(direction: direction)
-            dragLayers[direction] = (state, Self.item(DragLayer(model: model, drag: state)))
-        }
-        self.dragLayers = dragLayers
         panelDelegate = PanelDelegate(model: model)
         rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
         menu.delegate = panelDelegate
@@ -115,11 +111,12 @@ final class StatusItemController {
         var items: [NSMenuItem] = [volumeSlider, volumeSeparator]
         var names: [ObjectIdentifier: String] = [:]
         for direction in Direction.allCases {
-            items.append(headers[direction]!)
+            let section = sections[direction]
+            items.append(section.header)
             if drag?.direction == direction {
-                items.append(dragLayers[direction]!.item)
-                names[ObjectIdentifier(dragLayers[direction]!.item)] = "\(direction) drag layer"
-                items.append(separators[direction]!)
+                items.append(section.dragLayer.item)
+                names[ObjectIdentifier(section.dragLayer.item)] = "\(direction) drag layer"
+                items.append(section.separator)
                 continue
             }
             var kept: [String: NSMenuItem] = [:]
@@ -147,7 +144,7 @@ final class StatusItemController {
                 }
             }
             deviceItems[direction] = kept
-            items.append(separators[direction]!)
+            items.append(section.separator)
         }
         if airPodsName != nil {
             items.append(airPodsSettings)
@@ -242,14 +239,15 @@ final class StatusItemController {
         let pointerY = NSEvent.mouseLocation.y
         if let drag {
             let moved = drag.startY - pointerY
-            if moved != dragLayers[drag.direction]!.state.translation {
-                dragLayers[drag.direction]!.state.translation = moved
+            let state = sections[drag.direction].dragLayer.drag
+            if moved != state.translation {
+                state.translation = moved
             }
             return
         }
-        let layer = dragLayers[direction]!
-        layer.state.uid = device.uid
-        layer.state.translation = translation
+        let layer = sections[direction].dragLayer
+        layer.drag.uid = device.uid
+        layer.drag.translation = translation
         // The section may have gained or lost rows since the panel was built.
         if let view = layer.item.view {
             view.setFrameSize(view.fittingSize)
@@ -278,13 +276,14 @@ final class StatusItemController {
         drag.timer.invalidate()
         self.drag = nil
         panelLog.notice("drag end")
-        let state = dragLayers[drag.direction]!.state
+        let layer = sections[drag.direction].dragLayer
+        let state = layer.drag
         if let move = state.move(in: model.rows[drag.direction] ?? []) {
             model.reorder(move.device, to: move.to, in: drag.direction)
         }
         state.uid = nil
         // The swapped-in row views are not in the menu's window yet, so take the window from the drag layer before it leaves.
-        updateItemsUnderRestingPointer(in: dragLayers[drag.direction]!.item.view?.window)
+        updateItemsUnderRestingPointer(in: layer.item.view?.window)
     }
 
     /// The menu picks the item under the pointer, and opens its "Hide" submenu, only on a pointer move, and the pointer has not moved since the update.
@@ -331,6 +330,37 @@ final class StatusItemController {
             Task { @MainActor in self?.updateIcon() }
         }
         iconView?.show(icon)
+    }
+}
+
+/// A section's items, built with the panel and kept while io runs; the drag layer is built here, so a drag starts without building a view.
+private struct SectionItems {
+    let header: NSMenuItem
+    let separator: NSMenuItem
+    let dragLayer: DragLayerItem
+}
+
+/// A section's drag layer: the drag state its view draws, and the item that holds the view.
+struct DragLayerItem {
+    let drag: RowDrag
+    let item: NSMenuItem
+}
+
+/// One value for each direction, so a lookup needs no unwrap.
+struct PerDirection<Value> {
+    private let output: Value
+    private let input: Value
+
+    init(_ make: (Direction) -> Value) {
+        output = make(.output)
+        input = make(.input)
+    }
+
+    subscript(direction: Direction) -> Value {
+        switch direction {
+        case .output: output
+        case .input: input
+        }
     }
 }
 
