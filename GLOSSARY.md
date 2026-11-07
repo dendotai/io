@@ -55,7 +55,7 @@ A click on the ⌄ of a connected AirPods row, which shows its listening mode in
 _Avoid_: unfold, expand
 
 **Battery levels**:
-The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu.
+The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu. Headphones with one battery, such as AirPods Max, have one level, shown at the right of the row.
 _Avoid_: battery status, charge
 
 **Update**:

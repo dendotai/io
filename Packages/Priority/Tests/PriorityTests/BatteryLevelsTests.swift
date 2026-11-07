@@ -46,9 +46,10 @@ func combined(_ name: String, left: Int, right: Int, group: String = "group-1") 
     #expect(levels == ["AirPods Pro": BatteryLevels(left: 74, right: 71, chargingCase: 62)])
 }
 
-@Test func headphonesWithOneBatteryReportItAsTheBuds() {
+// Recorded on macOS 27: AirPods Max in use; the Sound menu shows "86%" at the right of the row.
+@Test func headphonesWithOneBatteryKeepTheLevelApartFromBuds() {
     let levels = BatteryLevels.byName([part("AirPods Max", "Single", 90, group: "group-2")])
-    #expect(levels == ["AirPods Max": BatteryLevels(buds: 90)])
+    #expect(levels == ["AirPods Max": BatteryLevels(single: 90)])
 }
 
 @Test func twoPairsKeepTheirOwnCase() {
