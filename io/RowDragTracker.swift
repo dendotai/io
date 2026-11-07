@@ -23,7 +23,6 @@ final class RowDragTracker {
 
     private let model: AppModel
     private var drag: Drag?
-    /// The menu swaps the dragged row's section for its drag layer.
     var didStart: (() -> Void)?
     /// The menu swaps the rows back; the window is the drag layer's, taken before it leaves, because the swapped-in row views are not in the menu's window yet.
     var didEnd: ((NSWindow?) -> Void)?
