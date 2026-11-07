@@ -248,23 +248,20 @@ struct DeviceRow: View {
                         .onEnded { _ in dragActions?.released() })
                 .accessibilityElement(children: .contain)
                 .accessibilityAddTraits(row.isConnected ? .isButton : [])
-                .accessibilityAction {
-                    if row.isConnected {
-                        model.use(row.device, in: direction)
-                    }
-                }
+                .accessibilityAction { use(row) }
         }
     }
 
     private func reorderOrUse(_ row: AppModel.Row) -> some Gesture {
         DragGesture(minimumDistance: Metrics.dragThreshold, coordinateSpace: .global)
             .onChanged { dragActions?.changed(device, direction, $0.translation.height) }
-            .exclusively(
-                before: TapGesture().onEnded {
-                    if row.isConnected {
-                        model.use(row.device, in: direction)
-                    }
-                })
+            .exclusively(before: TapGesture().onEnded { use(row) })
+    }
+
+    private func use(_ row: AppModel.Row) {
+        if row.isConnected {
+            model.use(row.device, in: direction)
+        }
     }
 }
 
