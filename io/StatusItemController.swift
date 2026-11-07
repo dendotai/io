@@ -279,9 +279,8 @@ final class StatusItemController {
         self.drag = nil
         panelLog.notice("drag end")
         let state = dragLayers[drag.direction]!.state
-        let rows = model.rows[drag.direction] ?? []
-        if let from = rows.firstIndex(where: { $0.id == state.uid }), let to = state.targetIndex(in: rows), to != from {
-            model.reorder(rows[from].device, to: to, in: drag.direction)
+        if let move = state.move(in: model.rows[drag.direction] ?? []) {
+            model.reorder(move.device, to: move.to, in: drag.direction)
         }
         state.uid = nil
         // The swapped-in row views are not in the menu's window yet, so take the window from the drag layer before it leaves.
