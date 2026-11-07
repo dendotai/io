@@ -11,23 +11,21 @@ final class StatusItemController {
     private let menu: NSMenu
     private let volumeSlider: NSMenuItem
     private let volumeSeparator: NSMenuItem
-    private let headers: [Direction: NSMenuItem]
-    private let separators: [Direction: NSMenuItem]
+    private let outputSection: SectionItems
+    private let inputSection: SectionItems
     private let airPodsSettings: NSMenuItem
     private let soundSettings: NSMenuItem
     private let updateSeparator: NSMenuItem
     private let updateAvailableRow: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
     /// Each AirPods row's group while folded open, built when it first folds open and again if its supported modes change.
-    private var listeningGroups: [String: (modes: [ListeningMode], item: NSMenuItem)] = [:]
+    private var listeningGroups: [String: ListeningModeGroupItem] = [:]
     private var foldedOpenUIDs: Set<String> = []
     /// Each AirPods row's fold layer, built when the panel opens.
     private var foldAnimations: [String: FoldAnimation] = [:]
     private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
-    private var drag: (direction: Direction, startY: CGFloat, timer: Timer, ticksSinceButtonUp: Int)?
-    /// Built with the panel, so a drag starts without building a view.
-    private let dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)]
+    private let dragTracker: RowDragTracker
     private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
@@ -42,35 +40,36 @@ final class StatusItemController {
         self.updater = updater
         volumeSlider = Self.item(VolumeSlider(model: model))
         volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
-        headers = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(SectionHeader(model: model, direction: $0))) })
-        separators = Dictionary(uniqueKeysWithValues: Direction.allCases.map { ($0, Self.item(PanelSeparator(inset: $0.separatorInset))) })
-        // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
+        func makeSection(_ direction: Direction) -> SectionItems {
+            let rowDrag = RowDrag(direction: direction)
+            return SectionItems(
+                header: Self.item(SectionHeader(model: model, direction: direction)),
+                separator: Self.item(PanelSeparator(inset: direction.separatorInset)),
+                dragLayer: DragLayerItem(rowDrag: rowDrag, item: Self.item(DragLayer(model: model, drag: rowDrag))))
+        }
+        outputSection = makeSection(.output)
+        inputSection = makeSection(.input)
         let menu = NSMenu()
         self.menu = menu
-        airPodsSettings = Self.item(AirPodsSettingsRow(model: model) {
-            menu.cancelTracking()
-            model.openAirPodsSettings()
-        })
-        soundSettings = Self.item(MenuRow(title: "Sound Settings…") {
-            menu.cancelTracking()
-            model.openSoundSettings()
-        })
-        updateSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
-        updateAvailableRow = Self.item(UpdateRow(updater: updater) {
-            menu.cancelTracking()
-            updater.installUpdate()
-        })
-        var dragLayers: [Direction: (state: RowDrag, item: NSMenuItem)] = [:]
-        for direction in Direction.allCases {
-            let state = RowDrag(direction: direction)
-            dragLayers[direction] = (state, Self.item(DragLayer(model: model, drag: state)))
+        // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
+        func closingMenu(_ action: @escaping () -> Void) -> () -> Void {
+            {
+                menu.cancelTracking()
+                action()
+            }
         }
-        self.dragLayers = dragLayers
+        airPodsSettings = Self.item(AirPodsSettingsRow(model: model, action: closingMenu(model.openAirPodsSettings)))
+        soundSettings = Self.item(MenuRow(title: "Sound Settings…", action: closingMenu(model.openSoundSettings)))
+        updateSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
+        updateAvailableRow = Self.item(UpdateRow(updater: updater, action: closingMenu(updater.installUpdate)))
+        dragTracker = RowDragTracker(model: model)
         panelDelegate = PanelDelegate(model: model)
         rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
         menu.delegate = panelDelegate
         panelDelegate.willOpen = { [weak self] in self?.prepareFoldAnimations() }
         statusItem.menu = menu
+        dragTracker.didStart = { [weak self] in self?.updateItems() }
+        dragTracker.didEnd = { [weak self] window in self?.updateItemsUnderRestingPointer(in: window) }
         rightClickMenu.delegate = rightClickMenuDelegate
         rightClickMenuDelegate.didClose = { [weak self] in self?.statusItem.menu = menu }
         watchRightClicks()
@@ -115,11 +114,12 @@ final class StatusItemController {
         var items: [NSMenuItem] = [volumeSlider, volumeSeparator]
         var names: [ObjectIdentifier: String] = [:]
         for direction in Direction.allCases {
-            items.append(headers[direction]!)
-            if drag?.direction == direction {
-                items.append(dragLayers[direction]!.item)
-                names[ObjectIdentifier(dragLayers[direction]!.item)] = "\(direction) drag layer"
-                items.append(separators[direction]!)
+            let section = section(for: direction)
+            items.append(section.header)
+            if dragTracker.direction == direction {
+                items.append(section.dragLayer.item)
+                names[ObjectIdentifier(section.dragLayer.item)] = "\(direction) drag layer"
+                items.append(section.separator)
                 continue
             }
             var kept: [String: NSMenuItem] = [:]
@@ -138,16 +138,15 @@ final class StatusItemController {
                     items.append(idle.item)
                 }
                 if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
-                    if listeningGroups[row.id]?.modes != modes {
-                        listeningGroups[row.id] = (modes, Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
-                    }
-                    let groupItem = listeningGroups[row.id]!.item
+                    let group = listeningGroups[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? ListeningModeGroupItem(modes: modes, item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
+                    listeningGroups[row.id] = group
+                    let groupItem = group.item
                     names[ObjectIdentifier(groupItem)] = "listening mode of \"\(row.device.name)\""
                     items.append(groupItem)
                 }
             }
             deviceItems[direction] = kept
-            items.append(separators[direction]!)
+            items.append(section.separator)
         }
         if airPodsName != nil {
             items.append(airPodsSettings)
@@ -158,7 +157,7 @@ final class StatusItemController {
             items += [updateSeparator, updateAvailableRow]
             names[ObjectIdentifier(updateAvailableRow)] = "Update"
         }
-        if let foldAnimation, drag == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
+        if let foldAnimation, !dragTracker.isDragging, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
             let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
         {
             items.replaceSubrange((start + 1)..<end, with: [foldAnimation.item])
@@ -199,25 +198,39 @@ final class StatusItemController {
             } else {
                 foldedOpenUIDs.remove(row.id)
             }
-            let isPanelOpen = menu.items.first?.view?.window?.isVisible == true
-            guard isPanelOpen, drag == nil, let modes = row.listening?.supported else { continue }
+            let isPanelOpen = panelWindow?.isVisible == true
+            guard isPanelOpen, !dragTracker.isDragging, let modes = row.listening?.supported else { continue }
             let animation = foldAnimations[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? FoldAnimation(model: model, device: row.device, modes: modes)
             foldAnimations[row.id] = animation
             foldAnimation = animation
             animation.start(isOpening: row.isFoldedOpen) { [weak self, weak animation] in
                 guard let self, foldAnimation === animation else { return }
                 foldAnimation = nil
-                updateItemsUnderRestingPointer(in: menu.items.first?.view?.window)
+                updateItemsUnderRestingPointer(in: panelWindow)
                 // The window can stay 1 pt taller than its items after a fold, until the menu measures itself again.
                 _ = menu.size
             }
         }
     }
 
+    private func section(for direction: Direction) -> SectionItems {
+        switch direction {
+        case .output: outputSection
+        case .input: inputSection
+        }
+    }
+
+    private var panelWindow: NSWindow? {
+        menu.items.first?.view?.window
+    }
+
     private var dragActions: RowDragActions {
         RowDragActions(
             pressed: { [weak self] device, direction in self?.pressed(device, in: direction) },
-            changed: { [weak self] device, direction, translation in self?.dragChanged(device, in: direction, translation: translation) },
+            changed: { [weak self] device, direction, translation in
+                guard let self else { return }
+                dragTracker.changed(device, translation: translation, layer: section(for: direction).dragLayer)
+            },
             released: { [weak self] in self?.released() }
         )
     }
@@ -229,63 +242,12 @@ final class StatusItemController {
 
     /// A release that reaches the menu while a "›" row is under the pointer keeps "Hide" closed until the pointer moves, so a drag ends only after the menu has handled its release.
     private func released() {
-        if drag != nil {
-            RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.endDrag() }
+        if dragTracker.isDragging {
+            dragTracker.endAfterRelease()
             return
         }
         // After a click on a "›" row the menu opens "Hide" only once the pointer enters the row again, so the report passes over the row above first.
-        updateItemsUnderRestingPointer(in: menu.items.first?.view?.window, reentering: true)
-    }
-
-    /// The row that started the drag leaves the menu at the swap, so its drag events keep coming but report a wrong distance: each one reads the pointer instead, and a timer ends the drag if the release never reaches the row.
-    private func dragChanged(_ device: Device, in direction: Direction, translation: CGFloat) {
-        let pointerY = NSEvent.mouseLocation.y
-        if let drag {
-            let moved = drag.startY - pointerY
-            if moved != dragLayers[drag.direction]!.state.translation {
-                dragLayers[drag.direction]!.state.translation = moved
-            }
-            return
-        }
-        let layer = dragLayers[direction]!
-        layer.state.uid = device.uid
-        layer.state.translation = translation
-        // The section may have gained or lost rows since the panel was built.
-        if let view = layer.item.view {
-            view.setFrameSize(view.fittingSize)
-        }
-        let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
-            self?.watchRelease()
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        // The first event's translation is still right, and holds the move made before the drag began.
-        drag = (direction, pointerY + translation, timer, 0)
-        panelLog.notice("drag start \(String(describing: direction)) \"\(device.name)\"")
-        updateItems()
-    }
-
-    /// The release reaches the row within about 50 ms after the button goes up, so 200 ms leaves room.
-    private func watchRelease() {
-        guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
-        drag?.ticksSinceButtonUp += 1
-        if let drag, drag.ticksSinceButtonUp > 12 {
-            endDrag()
-        }
-    }
-
-    private func endDrag() {
-        guard let drag else { return }
-        drag.timer.invalidate()
-        self.drag = nil
-        panelLog.notice("drag end")
-        let state = dragLayers[drag.direction]!.state
-        let rows = model.rows[drag.direction] ?? []
-        if let from = rows.firstIndex(where: { $0.id == state.uid }), let to = state.targetIndex(in: rows), to != from {
-            model.reorder(rows[from].device, to: to, in: drag.direction)
-        }
-        state.uid = nil
-        // The swapped-in row views are not in the menu's window yet, so take the window from the drag layer before it leaves.
-        updateItemsUnderRestingPointer(in: dragLayers[drag.direction]!.item.view?.window)
+        updateItemsUnderRestingPointer(in: panelWindow, reentering: true)
     }
 
     /// The menu picks the item under the pointer, and opens its "Hide" submenu, only on a pointer move, and the pointer has not moved since the update.
@@ -333,6 +295,18 @@ final class StatusItemController {
         }
         iconView?.show(icon)
     }
+}
+
+/// A section's items, built with the panel and kept while io runs; the drag layer is built here, so a drag starts without building a view.
+private struct SectionItems {
+    let header: NSMenuItem
+    let separator: NSMenuItem
+    let dragLayer: DragLayerItem
+}
+
+private struct ListeningModeGroupItem {
+    let modes: [ListeningMode]
+    let item: NSMenuItem
 }
 
 /// Reads what can change while the panel is closed, before it shows.
