@@ -26,6 +26,20 @@ enum Metrics {
     static let budGlyphGap: CGFloat = 4
     static let caseGlyphGap: CGFloat = 4
     static let batteryGap: CGFloat = 8
+    // The One-battery level in `docs/sound-menu.md`; each value is set so the ink lands where the crop shows it.
+    static let singleBatteryTextSize: CGFloat = 12
+    static let singleBatteryGlyphGap: CGFloat = 2
+    static let singleBatteryTrailing: CGFloat = 6.5
+    static let singleBatteryBodyWidth: CGFloat = 19
+    static let singleBatteryBodyHeight: CGFloat = 10
+    static let singleBatteryBodyRadius: CGFloat = 3
+    static let singleBatteryFillWidth: CGFloat = 15
+    static let singleBatteryFillHeight: CGFloat = 6
+    static let singleBatteryFillRadius: CGFloat = 1.5
+    static let singleBatteryNubWidth: CGFloat = 1.25
+    static let singleBatteryNubHeight: CGFloat = 4
+    static let singleBatteryFillOpacity: CGFloat = 0.43
+    static let singleBatteryOutlineOpacity: CGFloat = 0.23
     // The Listening mode row and the heading text in `docs/sound-menu.md`: the heading 19 below the AirPods row, the rows 3 below the heading and 24 apart, the next device row 10 below the last row's 26.
     static let listeningHeadingTop: CGFloat = 19
     static let listeningHeadingTextHeight: CGFloat = 15
@@ -275,13 +289,16 @@ private struct DeviceRowLabel: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(row.device.name)
                             .lineLimit(1)
-                        if let batteryLevels = row.batteryLevels {
+                        if let batteryLevels = row.batteryLevels, batteryLevels.single == nil {
                             BatteryLine(battery: batteryLevels, symbolName: row.symbolName)
                         }
                     }
                 }
                 .opacity(row.isConnected ? 1 : 0.4)
                 Spacer(minLength: 0)
+                if let single = row.batteryLevels?.single {
+                    SingleBatteryLevel(percent: single)
+                }
                 if row.canHide {
                     Image(systemName: "chevron.right")
                         .font(.system(size: Metrics.chevronSize, weight: .semibold))
@@ -473,6 +490,35 @@ private struct BatteryLine: View {
             Image(systemName: symbolName)
             Text("\(percent)%")
         }
+    }
+}
+
+/// The level of headphones with one battery, at the row's right, as in the Sound menu. The glyph is drawn from shapes because the Sound menu's outline is paler than its fill.
+private struct SingleBatteryLevel: View {
+    let percent: Int
+
+    var body: some View {
+        HStack(spacing: Metrics.singleBatteryGlyphGap) {
+            Text("\(percent)%")
+                .font(.system(size: Metrics.singleBatteryTextSize))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 1) {
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: Metrics.singleBatteryBodyRadius)
+                        .strokeBorder(Color.primary.opacity(Metrics.singleBatteryOutlineOpacity), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Metrics.singleBatteryFillRadius)
+                        .fill(Color.primary.opacity(Metrics.singleBatteryFillOpacity))
+                        .frame(width: Metrics.singleBatteryFillWidth * CGFloat(percent) / 100, height: Metrics.singleBatteryFillHeight)
+                        .padding(.leading, 2)
+                }
+                .frame(width: Metrics.singleBatteryBodyWidth, height: Metrics.singleBatteryBodyHeight)
+                UnevenRoundedRectangle(bottomTrailingRadius: Metrics.singleBatteryNubWidth, topTrailingRadius: Metrics.singleBatteryNubWidth)
+                    .fill(Color.primary.opacity(Metrics.singleBatteryOutlineOpacity))
+                    .frame(width: Metrics.singleBatteryNubWidth, height: Metrics.singleBatteryNubHeight)
+            }
+        }
+        .fixedSize()
+        .padding(.trailing, Metrics.singleBatteryTrailing)
     }
 }
 
