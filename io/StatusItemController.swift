@@ -47,22 +47,19 @@ final class StatusItemController {
                 dragLayer: DragLayerItem(drag: drag, item: Self.item(DragLayer(model: model, drag: drag))))
         }
         self.sections = sections
-        // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
         let menu = NSMenu()
         self.menu = menu
-        airPodsSettings = Self.item(AirPodsSettingsRow(model: model) {
-            menu.cancelTracking()
-            model.openAirPodsSettings()
-        })
-        soundSettings = Self.item(MenuRow(title: "Sound Settings…") {
-            menu.cancelTracking()
-            model.openSoundSettings()
-        })
+        // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
+        func closingMenu(_ action: @escaping () -> Void) -> () -> Void {
+            {
+                menu.cancelTracking()
+                action()
+            }
+        }
+        airPodsSettings = Self.item(AirPodsSettingsRow(model: model, action: closingMenu(model.openAirPodsSettings)))
+        soundSettings = Self.item(MenuRow(title: "Sound Settings…", action: closingMenu(model.openSoundSettings)))
         updateSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
-        updateAvailableRow = Self.item(UpdateRow(updater: updater) {
-            menu.cancelTracking()
-            updater.installUpdate()
-        })
+        updateAvailableRow = Self.item(UpdateRow(updater: updater, action: closingMenu(updater.installUpdate)))
         dragTracker = RowDragTracker(model: model, layers: PerDirection { sections[$0].dragLayer })
         panelDelegate = PanelDelegate(model: model)
         rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
