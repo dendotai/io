@@ -607,7 +607,7 @@ struct HideRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.hideRowHeight, radius: Metrics.hideHighlightRadius, textInset: Metrics.hideTextInset, isAccented: true, logName: "Hide") {
+            HoverRow(height: Metrics.hideRowHeight, style: .hide, logName: "Hide") {
                 Text("Hide")
             }
         }
@@ -635,7 +635,7 @@ struct UpdateRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.menuRowHeight, isHighlighted: isHighlighted, highlightColor: Color.accentColor.opacity(0.18), logName: "update") {
+            HoverRow(height: Metrics.menuRowHeight, style: .update, isHighlighted: isHighlighted, logName: "update") {
                 Text(updater.updateTitle ?? "")
                     .foregroundStyle(Color.accentColor)
             }
@@ -692,16 +692,40 @@ struct MenuRow: View {
     }
 }
 
-/// A row that highlights under the pointer like a menu item. The caller insets it from the panel edge. An accented row highlights in the accent colour, like a standard menu item; the panel rows keep the Sound menu's grey.
+/// How a `HoverRow` draws its highlight. Hide highlights in the accent colour, like a standard menu item; the panel rows keep the Sound menu's grey.
+enum HoverRowStyle {
+    case plain
+    case hide
+    case update
+
+    var radius: CGFloat {
+        self == .hide ? Metrics.hideHighlightRadius : Metrics.highlightRadius
+    }
+
+    var textInset: CGFloat {
+        self == .hide ? Metrics.hideTextInset : Metrics.contentInset - Metrics.edgeInset
+    }
+
+    var fill: Color {
+        switch self {
+        case .plain: Color.primary.opacity(0.09)
+        case .hide: Color.accentColor
+        case .update: Color.accentColor.opacity(0.18)
+        }
+    }
+
+    func text(isHovered: Bool) -> AnyShapeStyle {
+        self == .hide && isHovered ? AnyShapeStyle(.white) : AnyShapeStyle(.primary)
+    }
+}
+
+/// A row that highlights under the pointer like a menu item. The caller insets it from the panel edge.
 private struct HoverRow<Content: View>: View {
     let height: CGFloat
-    var radius = Metrics.highlightRadius
-    var textInset = Metrics.contentInset - Metrics.edgeInset
+    var style = HoverRowStyle.plain
     var isHighlighted = false
     /// The Sound menu's AirPods row shows no highlight with the pointer on its ⌄.
     var isHoverHighlightHidden = false
-    var isAccented = false
-    var highlightColor: Color?
     let logName: String
     @ViewBuilder let content: () -> Content
     @State private var isHovered = false
@@ -714,13 +738,13 @@ private struct HoverRow<Content: View>: View {
 
     var body: some View {
         content()
-            .foregroundStyle(isAccented && isHovered ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-            .padding(.horizontal, textInset)
+            .foregroundStyle(style.text(isHovered: isHovered))
+            .padding(.horizontal, style.textInset)
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(fillReason != nil ? (highlightColor ?? (isAccented ? Color.accentColor : Color.primary.opacity(0.09))) : .clear)
+                RoundedRectangle(cornerRadius: style.radius)
+                    .fill(fillReason != nil ? style.fill : .clear)
             )
             .background(HoverProbe(id: id, name: logName))
             .onChange(of: fillReason, initial: true) {
