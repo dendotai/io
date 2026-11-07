@@ -39,3 +39,13 @@ func airPodsAndBeatsKeepTheirSymbolInEveryState(model: String) {
     #expect(MenuBarSymbol.of(deviceSymbol: model, volume: 0, isMuted: false) == own)
     #expect(MenuBarSymbol.of(deviceSymbol: model, volume: 0.5, isMuted: true) == own)
 }
+
+@Test(arguments: ["airpods.pro.gen3", "airpods.max", "beats.studiobuds"])
+func airPodsAndBeatsHaveAModelSymbol(model: String) {
+    #expect(MenuBarSymbol.isModelSymbol(model))
+}
+
+@Test(arguments: ["speaker.wave.3.fill", "headphones", "headphones.slash"])
+func speakersAndHeadphonesHaveNoModelSymbol(name: String) {
+    #expect(!MenuBarSymbol.isModelSymbol(name))
+}

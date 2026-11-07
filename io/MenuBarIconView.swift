@@ -7,7 +7,7 @@ final class MenuBarIconView: NSImageView {
     /// The Sound icon's ink size, from Size, spacing, and animations in `docs/sound-menu.md`.
     private static let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
     private var shown: MenuBarIcon?
-    /// Counts the scale animations, so a later change wins over the image an earlier one still waits to show.
+    /// Counts the changes, so a later one wins over the image a scale animation still waits to show.
     private var scaleGeneration = 0
 
     init(in button: NSStatusBarButton) {
@@ -28,7 +28,7 @@ final class MenuBarIconView: NSImageView {
         fatalError("init(coder:) is not used")
     }
 
-    /// The first image shows at once; a change during a running transition starts from the frame on screen.
+    /// The first image shows at once; a change during a running symbol transition or scale starts from the frame on screen.
     func show(_ icon: MenuBarIcon) {
         guard
             let image = NSImage(systemSymbolName: icon.symbol.name, variableValue: icon.symbol.variableValue, accessibilityDescription: nil)?
@@ -39,12 +39,13 @@ final class MenuBarIconView: NSImageView {
             self.image = image
             return
         }
-        switch icon.change(from: shown) {
-        case nil: break
+        guard let change = icon.change(from: shown) else { return }
+        let scale = stopScale()
+        switch change {
         // Symbol transitions leave an AirPods symbol at full size, where the Sound icon shrinks and grows it as any other.
         // Reduce Motion goes to the system transition, which follows it.
-        case .output where (DeviceSymbol.isAirPods(icon.symbol.name) || DeviceSymbol.isAirPods(shown.symbol.name)) && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion:
-            scaleReplace(with: image)
+        case .output where (MenuBarSymbol.isModelSymbol(icon.symbol.name) || MenuBarSymbol.isModelSymbol(shown.symbol.name)) && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion:
+            scaleReplace(with: image, from: scale)
         // The speaker's waves fill in one by one, as in the Sound icon.
         case .output: setSymbolImage(image, contentTransition: .replace.downUp.byLayer)
         case .symbol: setSymbolImage(image, contentTransition: .automatic)
@@ -59,22 +60,29 @@ final class MenuBarIconView: NSImageView {
         }
     }
 
-    /// The lengths come from recordings beside the Sound icon (Size, spacing, and animations in `docs/sound-menu.md`), where its whole change takes about 420 ms.
-    private func scaleReplace(with image: NSImage) {
+    /// Ends a running scale, so its image never shows over a later one, and returns the scale on screen.
+    private func stopScale() -> CGFloat {
         scaleGeneration += 1
+        let scale = layer?.presentation()?.transform.m11 ?? 1
+        layer?.removeAnimation(forKey: "shrink")
+        layer?.removeAnimation(forKey: "grow")
+        return scale
+    }
+
+    /// The lengths are in Size, spacing, and animations in `docs/sound-menu.md`.
+    private func scaleReplace(with image: NSImage, from scale: CGFloat) {
         let generation = scaleGeneration
-        layer?.removeAllAnimations()
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             guard let self, generation == scaleGeneration else { return }
             self.image = image
             superview?.layoutSubtreeIfNeeded()
-            layer?.removeAllAnimations()
-            let grow = scale(from: 0, to: 1, duration: 0.25, timing: .easeOut)
+            layer?.removeAnimation(forKey: "shrink")
+            let grow = self.scale(from: 0, to: 1, duration: 0.25, timing: .easeOut)
             grow.isRemovedOnCompletion = true
             layer?.add(grow, forKey: "grow")
         }
-        layer?.add(scale(from: 1, to: 0, duration: 0.2, timing: .easeIn), forKey: "shrink")
+        layer?.add(self.scale(from: scale, to: 0, duration: 0.2 * scale, timing: .easeIn), forKey: "shrink")
         CATransaction.commit()
     }
 

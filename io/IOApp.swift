@@ -41,4 +41,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = StatusItemController(model: model, updater: updater)
     }
 }
-
