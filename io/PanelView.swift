@@ -549,7 +549,6 @@ private struct SingleBatteryLevel: View {
         let shift = Int((translation / Metrics.deviceRowHeight).rounded())
         return min(max(from + shift, 0), rows.count - 1)
     }
-    /// The dragged row's device and the index it drops at; nil when the row drops where it started.
     func move(in rows: [AppModel.Row]) -> (device: Device, to: Int)? {
         guard let from = rows.firstIndex(where: { $0.id == uid }), let to = targetIndex(in: rows), to != from else { return nil }
         return (rows[from].device, to)
