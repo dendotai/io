@@ -25,6 +25,10 @@ final class StatusItemController {
     private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
     private var drag: Drag?
+    private static let releaseTick: TimeInterval = 1.0 / 60
+    /// The release reaches the row within about 50 ms after the button goes up, so 200 ms leaves room.
+    private static let releaseWait: TimeInterval = 0.2
+    private static let releaseTicks = Int((releaseWait / releaseTick).rounded())
     private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
@@ -252,7 +256,7 @@ final class StatusItemController {
         if let view = layer.item.view {
             view.setFrameSize(view.fittingSize)
         }
-        let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: Self.releaseTick, repeats: true) { [weak self] _ in
             self?.watchRelease()
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -262,11 +266,10 @@ final class StatusItemController {
         updateItems()
     }
 
-    /// The release reaches the row within about 50 ms after the button goes up, so 200 ms leaves room.
     private func watchRelease() {
         guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
         drag?.ticksSinceButtonUp += 1
-        if let drag, drag.ticksSinceButtonUp > 12 {
+        if let drag, drag.ticksSinceButtonUp > Self.releaseTicks {
             endDrag()
         }
     }
@@ -333,7 +336,6 @@ final class StatusItemController {
     }
 }
 
-/// A drag that runs: its section, the pointer's height where it started, and the timer that watches for its release.
 private struct Drag {
     let direction: Direction
     let startY: CGFloat
