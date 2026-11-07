@@ -54,24 +54,32 @@ final class MenuBarIconView: NSView {
         }
     }
 
-    /// The lengths, in seconds, and scales of the system's replace by layer, read from its frames in the harness (`scripts/menu-bar-icon/README.md`): the old symbol's accents fade or shrink while its base scales down to about 0.4, where the new base takes over and grows out; a slash line shrinks slowly towards its lower end; the headphones' slash springs in and out while the headphones stay.
+    /// The lengths, in seconds, and scales of the system's replace by layer, each from the replace paragraph of Size, spacing, and animations in `docs/sound-menu.md`: the old symbol's accents wipe or shrink while its base scales down to about 0.4, where, after an empty frame, the new base takes over and grows out; a slash line shrinks slowly towards its lower end; the headphones' slash springs in and out while the headphones stay.
     private enum Transition {
         static let fade = 0.4
-        /// A speaker's waves fade out over the whole down phase, slowly at first; its body shrinks only at the end.
-        static let wavesFade = 0.22
+        /// A speaker's waves are erased from their middle row outward over the whole down phase; its body shrinks only at the end.
+        static let wavesWipe = 0.225
+        /// The erased band's half-height at 0, 0.3, 0.6, 0.9 and 1 of the wipe; the tips still showing at the end hide with the piece.
+        static let wipeCurve: [CGFloat] = [0, 0.14, 0.39, 0.62, 0.7]
         static let bodyShrink = 0.1
-        static let baseShrink = 0.22
+        static let baseShrink = 0.24
+        /// A whole symbol's shrink keeps most of its size for half its length, then drops.
+        static let baseShrinkTiming = CAMediaTimingFunction(controlPoints: 0.4, 0, 0.75, 0.5)
         static let slashBodyShrink = 0.28
         static let slashShrink = 0.45
         static let swapScale = 0.4
-        static let bodyGrow = 0.09
-        static let baseGrow = 0.25
+        /// One frame at 120 Hz shows neither symbol.
+        static let swapGap = 0.01
+        static let bodyGrow = 0.1
+        static let baseGrow = 0.22
         static let wavesGrow = 0.22
         static let slashGrow = 0.3
         /// The growth of an accent reaches half its size in a fifth of its length and then eases out over a long tail: the scale at 0, 0.2, 0.65 and 0.95 of the length.
         static let accentGrowth: [CGFloat] = [0.45, 0.71, 0.95, 0.985]
         static let magicSpring = 0.45
-        static let magicCut = 0.1
+        /// The base crossfades to the base cut by the slash while the slash springs in, slowly at first, so the notch opens as the slash fills it; the slash leaves fast, so the base crossfades back as fast.
+        static let magicNotchOpen = 0.3
+        static let magicNotchClose = 0.1
     }
 
     /// The old symbol's layers go in the system's order and lengths, then the new symbol's layers grow from the swap scale. A magic pair keeps its base and springs the slash alone.
@@ -91,34 +99,39 @@ final class MenuBarIconView: NSView {
         } else {
             let oldIsSlash = old.contains { $0.piece.role == .slash }
             let oldHasWaves = old.contains { $0.piece.role == .wave }
+            // One band erases all the waves, so the short inner wave goes first.
+            let waveHalfHeight = old.filter { $0.piece.role == .wave }.map { $0.piece.inkCentre.y - $0.piece.inkEnd.y }.max() ?? 0
             for view in old {
                 switch view.piece.role {
                 case .wave:
-                    view.animateOpacity(to: 0, duration: Transition.wavesFade, timing: .easeIn)
-                    swap = max(swap, Transition.wavesFade)
+                    view.wipe(through: Transition.wipeCurve, halfHeight: waveHalfHeight, delay: 0, duration: Transition.wavesWipe)
+                    swap = max(swap, Transition.wavesWipe)
                 case .slash:
                     view.shrink(to: 0.001, about: view.piece.inkEnd, delay: 0, duration: Transition.slashShrink)
                     swap = max(swap, Transition.slashShrink)
                 case .base, .other:
                     let duration = oldIsSlash ? Transition.slashBodyShrink : oldHasWaves ? Transition.bodyShrink : Transition.baseShrink
-                    let delay = oldHasWaves ? Transition.wavesFade - Transition.bodyShrink : 0
-                    view.shrink(to: Transition.swapScale, about: view.piece.inkCentre, delay: delay, duration: duration)
+                    let delay = oldHasWaves ? Transition.wavesWipe - Transition.bodyShrink : 0
+                    let timing = oldIsSlash || oldHasWaves ? CAMediaTimingFunction(name: .easeIn) : Transition.baseShrinkTiming
+                    view.shrink(to: Transition.swapScale, about: view.piece.inkCentre, delay: delay, duration: duration, timing: timing)
                     swap = max(swap, delay + duration)
                 }
             }
+            swap += Transition.swapGap
         }
         let newHasWaves = new.contains { $0.piece.role == .wave }
         for view in new {
             if magic {
                 view.setScale(1)
                 if view.piece.role == .base, let keptBase = old.first(where: { $0.piece.role == .base }) {
-                    // The base under a slash is the base cut by it: the cut shows once the slash reaches the base. A symbol change leaves the main thread free, so the swap can wait on it.
-                    view.isHidden = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + Transition.magicCut) { [weak self, weak view] in
-                        guard let self, generation == self.generation else { return }
-                        view?.isHidden = false
-                        keptBase.isHidden = true
-                    }
+                    // The base under a slash is the base cut by it.
+                    let slashIn = new.contains { $0.piece.role == .slash }
+                    let duration = slashIn ? Transition.magicNotchOpen : Transition.magicNotchClose
+                    let timing: CAMediaTimingFunctionName = slashIn ? .easeIn : .linear
+                    let opacity = view.piece.opacity
+                    view.layer?.opacity = 0
+                    view.animateOpacity(to: opacity, duration: duration, timing: timing)
+                    keptBase.animateOpacity(to: 0, duration: duration, timing: timing)
                 } else {
                     view.spring(from: 0.001, to: 1, duration: Transition.magicSpring)
                 }
@@ -239,33 +252,43 @@ private final class PieceView: NSImageView {
     }
 
     /// Scales from the size on screen down to `scale` about the point, then hides, so the layer stays at full size until its turn.
-    func shrink(to scale: CGFloat, about point: CGPoint, delay: TimeInterval, duration: TimeInterval) {
+    func shrink(to scale: CGFloat, about point: CGPoint, delay: TimeInterval, duration: TimeInterval, timing: CAMediaTimingFunction = CAMediaTimingFunction(name: .easeIn)) {
         let animation = CABasicAnimation(keyPath: "transform")
         animation.fromValue = transform(presentedScale, about: point)
         animation.toValue = transform(scale, about: point)
         animation.beginTime = CACurrentMediaTime() + delay
         animation.duration = duration
-        animation.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        animation.timingFunction = timing
         animation.fillMode = .backwards
-        layer?.transform = transform(0.001, about: point)
+        layer?.transform = transform(scale, about: point)
         layer?.add(animation, forKey: "scale")
+        hide(at: delay + duration)
+    }
+
+    /// Hides the layer at the moment, with no fade.
+    private func hide(at delay: TimeInterval) {
         let hide = CABasicAnimation(keyPath: "opacity")
         hide.fromValue = layer?.opacity
         hide.toValue = 0
-        hide.beginTime = CACurrentMediaTime() + delay + duration
+        hide.beginTime = CACurrentMediaTime() + delay
         hide.duration = 0.001
         hide.fillMode = .backwards
         layer?.opacity = 0
         layer?.add(hide, forKey: "hide")
     }
 
+    /// Grows as a critically damped spring from rest, which settles within the length: the system's base growth fits one within a frame at every sample.
     func grow(from scale: CGFloat, delay: TimeInterval, duration: TimeInterval) {
-        let animation = CABasicAnimation(keyPath: "transform")
+        let animation = CASpringAnimation(keyPath: "transform")
         animation.fromValue = transform(scale, about: piece.inkCentre)
         animation.toValue = transform(1, about: piece.inkCentre)
         animation.beginTime = CACurrentMediaTime() + delay
-        animation.duration = duration
-        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        let omega = 6 / duration
+        animation.mass = 1
+        animation.stiffness = omega * omega
+        animation.damping = 2 * omega
+        animation.initialVelocity = 0
+        animation.duration = animation.settlingDuration
         animation.fillMode = .backwards
         layer?.transform = transform(1, about: piece.inkCentre)
         layer?.add(animation, forKey: "scale")
@@ -296,6 +319,33 @@ private final class PieceView: NSImageView {
         show.duration = 0.001
         show.fillMode = .backwards
         layer?.add(show, forKey: "show")
+    }
+
+    /// Erases the piece from the row through its ink centre outward, as the system takes a speaker's waves off: a mask of two bars, one anchored at the top edge and one at the bottom, each losing the fractions of `curve` of `halfHeight` at 0, 0.3, 0.6, 0.9 and 1 of the length.
+    func wipe(through curve: [CGFloat], halfHeight: CGFloat, delay: TimeInterval, duration: TimeInterval) {
+        guard let layer else { return }
+        let mask = CALayer()
+        mask.frame = layer.bounds
+        let centre = piece.inkCentre.y
+        let upper = CALayer(), lower = CALayer()
+        upper.anchorPoint = CGPoint(x: 0.5, y: 1)
+        upper.frame = CGRect(x: 0, y: centre, width: layer.bounds.width, height: layer.bounds.height - centre)
+        lower.anchorPoint = CGPoint(x: 0.5, y: 0)
+        lower.frame = CGRect(x: 0, y: 0, width: layer.bounds.width, height: centre)
+        for bar in [upper, lower] {
+            bar.backgroundColor = CGColor(gray: 1, alpha: 1)
+            mask.addSublayer(bar)
+            let animation = CAKeyframeAnimation(keyPath: "bounds.size.height")
+            animation.values = curve.map { max(bar.bounds.height - halfHeight * $0, 0) }
+            animation.keyTimes = [0, 0.3, 0.6, 0.9, 1]
+            animation.beginTime = CACurrentMediaTime() + delay
+            animation.duration = duration
+            animation.fillMode = .backwards
+            bar.bounds.size.height = 0
+            bar.add(animation, forKey: "wipe")
+        }
+        layer.mask = mask
+        hide(at: delay + duration)
     }
 
     /// A spring about the ink centre that overshoots a little and settles within the length.
