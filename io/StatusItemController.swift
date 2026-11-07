@@ -322,12 +322,12 @@ final class StatusItemController {
     }
 
     private func updateIcon() {
-        let symbolName = withObservationTracking {
-            model.inUseSymbolName
+        let symbol = withObservationTracking {
+            model.menuBarSymbol
         } onChange: { [weak self] in
             Task { @MainActor in self?.updateIcon() }
         }
-        statusItem.button?.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "io")
+        statusItem.button?.image = NSImage(systemSymbolName: symbol.name, variableValue: symbol.variableValue, accessibilityDescription: "io")
     }
 }
 

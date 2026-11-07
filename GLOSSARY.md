@@ -62,6 +62,9 @@ _Avoid_: battery status, charge
 A newer released version of the app, which the app installs in one click.
 _Avoid_: upgrade
 
+**Menu bar icon**:
+io's icon in the menu bar. It shows the same symbol as the Sound icon for the output in use, at every volume and at mute.
+
 **Panel**:
 What opens when you left-click the app's menu bar icon.
 _Avoid_: popup, popover, menu

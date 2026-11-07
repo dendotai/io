@@ -31,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelLog.notice("launch \(Bundle.main.bundlePath) version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown") on \(ProcessInfo.processInfo.operatingSystemVersionString)")
         LoginItem.registerOnFirstLaunch()
         model.start()
+        #if DEBUG
+            // `io -pickOutput <name>` picks that output as a click in the panel does, because io sets back a change another process makes.
+            if let name = UserDefaults.standard.string(forKey: "pickOutput") {
+                model.pickOutput(named: name)
+            }
+        #endif
         updater.start()
         statusItem = StatusItemController(model: model, updater: updater)
     }

@@ -36,11 +36,6 @@ enum DeviceSymbol {
         }
     }
 
-    /// The Sound menu bar icon shows the headphones in use, and a speaker for every other output (the Mac, a display).
-    static func menuBarName(_ symbolName: String) -> String {
-        ["headphones", "airpods", "beats"].contains { symbolName.hasPrefix($0) } ? symbolName : speaker
-    }
-
     /// AirPods cases are named "<buds>.chargingcase.wireless.fill" and Beats cases "<buds>.chargingcase.fill"; buds with no case symbol of their own get the AirPods one.
     static func chargingCase(of symbolName: String) -> String {
         firstExisting(["\(symbolName).chargingcase.wireless.fill", "\(symbolName).chargingcase.fill"]) ?? "airpods.chargingcase.wireless.fill"
