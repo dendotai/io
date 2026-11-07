@@ -155,7 +155,7 @@ final class StatusItemController {
             items += [updateSeparator, updateAvailableRow]
             names[ObjectIdentifier(updateAvailableRow)] = "Update"
         }
-        if let foldAnimation, dragTracker.direction == nil, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
+        if let foldAnimation, !dragTracker.isDragging, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
             let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
         {
             items.replaceSubrange((start + 1)..<end, with: [foldAnimation.item])
@@ -197,7 +197,7 @@ final class StatusItemController {
                 foldedOpenUIDs.remove(row.id)
             }
             let isPanelOpen = panelWindow?.isVisible == true
-            guard isPanelOpen, dragTracker.direction == nil, let modes = row.listening?.supported else { continue }
+            guard isPanelOpen, !dragTracker.isDragging, let modes = row.listening?.supported else { continue }
             let animation = foldAnimations[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? FoldAnimation(model: model, device: row.device, modes: modes)
             foldAnimations[row.id] = animation
             foldAnimation = animation
@@ -230,7 +230,7 @@ final class StatusItemController {
 
     /// A release that reaches the menu while a "›" row is under the pointer keeps "Hide" closed until the pointer moves, so a drag ends only after the menu has handled its release.
     private func released() {
-        if dragTracker.direction != nil {
+        if dragTracker.isDragging {
             dragTracker.endAfterRelease()
             return
         }

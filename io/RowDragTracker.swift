@@ -32,6 +32,8 @@ final class RowDragTracker {
     /// The section whose drag layer shows in place of its rows.
     var direction: Direction? { drag?.direction }
 
+    var isDragging: Bool { drag != nil }
+
     init(model: AppModel, layers: PerDirection<DragLayerItem>) {
         self.model = model
         self.layers = layers
