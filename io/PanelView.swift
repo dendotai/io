@@ -398,12 +398,13 @@ struct FoldBelowRows: View {
             }
             PanelSeparator(inset: Direction.output.separatorInset)
             SectionHeader(model: model, direction: .input)
-                .allowsHitTesting(false)
             ForEach(model.rows[.input] ?? []) { row in
                 DeviceRowLabel(row: row, direction: .input, isLifted: false)
             }
             PanelSeparator(inset: Direction.input.separatorInset)
         }
+        // These rows enter the window under the pointer before the fold lays them out, and a hover started there never ends.
+        .allowsHitTesting(false)
     }
 }
 
