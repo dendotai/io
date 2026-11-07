@@ -129,7 +129,7 @@ final class StatusItemController {
                 kept[row.id] = item
                 names[ObjectIdentifier(item)] = "\(direction) \"\(row.device.name)\""
                 items.append(item)
-                if foldAnimation?.uid != row.id, let idle = foldAnimations[row.id] {
+                if foldAnimation == nil, let idle = foldAnimations[row.id] {
                     names[ObjectIdentifier(idle.item)] = "idle fold"
                     items.append(idle.item)
                 }
@@ -204,6 +204,8 @@ final class StatusItemController {
                 guard let self, foldAnimation === animation else { return }
                 foldAnimation = nil
                 updateItemsUnderRestingPointer(in: menu.items.first?.view?.window)
+                // The window can stay 1 pt taller than its items after a fold, until the menu measures itself again.
+                _ = menu.size
             }
         }
     }
