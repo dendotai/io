@@ -28,6 +28,10 @@ Out of scope:
 curl -fsSL https://github.com/dendotai/io/releases/latest/download/io.zip -o /tmp/io.zip && ditto -x -k /tmp/io.zip /Applications && open /Applications/io.app
 ```
 
+## Development
+
+Run `bun install` once after a clone or in a new worktree. It installs commitlint and turns on the commit message check in `.githooks/commit-msg`.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
