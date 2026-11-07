@@ -13,7 +13,7 @@ private func waves(_ variableValue: Double) -> MenuBarSymbol {
         (0.66, waves(0.34)), (0.67, waves(1)), (1, waves(1)),
     ]
     for (volume, symbol) in expected {
-        #expect(MenuBarSymbol.of(deviceSymbol: "laptopcomputer", volume: volume, isMuted: false) == symbol)
+        #expect(MenuBarSymbol.of(deviceSymbol: "macbook.gen2", volume: volume, isMuted: false) == symbol)
     }
 }
 
