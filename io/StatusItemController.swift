@@ -11,7 +11,8 @@ final class StatusItemController {
     private let menu: NSMenu
     private let volumeSlider: NSMenuItem
     private let volumeSeparator: NSMenuItem
-    private let sections: PerDirection<SectionItems>
+    private let outputSection: SectionItems
+    private let inputSection: SectionItems
     private let airPodsSettings: NSMenuItem
     private let soundSettings: NSMenuItem
     private let updateSeparator: NSMenuItem
@@ -39,14 +40,15 @@ final class StatusItemController {
         self.updater = updater
         volumeSlider = Self.item(VolumeSlider(model: model))
         volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
-        let sections = PerDirection { direction in
+        func makeSection(_ direction: Direction) -> SectionItems {
             let rowDrag = RowDrag(direction: direction)
             return SectionItems(
                 header: Self.item(SectionHeader(model: model, direction: direction)),
                 separator: Self.item(PanelSeparator(inset: direction.separatorInset)),
                 dragLayer: DragLayerItem(rowDrag: rowDrag, item: Self.item(DragLayer(model: model, drag: rowDrag))))
         }
-        self.sections = sections
+        outputSection = makeSection(.output)
+        inputSection = makeSection(.input)
         let menu = NSMenu()
         self.menu = menu
         // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
@@ -60,7 +62,7 @@ final class StatusItemController {
         soundSettings = Self.item(MenuRow(title: "Sound Settings…", action: closingMenu(model.openSoundSettings)))
         updateSeparator = Self.item(PanelSeparator(inset: Metrics.edgeInset))
         updateAvailableRow = Self.item(UpdateRow(updater: updater, action: closingMenu(updater.installUpdate)))
-        dragTracker = RowDragTracker(model: model, layers: PerDirection { sections[$0].dragLayer })
+        dragTracker = RowDragTracker(model: model)
         panelDelegate = PanelDelegate(model: model)
         rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
         menu.delegate = panelDelegate
@@ -112,7 +114,7 @@ final class StatusItemController {
         var items: [NSMenuItem] = [volumeSlider, volumeSeparator]
         var names: [ObjectIdentifier: String] = [:]
         for direction in Direction.allCases {
-            let section = sections[direction]
+            let section = section(for: direction)
             items.append(section.header)
             if dragTracker.direction == direction {
                 items.append(section.dragLayer.item)
@@ -211,6 +213,13 @@ final class StatusItemController {
         }
     }
 
+    private func section(for direction: Direction) -> SectionItems {
+        switch direction {
+        case .output: outputSection
+        case .input: inputSection
+        }
+    }
+
     private var panelWindow: NSWindow? {
         menu.items.first?.view?.window
     }
@@ -218,7 +227,10 @@ final class StatusItemController {
     private var dragActions: RowDragActions {
         RowDragActions(
             pressed: { [weak self] device, direction in self?.pressed(device, in: direction) },
-            changed: { [weak self] device, direction, translation in self?.dragTracker.changed(device, in: direction, translation: translation) },
+            changed: { [weak self] device, direction, translation in
+                guard let self else { return }
+                dragTracker.changed(device, translation: translation, layer: section(for: direction).dragLayer)
+            },
             released: { [weak self] in self?.released() }
         )
     }
@@ -290,24 +302,6 @@ private struct SectionItems {
     let header: NSMenuItem
     let separator: NSMenuItem
     let dragLayer: DragLayerItem
-}
-
-/// One value for each direction, so a lookup needs no unwrap.
-struct PerDirection<Value> {
-    private let output: Value
-    private let input: Value
-
-    init(_ make: (Direction) -> Value) {
-        output = make(.output)
-        input = make(.input)
-    }
-
-    subscript(direction: Direction) -> Value {
-        switch direction {
-        case .output: output
-        case .input: input
-        }
-    }
 }
 
 /// Reads what can change while the panel is closed, before it shows.

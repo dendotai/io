@@ -10,7 +10,7 @@ struct DragLayerItem {
 /// Follows a reorder from the drag's first move to its end. The row that started the drag leaves the menu at the swap, so its drag events keep coming but report a wrong distance: each one reads the pointer instead, and a timer ends the drag if the release never reaches the row.
 final class RowDragTracker {
     private struct Drag {
-        let direction: Direction
+        let layer: DragLayerItem
         let startY: CGFloat
         let timer: Timer
         var ticksSinceButtonUp = 0
@@ -22,7 +22,6 @@ final class RowDragTracker {
     private static let releaseTicks = Int((releaseWait / releaseTick).rounded())
 
     private let model: AppModel
-    private let layers: PerDirection<DragLayerItem>
     private var drag: Drag?
     /// The menu swaps the dragged row's section for its drag layer.
     var didStart: (() -> Void)?
@@ -30,26 +29,24 @@ final class RowDragTracker {
     var didEnd: ((NSWindow?) -> Void)?
 
     /// The section whose drag layer shows in place of its rows.
-    var direction: Direction? { drag?.direction }
+    var direction: Direction? { drag?.layer.rowDrag.direction }
 
     var isDragging: Bool { drag != nil }
 
-    init(model: AppModel, layers: PerDirection<DragLayerItem>) {
+    init(model: AppModel) {
         self.model = model
-        self.layers = layers
     }
 
-    func changed(_ device: Device, in direction: Direction, translation: CGFloat) {
+    func changed(_ device: Device, translation: CGFloat, layer: DragLayerItem) {
         let pointerY = NSEvent.mouseLocation.y
         if let drag {
             let moved = drag.startY - pointerY
-            let state = layers[drag.direction].rowDrag
+            let state = drag.layer.rowDrag
             if moved != state.translation {
                 state.translation = moved
             }
             return
         }
-        let layer = layers[direction]
         layer.rowDrag.uid = device.uid
         layer.rowDrag.translation = translation
         // The section may have gained or lost rows since the panel was built.
@@ -61,8 +58,8 @@ final class RowDragTracker {
         }
         RunLoop.main.add(timer, forMode: .common)
         // The first event's translation is still right, and holds the move made before the drag began.
-        drag = Drag(direction: direction, startY: pointerY + translation, timer: timer)
-        panelLog.notice("drag start \(String(describing: direction)) \"\(device.name)\"")
+        drag = Drag(layer: layer, startY: pointerY + translation, timer: timer)
+        panelLog.notice("drag start \(String(describing: layer.rowDrag.direction)) \"\(device.name)\"")
         didStart?()
     }
 
@@ -84,9 +81,10 @@ final class RowDragTracker {
         drag.timer.invalidate()
         self.drag = nil
         panelLog.notice("drag end")
-        let layer = layers[drag.direction]
-        if let move = layer.rowDrag.move(in: model.rows[drag.direction] ?? []) {
-            model.reorder(move.device, to: move.to, in: drag.direction)
+        let layer = drag.layer
+        let direction = layer.rowDrag.direction
+        if let move = layer.rowDrag.move(in: model.rows[direction] ?? []) {
+            model.reorder(move.device, to: move.to, in: direction)
         }
         layer.rowDrag.uid = nil
         didEnd?(layer.item.view?.window)
