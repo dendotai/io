@@ -49,7 +49,7 @@ let display = Device(uid: "display", name: "Studio Display")
     list.update(connected: [speakers, airPods])
     list.pick(speakers)
     #expect(list.chosenDevice == speakers)
-    #expect(list.update(connected: [speakers, airPods]) == false)
+    list.update(connected: [speakers, airPods])
     #expect(list.chosenDevice == speakers)
 }
 

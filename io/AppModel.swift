@@ -157,7 +157,6 @@ final class AppModel {
     /// Reads the devices first, because Core Audio does not order the default and device-list notifications.
     private func defaultsChanged() {
         readDevices()
-        switcher.defaultsChanged(inUse: inUse(), at: .now)
         switchToChosenDevices()
         updateRows()
     }
@@ -178,8 +177,7 @@ final class AppModel {
         }
         switcher.devicesChanged(
             connected: reported.mapValues { $0.map(\.device) },
-            inUse: inUse(),
-            at: .now
+            inUse: inUse()
         )
     }
 

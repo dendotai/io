@@ -65,13 +65,10 @@ public final class DeviceList {
     }
 
     /// Takes every device macOS reports as connected now. The hand pick ends when the picked device disconnects or a device above it connects.
-    /// Returns true when a device connected or disconnected.
     /// When the list is empty, `inUse` goes first, so the first launch keeps the device macOS uses now.
-    @discardableResult
-    public func update(connected: [Device], inUse: Device? = nil) -> Bool {
+    public func update(connected: [Device], inUse: Device? = nil) {
         let wasEmpty = devices.isEmpty
         let uids = Set(connected.map(\.uid))
-        let changed = uids != connectedUIDs
         let newlyConnectedUIDs = uids.subtracting(connectedUIDs)
         connectedUIDs = uids
 
@@ -95,7 +92,6 @@ public final class DeviceList {
             self.handPickUID = nil
         }
         store.save(devices)
-        return changed
     }
 
     /// Places the device at `index` among every remembered device, connected or not.
