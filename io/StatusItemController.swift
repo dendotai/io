@@ -139,10 +139,9 @@ final class StatusItemController {
                     items.append(idle.item)
                 }
                 if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
-                    if listeningGroups[row.id]?.modes != modes {
-                        listeningGroups[row.id] = (modes, Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
-                    }
-                    let groupItem = listeningGroups[row.id]!.item
+                    let group = listeningGroups[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? (modes: modes, item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
+                    listeningGroups[row.id] = group
+                    let groupItem = group.item
                     names[ObjectIdentifier(groupItem)] = "listening mode of \"\(row.device.name)\""
                     items.append(groupItem)
                 }
