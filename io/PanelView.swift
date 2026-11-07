@@ -549,9 +549,10 @@ private struct SingleBatteryLevel: View {
         let shift = Int((translation / Metrics.deviceRowHeight).rounded())
         return min(max(from + shift, 0), rows.count - 1)
     }
-    func move(in rows: [AppModel.Row]) -> (device: Device, to: Int)? {
-        guard let from = rows.firstIndex(where: { $0.id == uid }), let to = targetIndex(in: rows), to != from else { return nil }
-        return (rows[from].device, to)
+    func drop(into model: AppModel) {
+        let rows = model.rows[direction] ?? []
+        guard let from = rows.firstIndex(where: { $0.id == uid }), let to = targetIndex(in: rows), to != from else { return }
+        model.reorder(rows[from].device, to: to, in: direction)
     }
 }
 

@@ -81,10 +81,7 @@ final class RowDragTracker {
         self.drag = nil
         panelLog.notice("drag end")
         let layer = drag.layer
-        let direction = layer.rowDrag.direction
-        if let move = layer.rowDrag.move(in: model.rows[direction] ?? []) {
-            model.reorder(move.device, to: move.to, in: direction)
-        }
+        layer.rowDrag.drop(into: model)
         layer.rowDrag.uid = nil
         didEnd?(layer.item.view?.window)
     }
