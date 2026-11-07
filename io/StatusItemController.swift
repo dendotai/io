@@ -200,7 +200,7 @@ final class StatusItemController {
             } else {
                 foldedOpenUIDs.remove(row.id)
             }
-            let isPanelOpen = menu.items.first?.view?.window?.isVisible == true
+            let isPanelOpen = panelWindow?.isVisible == true
             guard isPanelOpen, dragTracker.direction == nil, let modes = row.listening?.supported else { continue }
             let animation = foldAnimations[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? FoldAnimation(model: model, device: row.device, modes: modes)
             foldAnimations[row.id] = animation
@@ -208,11 +208,15 @@ final class StatusItemController {
             animation.start(isOpening: row.isFoldedOpen) { [weak self, weak animation] in
                 guard let self, foldAnimation === animation else { return }
                 foldAnimation = nil
-                updateItemsUnderRestingPointer(in: menu.items.first?.view?.window)
+                updateItemsUnderRestingPointer(in: panelWindow)
                 // The window can stay 1 pt taller than its items after a fold, until the menu measures itself again.
                 _ = menu.size
             }
         }
+    }
+
+    private var panelWindow: NSWindow? {
+        menu.items.first?.view?.window
     }
 
     private var dragActions: RowDragActions {
@@ -235,7 +239,7 @@ final class StatusItemController {
             return
         }
         // After a click on a "›" row the menu opens "Hide" only once the pointer enters the row again, so the report passes over the row above first.
-        updateItemsUnderRestingPointer(in: menu.items.first?.view?.window, reentering: true)
+        updateItemsUnderRestingPointer(in: panelWindow, reentering: true)
     }
 
     /// The menu picks the item under the pointer, and opens its "Hide" submenu, only on a pointer move, and the pointer has not moved since the update.
