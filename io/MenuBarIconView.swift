@@ -7,7 +7,7 @@ final class MenuBarIconView: NSImageView {
     /// The Sound icon's ink size, from Size, spacing, and animations in `docs/sound-menu.md`.
     private static let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
     private var shown: MenuBarIcon?
-    /// Counts the changes, so a later one wins over the image a scale animation still waits to show.
+    /// Counts the changes, so a later one wins over the image a replace still waits to show.
     private var scaleGeneration = 0
 
     init(in button: NSStatusBarButton) {
@@ -31,7 +31,7 @@ final class MenuBarIconView: NSImageView {
         fatalError("init(coder:) is not used")
     }
 
-    /// The first image shows at once; a change during a running symbol transition or scale starts from the frame on screen.
+    /// The first image shows at once; a change during a running scale starts from the frame on screen.
     func show(_ icon: MenuBarIcon) {
         guard
             let image = NSImage(systemSymbolName: icon.symbol.name, variableValue: icon.symbol.variableValue, accessibilityDescription: nil)?
@@ -50,9 +50,8 @@ final class MenuBarIconView: NSImageView {
         case .symbol where icon.symbol.name.hasPrefix("headphones"): setSymbolImage(image, contentTransition: .automatic)
         // Reduce Motion goes to the system transition, which follows it.
         case .output where reduceMotion, .symbol where reduceMotion: setSymbolImage(image, contentTransition: .automatic)
-        // A symbol transition draws the old symbol in the new one's frame, which moves it when the two differ in size, and leaves an AirPods symbol at full size; the Sound icon shrinks the old symbol in place and grows the new one.
-        case .output: scaleReplace(with: image, from: scale, shrink: 0.27, grow: 0.3)
-        case .symbol: scaleReplace(with: image, from: scale, shrink: 0.42, grow: 0.3)
+        // A symbol transition draws the old symbol in the new one's frame, which moves it when the two differ in size.
+        case .output, .symbol: replace(shown.symbol, with: icon.symbol, image: image, from: scale)
         // Every symbol transition shrinks the icon, while the Sound icon fades the waves to the new volume.
         case .volume:
             let fade = CATransition()
@@ -64,29 +63,50 @@ final class MenuBarIconView: NSImageView {
         }
     }
 
-    /// Ends a running scale, so its image never shows over a later one, and returns the scale on screen.
+    /// Ends a running replace, so its image never shows over a later one, and returns the scale on screen.
     private func stopScale() -> CGFloat {
         scaleGeneration += 1
         let scale = layer?.presentation()?.transform.m11 ?? 1
         layer?.removeAnimation(forKey: "shrink")
         layer?.removeAnimation(forKey: "grow")
+        removeAllSymbolEffects(options: .default, animated: false)
         return scale
     }
 
-    /// The lengths are in Size, spacing, and animations in `docs/sound-menu.md`.
-    private func scaleReplace(with image: NSImage, from scale: CGFloat, shrink: CFTimeInterval, grow: CFTimeInterval) {
+    /// The old symbol holds, then drops, in place, and the new one appears by layer, so a speaker's waves fill in one by one, as in the Sound icon. The disappear effect hides a symbol at once here, and symbol effects leave an AirPods symbol at full size, so io scales those itself. The lengths are in Size, spacing, and animations in `docs/sound-menu.md`.
+    private func replace(_ old: MenuBarSymbol, with new: MenuBarSymbol, image: NSImage, from scale: CGFloat) {
         let generation = scaleGeneration
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self] in
+        let shrink = 0.36
+        layer?.add(drop(from: scale, duration: shrink), forKey: "shrink")
+        DispatchQueue.main.asyncAfter(deadline: .now() + shrink) { [weak self] in
             guard let self, generation == scaleGeneration else { return }
             self.image = image
+            if MenuBarSymbol.isModelSymbol(new.name) {
+                let growth = self.scale(from: 0, to: 1, duration: 0.3, timing: .easeOut)
+                growth.isRemovedOnCompletion = true
+                layer?.add(growth, forKey: "grow")
+            } else {
+                addSymbolEffect(.appear.up.byLayer, options: .speed(0.4))
+            }
             layer?.removeAnimation(forKey: "shrink")
-            let growth = self.scale(from: 0, to: 1, duration: grow, timing: .easeOut)
-            growth.isRemovedOnCompletion = true
-            layer?.add(growth, forKey: "grow")
         }
-        layer?.add(self.scale(from: scale, to: 0, duration: shrink * scale, timing: .easeIn), forKey: "shrink")
-        CATransaction.commit()
+    }
+
+    /// The Sound icon's old symbol keeps nearly its size for about 250 ms, then drops to nothing in about 100 ms.
+    private func drop(from scale: CGFloat, duration: CFTimeInterval) -> CAAnimation {
+        let centre = CGPoint(x: bounds.midX, y: bounds.midY)
+        let animation = CAKeyframeAnimation(keyPath: "transform")
+        animation.values = [scale, scale * 0.92, 0.001].map { factor in
+            var t = CATransform3DMakeTranslation(centre.x, centre.y, 0)
+            t = CATransform3DScale(t, factor, factor, 1)
+            return CATransform3DTranslate(t, -centre.x, -centre.y, 0)
+        }
+        animation.keyTimes = [0, 0.7, 1]
+        animation.timingFunctions = [CAMediaTimingFunction(name: .easeIn), CAMediaTimingFunction(name: .easeIn)]
+        animation.duration = duration
+        animation.fillMode = .forwards
+        animation.isRemovedOnCompletion = false
+        return animation
     }
 
     /// AppKit keeps a view's layer anchored at its corner, so the scale moves around the centre by translation.
