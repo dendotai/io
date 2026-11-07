@@ -24,7 +24,7 @@ final class StatusItemController {
     private var foldAnimations: [String: FoldAnimation] = [:]
     private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
-    private var drag: (direction: Direction, startY: CGFloat, timer: Timer, ticksSinceButtonUp: Int)?
+    private var drag: Drag?
     private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
@@ -257,7 +257,7 @@ final class StatusItemController {
         }
         RunLoop.main.add(timer, forMode: .common)
         // The first event's translation is still right, and holds the move made before the drag began.
-        drag = (direction, pointerY + translation, timer, 0)
+        drag = Drag(direction: direction, startY: pointerY + translation, timer: timer)
         panelLog.notice("drag start \(String(describing: direction)) \"\(device.name)\"")
         updateItems()
     }
@@ -331,6 +331,14 @@ final class StatusItemController {
         }
         iconView?.show(icon)
     }
+}
+
+/// A drag that runs: its section, the pointer's height where it started, and the timer that watches for its release.
+private struct Drag {
+    let direction: Direction
+    let startY: CGFloat
+    let timer: Timer
+    var ticksSinceButtonUp = 0
 }
 
 /// A section's items, built with the panel and kept while io runs; the drag layer is built here, so a drag starts without building a view.
