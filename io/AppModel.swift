@@ -21,11 +21,12 @@ final class AppModel {
     private(set) var rows: [Direction: [Row]] = [:]
     private(set) var canEndHandPick: [Direction: Bool] = [:]
     private(set) var inUseSymbolName = DeviceSymbol.speaker
+    private(set) var inUseOutputUID: String?
     /// The volume of the output in use, or nil when it has no volume control.
     private(set) var volume: Float?
     private(set) var isMuted = false
-    var menuBarSymbol: MenuBarSymbol {
-        .of(deviceSymbol: inUseSymbolName, volume: volume, isMuted: isMuted)
+    var menuBarIcon: MenuBarIcon {
+        MenuBarIcon(outputUID: inUseOutputUID, symbol: .of(deviceSymbol: inUseSymbolName, volume: volume, isMuted: isMuted))
     }
     /// The Sound menu's slider goes to 0 at mute and back to the volume after.
     var sliderVolume: Float? {
@@ -241,6 +242,7 @@ final class AppModel {
             let inUse = reported[direction]?.first { $0.id == defaultID }
             if direction == .output {
                 inUseSymbolName = inUse?.symbolName ?? DeviceSymbol.speaker
+                inUseOutputUID = inUse?.device.uid
                 observeVolume(of: inUse?.id)
             }
             rows[direction] = list.devices.map { device in

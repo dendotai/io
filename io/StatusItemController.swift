@@ -4,7 +4,8 @@ import SwiftUI
 
 /// The panel is an `NSMenu` with one item per header, device row, and separator, each hosting SwiftUI content (ADR 0001).
 final class StatusItemController {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    /// The Sound icon's gaps to its neighbours, from Size, spacing, and animations in `docs/sound-menu.md`.
+    private let statusItem = NSStatusBar.system.statusItem(withLength: 32)
     private let model: AppModel
     private let updater: AppUpdater
     private let menu: NSMenu
@@ -31,6 +32,7 @@ final class StatusItemController {
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
     private let rightClickMenuDelegate: RightClickMenuDelegate
+    private var iconView: MenuBarIconView?
     #if DEBUG
         private var debugMark: DebugMark?
     #endif
@@ -73,6 +75,7 @@ final class StatusItemController {
         rightClickMenuDelegate.didClose = { [weak self] in self?.statusItem.menu = menu }
         watchRightClicks()
         updateItems()
+        iconView = statusItem.button.map(MenuBarIconView.init)
         updateIcon()
         #if DEBUG
             debugMark = statusItem.button.map(DebugMark.init)
@@ -322,12 +325,12 @@ final class StatusItemController {
     }
 
     private func updateIcon() {
-        let symbol = withObservationTracking {
-            model.menuBarSymbol
+        let icon = withObservationTracking {
+            model.menuBarIcon
         } onChange: { [weak self] in
             Task { @MainActor in self?.updateIcon() }
         }
-        statusItem.button?.image = NSImage(systemSymbolName: symbol.name, variableValue: symbol.variableValue, accessibilityDescription: "io")
+        iconView?.show(icon)
     }
 }
 
