@@ -6,6 +6,7 @@ import Priority
 enum DeviceSymbol {
     static let speaker = "speaker.wave.2.fill"
     static let microphone = "mic.fill"
+    private static let builtInDevice = MacSymbol.of(modelCode: modelCode())
 
     static func fallback(_ direction: Direction) -> String {
         direction == .output ? speaker : microphone
@@ -17,7 +18,7 @@ enum DeviceSymbol {
         switch transportType {
         case kAudioDeviceTransportTypeBuiltIn:
             // The Sound menu shows a laptop for "External Microphone"; io shows the `headphones` of its "External Headphones" instead.
-            return isBuiltIn ? "laptopcomputer" : "headphones"
+            return isBuiltIn ? builtInDevice : "headphones"
         case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort:
             return "display"
         case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeThunderbolt:
@@ -34,6 +35,14 @@ enum DeviceSymbol {
         default:
             return fallback(direction)
         }
+    }
+
+    private static func modelCode() -> String {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        var model = [UInt8](repeating: 0, count: size)
+        sysctlbyname("hw.model", &model, &size, nil, 0)
+        return String(decoding: model.dropLast(), as: UTF8.self)
     }
 
     /// AirPods cases are named "<buds>.chargingcase.wireless.fill" and Beats cases "<buds>.chargingcase.fill"; buds with no case symbol of their own get the AirPods one.
