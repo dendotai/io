@@ -23,6 +23,15 @@ final class AppModel {
     private(set) var inUseSymbolName = DeviceSymbol.speaker
     /// The volume of the output in use, or nil when it has no volume control.
     private(set) var volume: Float?
+    private(set) var isMuted = false
+    var menuBarSymbol: MenuBarSymbol {
+        .of(deviceSymbol: inUseSymbolName, volume: volume, isMuted: isMuted)
+    }
+    /// The Sound menu's slider goes to 0 at mute and back to the volume after.
+    var sliderVolume: Float? {
+        guard let volume else { return nil }
+        return isMuted ? 0 : volume
+    }
     /// The connected AirPods that "<name> Settings…" names, the pair in use first.
     private(set) var airPodsName: String?
     @ObservationIgnored private let switcher = Switcher(
@@ -61,6 +70,11 @@ final class AppModel {
         func showDevicesWithoutSwitching() {
             readDevices()
             updateRows()
+        }
+
+        func pickOutput(named name: String) {
+            guard let row = rows[.output]?.first(where: { $0.isConnected && $0.device.name == name }) else { return }
+            use(row.device, in: .output)
         }
     #endif
 
@@ -129,6 +143,9 @@ final class AppModel {
     func setVolume(_ volume: Float) {
         guard let volumeOutputID else { return }
         AudioDevices.setVolume(volume, volumeOutputID)
+        if isMuted {
+            AudioDevices.setMuted(false, volumeOutputID)
+        }
     }
 
     func openSoundSettings() {
@@ -223,7 +240,7 @@ final class AppModel {
             let defaultID = AudioDevices.defaultDeviceID(direction)
             let inUse = reported[direction]?.first { $0.id == defaultID }
             if direction == .output {
-                inUseSymbolName = inUse.map { DeviceSymbol.menuBarName($0.symbolName) } ?? DeviceSymbol.speaker
+                inUseSymbolName = inUse?.symbolName ?? DeviceSymbol.speaker
                 observeVolume(of: inUse?.id)
             }
             rows[direction] = list.devices.map { device in
@@ -252,11 +269,15 @@ final class AppModel {
         stopVolumeObservation = nil
         volumeOutputID = outputID
         if let outputID {
-            stopVolumeObservation = AudioDevices.observeVolume(outputID) { [weak self] in
-                guard let self, let volumeOutputID = self.volumeOutputID else { return }
-                volume = AudioDevices.volume(volumeOutputID)
+            stopVolumeObservation = AudioDevices.observeVolumeAndMute(outputID) { [weak self] in
+                self?.readVolumeAndMute()
             }
         }
-        volume = outputID.flatMap(AudioDevices.volume)
+        readVolumeAndMute()
+    }
+
+    private func readVolumeAndMute() {
+        volume = volumeOutputID.flatMap(AudioDevices.volume)
+        isMuted = volumeOutputID.map(AudioDevices.isMuted) ?? false
     }
 }

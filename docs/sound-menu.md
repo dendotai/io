@@ -47,6 +47,23 @@ The body height is 72 + the scroll area height + 45 + 22 per settings row.
 | Fold animation, macOS 27.2 on an M1 Max, 120 fps recording      | menu height, the same curve in both directions, read from the settings text: 2% at 16 ms, 12% at 64 ms, 37% at 128 ms, 62% at 192 ms, 79% at 256 ms, 89% at 320 ms, 95% at 400 ms, 99% at 560 ms (the table in `FoldCurve`, `io/FoldAnimation.swift`). The band, its lines, and the group rows fade together in both directions, starting 40 ms before the edge moves: 20% at 40 ms, 54% at 80 ms, 77% at 120 ms, 90% at 160 ms, 100% at 240 ms. The chevron swaps from "›" to "⌄" by shrinking to about half, about 0.45 s (symbol replace). Opening reveals the group from the top at the moving edge; closing slides the rows below up over the fading group; the settings rows ride the bottom edge | no animation                                                                | recording during #8                                  |
 | Fold chevron, real pointer, macOS 27.2 on an M1 Pro, Light Mode | on the Studio Display, the ⌄ keeps its grey under the pointer and goes from 150 to 38 during the press, about 165 ms; the fold and the swap start at the release. On the built-in display, the AirPods row shows the capsule with the pointer on its body and none with the pointer on the ⌄                                                                                                                                                                                                                                                                                                                                                                                                            | the press lightened the ⌄, and the capsule stayed with the pointer on the ⌄ | recording during #37                                 |
 
+## Menu bar icon
+
+Read on macOS 27 by holding the Sound menu open and comparing the Sound icon with rendered symbols. Beats are not read.
+
+| Output in use                | State       | Symbol                               |
+| ---------------------------- | ----------- | ------------------------------------ |
+| Any without its own symbol   | 0 or muted  | `speaker.slash.fill`                 |
+| Any without its own symbol   | 1–33%       | `speaker.wave.3.fill`, variable 0.01 |
+| Any without its own symbol   | 34–66%      | `speaker.wave.3.fill`, variable 0.34 |
+| Any without its own symbol   | 67–100%     | `speaker.wave.3.fill`, variable 1.0  |
+| No volume control            | always      | `speaker.wave.3.fill`, variable 1.0  |
+| Headphones in the jack       | above 0     | `headphones`                         |
+| Headphones in the jack       | 0 or muted  | `headphones.slash`                   |
+| AirPods, read on Pro and Max | every state | the model's own symbol               |
+
+The menu's slider goes to 0 while the output is muted, and to its volume again after. A change of the slider at mute ends the mute, read with `AXIncrement` from 0: the volume is then the slider's new value.
+
 ## Reading a value again
 
 `AXPress` on the Sound item in MenuBarAgent's Accessibility tree opens the menu with any app in front, and a second press closes it; the open menu's elements report their frames in the same tree. A look is one `screencapture -R` crop at the element's frame, read at 2x. A value read on another macOS version gets its own row with that version.

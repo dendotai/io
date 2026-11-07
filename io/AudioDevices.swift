@@ -69,21 +69,41 @@ enum AudioDevices {
         AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &volume)
     }
 
-    /// Returns the call that stops the observation, because the volume belongs to one device and the output in use changes.
-    static func observeVolume(_ id: AudioDeviceID, onChange: @escaping @MainActor () -> Void) -> () -> Void {
-        var address = volumeAddress
+    /// False for an output with no mute control.
+    static func isMuted(_ id: AudioDeviceID) -> Bool {
+        var address = muteAddress
+        guard AudioObjectHasProperty(id, &address) else { return false }
+        var isMuted: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &isMuted) == noErr else { return false }
+        return isMuted != 0
+    }
+
+    static func setMuted(_ isMuted: Bool, _ id: AudioDeviceID) {
+        var address = muteAddress
+        var value: UInt32 = isMuted ? 1 : 0
+        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
+    }
+
+    /// Returns the call that stops the observation, because the volume and the mute belong to one device and the output in use changes.
+    static func observeVolumeAndMute(_ id: AudioDeviceID, onChange: @escaping @MainActor () -> Void) -> () -> Void {
         let listener: AudioObjectPropertyListenerBlock = { _, _ in
             MainActor.assumeIsolated { onChange() }
         }
-        AudioObjectAddPropertyListenerBlock(id, &address, .main, listener)
+        let addresses = [volumeAddress, muteAddress]
+        for var address in addresses {
+            AudioObjectAddPropertyListenerBlock(id, &address, .main, listener)
+        }
         return {
-            var address = volumeAddress
-            AudioObjectRemovePropertyListenerBlock(id, &address, .main, listener)
+            for var address in addresses {
+                AudioObjectRemovePropertyListenerBlock(id, &address, .main, listener)
+            }
         }
     }
 
     /// The replacement for the `AudioHardwareService` volume calls, which the SDK marks as no longer supported.
     private static let volumeAddress = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume, scope: kAudioObjectPropertyScopeOutput)
+    private static let muteAddress = address(kAudioDevicePropertyMute, scope: kAudioObjectPropertyScopeOutput)
 
     static func observe(onDevicesChange: @escaping @MainActor () -> Void, onDefaultChange: @escaping @MainActor () -> Void) {
         var devices = address(kAudioHardwarePropertyDevices)

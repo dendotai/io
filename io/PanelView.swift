@@ -117,7 +117,7 @@ struct VolumeSlider: View {
                 .padding(.leading, Metrics.contentInset)
             HStack(spacing: 3.5) {
                 Image(systemName: "speaker.fill")
-                Track(value: model.volume ?? 0, set: model.setVolume)
+                Track(value: model.sliderVolume ?? 0, set: model.setVolume)
                 Image(systemName: "speaker.wave.3.fill")
             }
             .font(.system(size: 16))
