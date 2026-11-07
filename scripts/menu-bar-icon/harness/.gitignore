@@ -1,0 +1,6 @@
+harness
+libPriority.dylib
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+*.abi.json

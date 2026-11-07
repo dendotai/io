@@ -2,22 +2,21 @@ import AppKit
 import Priority
 import QuartzCore
 
-/// The menu bar icon, an image view inside the status item's button, because in AppKit only `NSImageView` plays symbol transitions (`NSImageView.h`).
-final class MenuBarIconView: NSImageView {
-    /// The Sound icon's ink size, from Size, spacing, and animations in `docs/sound-menu.md`.
-    private static let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+/// The menu bar icon: one template image view per symbol layer inside the status item's button, animated by Core Animation. The system's symbol effects commit a frame from io's process for each step, and the menu bar blocks those commits for about 700 ms after an output change while its own Sound icon changes, so they stall; the render server plays a Core Animation animation on its own (`scripts/menu-bar-icon/README.md`).
+final class MenuBarIconView: NSView {
     private var shown: MenuBarIcon?
-    /// Counts the changes, so a later one wins over the image a replace still waits to show.
-    private var scaleGeneration = 0
+    /// The shown symbol's pieces, in `MenuBarIconPieces` order.
+    private var pieces: [PieceView] = []
+    private var outgoing: [PieceView] = []
+    /// Counts the changes, so a later one wins over the pieces an earlier change still waits to remove.
+    private var generation = 0
 
     init(in button: NSStatusBarButton) {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        imageScaling = .scaleNone
         wantsLayer = true
         setAccessibilityElement(false)
         button.addSubview(self)
-        // A fixed frame, because a frame that takes each new symbol's size moves the symbol still on screen during a transition.
         NSLayoutConstraint.activate([
             leadingAnchor.constraint(equalTo: button.leadingAnchor),
             trailingAnchor.constraint(equalTo: button.trailingAnchor),
@@ -31,103 +30,297 @@ final class MenuBarIconView: NSImageView {
         fatalError("init(coder:) is not used")
     }
 
-    /// The first image shows at once; a change during a running scale starts from the frame on screen.
+    /// The first image shows at once; a change during a running transition starts from the frame on screen. The transitions and their lengths are in Size, spacing, and animations in `docs/sound-menu.md`.
     func show(_ icon: MenuBarIcon) {
-        guard
-            let image = NSImage(systemSymbolName: icon.symbol.name, variableValue: icon.symbol.variableValue, accessibilityDescription: nil)?
-                .withSymbolConfiguration(Self.configuration)
-        else { return }
         defer { shown = icon }
         guard let shown else {
-            self.image = image
+            pieces = make(icon.symbol)
             return
         }
         guard let change = icon.change(from: shown) else { return }
-        let scale = stopScale()
+        generation += 1
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         switch change {
-        // The headphones keep their size as the slash comes and goes, as in the Sound icon.
-        case .symbol where icon.symbol.name.hasPrefix("headphones"): setSymbolImage(image, contentTransition: .automatic)
-        // Reduce Motion goes to the system transition, which follows it.
-        case .output where reduceMotion, .symbol where reduceMotion: setSymbolImage(image, contentTransition: .automatic)
-        // A symbol transition draws the old symbol in the new one's frame, which moves it when the two differ in size.
-        case .output, .symbol: replace(shown.symbol, with: icon.symbol, image: image, from: scale)
-        // Every symbol transition shrinks the icon, while the Sound icon fades the waves to the new volume.
+        // The Sound icon fades the waves to the new volume; the pieces are the same, so only the waves' opacity moves.
         case .volume:
-            let fade = CATransition()
-            fade.type = .fade
-            fade.duration = 0.4
-            fade.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            layer?.add(fade, forKey: "volume")
-            self.image = image
-        }
-    }
-
-    /// Ends a running replace, so its image never shows over a later one, and returns the scale on screen.
-    private func stopScale() -> CGFloat {
-        scaleGeneration += 1
-        let scale = layer?.presentation()?.transform.m11 ?? 1
-        layer?.removeAnimation(forKey: "shrink")
-        layer?.removeAnimation(forKey: "grow")
-        removeAllSymbolEffects(options: .default, animated: false)
-        return scale
-    }
-
-    /// The old symbol holds, then drops, in place, and the new one appears by layer, so a speaker's waves fill in one by one, as in the Sound icon. The disappear effect hides a symbol at once here, and symbol effects leave an AirPods symbol at full size, so io scales those itself. The lengths are in Size, spacing, and animations in `docs/sound-menu.md`.
-    private func replace(_ old: MenuBarSymbol, with new: MenuBarSymbol, image: NSImage, from scale: CGFloat) {
-        let generation = scaleGeneration
-        let shrink = 0.36
-        layer?.add(drop(from: scale, duration: shrink), forKey: "shrink")
-        DispatchQueue.main.asyncAfter(deadline: .now() + shrink) { [weak self] in
-            guard let self, generation == scaleGeneration else { return }
-            self.image = image
-            if MenuBarSymbol.isModelSymbol(new.name) {
-                let growth = self.scale(from: 0, to: 1, duration: 0.3, timing: .easeOut)
-                growth.isRemovedOnCompletion = true
-                layer?.add(growth, forKey: "grow")
-            } else {
-                addSymbolEffect(.appear.up.byLayer, options: .speed(0.4))
+            let new = MenuBarIconPieces.pieces(of: icon.symbol, scale: scale).pieces
+            for (view, piece) in zip(pieces, new) where view.layer?.opacity != Float(piece.opacity) {
+                view.animateOpacity(to: piece.opacity, duration: Transition.fade)
             }
-            layer?.removeAnimation(forKey: "shrink")
+        case .output where reduceMotion, .symbol where reduceMotion:
+            crossfade(to: icon.symbol)
+        case .output, .symbol:
+            replace(with: icon.symbol, magic: Self.isSlashPair(shown.symbol.name, icon.symbol.name))
         }
     }
 
-    /// The Sound icon's old symbol keeps nearly its size for about 250 ms, then drops to nothing in about 100 ms.
-    private func drop(from scale: CGFloat, duration: CFTimeInterval) -> CAAnimation {
-        let centre = CGPoint(x: bounds.midX, y: bounds.midY)
-        let animation = CAKeyframeAnimation(keyPath: "transform")
-        animation.values = [scale, scale * 0.92, 0.001].map { factor in
-            var t = CATransform3DMakeTranslation(centre.x, centre.y, 0)
-            t = CATransform3DScale(t, factor, factor, 1)
-            return CATransform3DTranslate(t, -centre.x, -centre.y, 0)
-        }
-        animation.keyTimes = [0, 0.7, 1]
-        animation.timingFunctions = [CAMediaTimingFunction(name: .easeIn), CAMediaTimingFunction(name: .easeIn)]
-        animation.duration = duration
-        animation.fillMode = .forwards
-        animation.isRemovedOnCompletion = false
-        return animation
+    /// The lengths, in seconds, and scales of the system's replace by layer, read from its frames in the harness (`scripts/menu-bar-icon/README.md`): the old symbol's accents fade or shrink while its base scales down to about 0.4, where the new base takes over and grows out; a slash line shrinks slowly towards its lower end; the headphones' slash springs in and out while the headphones stay.
+    private enum Transition {
+        static let fade = 0.4
+        /// A speaker's waves fade out over the whole down phase, slowly at first; its body shrinks only at the end.
+        static let wavesFade = 0.22
+        static let bodyShrink = 0.1
+        static let baseShrink = 0.22
+        static let slashBodyShrink = 0.28
+        static let slashShrink = 0.45
+        static let swapScale = 0.4
+        static let bodyGrow = 0.09
+        static let baseGrow = 0.25
+        static let wavesGrow = 0.22
+        static let slashGrow = 0.3
+        /// The growth of an accent reaches half its size in a fifth of its length and then eases out over a long tail: the scale at 0, 0.2, 0.65 and 0.95 of the length.
+        static let accentGrowth: [CGFloat] = [0.45, 0.71, 0.95, 0.985]
+        static let magicSpring = 0.45
+        static let magicCut = 0.1
     }
 
-    /// AppKit keeps a view's layer anchored at its corner, so the scale moves around the centre by translation.
-    private func scale(from: CGFloat, to: CGFloat, duration: CFTimeInterval, timing: CAMediaTimingFunctionName) -> CAAnimation {
-        let centre = CGPoint(x: bounds.midX, y: bounds.midY)
-        func transform(_ factor: CGFloat) -> CATransform3D {
-            var t = CATransform3DMakeTranslation(centre.x, centre.y, 0)
-            t = CATransform3DScale(t, max(factor, 0.001), max(factor, 0.001), 1)
-            return CATransform3DTranslate(t, -centre.x, -centre.y, 0)
+    /// The old symbol's layers go in the system's order and lengths, then the new symbol's layers grow from the swap scale. A magic pair keeps its base and springs the slash alone.
+    private func replace(with symbol: MenuBarSymbol, magic: Bool) {
+        let generation = generation
+        let new = make(symbol)
+        new.forEach { $0.setScale(0.001) }
+        let old = pieces
+        pieces = new
+        removeOutgoing()
+        outgoing = old
+        var swap = 0.0
+        if magic {
+            for view in old where view.piece.role != .base {
+                view.spring(to: 0.001, duration: Transition.magicSpring)
+            }
+        } else {
+            let oldIsSlash = old.contains { $0.piece.role == .slash }
+            let oldHasWaves = old.contains { $0.piece.role == .wave }
+            for view in old {
+                switch view.piece.role {
+                case .wave:
+                    view.animateOpacity(to: 0, duration: Transition.wavesFade, timing: .easeIn)
+                    swap = max(swap, Transition.wavesFade)
+                case .slash:
+                    view.shrink(to: 0.001, about: view.piece.inkEnd, delay: 0, duration: Transition.slashShrink)
+                    swap = max(swap, Transition.slashShrink)
+                case .base, .other:
+                    let duration = oldIsSlash ? Transition.slashBodyShrink : oldHasWaves ? Transition.bodyShrink : Transition.baseShrink
+                    let delay = oldHasWaves ? Transition.wavesFade - Transition.bodyShrink : 0
+                    view.shrink(to: Transition.swapScale, about: view.piece.inkCentre, delay: delay, duration: duration)
+                    swap = max(swap, delay + duration)
+                }
+            }
         }
-        let animation = CABasicAnimation(keyPath: "transform")
-        animation.fromValue = transform(from)
-        animation.toValue = transform(to)
-        animation.duration = duration
-        animation.timingFunction = CAMediaTimingFunction(name: timing)
-        // The shrunk symbol stays hidden until the new image replaces it.
-        animation.fillMode = .forwards
-        animation.isRemovedOnCompletion = false
-        return animation
+        let newHasWaves = new.contains { $0.piece.role == .wave }
+        for view in new {
+            if magic {
+                view.setScale(1)
+                if view.piece.role == .base, let keptBase = old.first(where: { $0.piece.role == .base }) {
+                    // The base under a slash is the base cut by it: the cut shows once the slash reaches the base. A symbol change leaves the main thread free, so the swap can wait on it.
+                    view.isHidden = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Transition.magicCut) { [weak self, weak view] in
+                        guard let self, generation == self.generation else { return }
+                        view?.isHidden = false
+                        keptBase.isHidden = true
+                    }
+                } else {
+                    view.spring(from: 0.001, to: 1, duration: Transition.magicSpring)
+                }
+                continue
+            }
+            switch view.piece.role {
+            case .base: view.grow(from: Transition.swapScale, delay: swap, duration: newHasWaves ? Transition.bodyGrow : Transition.baseGrow)
+            case .other: view.grow(from: Transition.swapScale, delay: swap, duration: Transition.baseGrow)
+            case .wave: view.grow(through: Transition.accentGrowth, delay: swap, duration: Transition.wavesGrow)
+            case .slash: view.grow(through: Transition.accentGrowth, delay: swap, duration: Transition.slashGrow)
+            }
+        }
+        let end = swap + max(Transition.baseGrow, Transition.wavesGrow, Transition.slashGrow, Transition.magicSpring)
+        DispatchQueue.main.asyncAfter(deadline: .now() + end + 0.05) { [weak self] in
+            guard let self, generation == self.generation else { return }
+            removeOutgoing()
+        }
+    }
+
+    /// With Reduce Motion the Sound icon fades the old symbol out and the new one in.
+    private func crossfade(to symbol: MenuBarSymbol) {
+        let generation = generation
+        let new = make(symbol)
+        let old = pieces
+        pieces = new
+        removeOutgoing()
+        outgoing = old
+        for view in new {
+            view.layer?.opacity = 0
+            view.animateOpacity(to: view.piece.opacity, duration: Transition.fade)
+        }
+        for view in old {
+            view.animateOpacity(to: 0, duration: Transition.fade)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Transition.fade) { [weak self] in
+            guard let self, generation == self.generation else { return }
+            removeOutgoing()
+        }
+    }
+
+    private func removeOutgoing() {
+        outgoing.forEach { $0.removeFromSuperview() }
+        outgoing = []
+    }
+
+    /// The symbol's pieces as subviews, on the symbol's own canvas centred in the button, so each symbol sits where an image of it would.
+    private func make(_ symbol: MenuBarSymbol) -> [PieceView] {
+        let (pieces, size, insets) = MenuBarIconPieces.pieces(of: symbol, scale: scale)
+        return pieces.map { piece in
+            let view = PieceView(piece: piece, frame: CGRect(origin: canvasOrigin(for: size, insets: insets), size: size), insets: insets)
+            addSubview(view)
+            return view
+        }
+    }
+
+    /// The image's alignment rect centred on the button, on the pixel grid at 2x, as the status bar places an image.
+    private func canvasOrigin(for size: CGSize, insets: NSEdgeInsets) -> CGPoint {
+        let aligned = CGSize(width: size.width - insets.left - insets.right, height: size.height - insets.top - insets.bottom)
+        let x = (bounds.width - aligned.width) / 2 - insets.left
+        let y = (bounds.height - aligned.height) / 2 - insets.bottom
+        return CGPoint(x: (x * 2).rounded() / 2, y: (y * 2).rounded() / 2)
+    }
+
+    /// The first symbol shows before the button has its size.
+    override func layout() {
+        super.layout()
+        for view in pieces + outgoing {
+            view.frame.origin = canvasOrigin(for: view.frame.size, insets: view.insets)
+        }
+    }
+
+    private var scale: CGFloat { window?.backingScaleFactor ?? 2 }
+
+    /// `headphones` and `headphones.slash`: the symbol only gains or loses its slash, which the system's magic replace animates alone.
+    private static func isSlashPair(_ a: String, _ b: String) -> Bool {
+        a == b + ".slash" || b == a + ".slash"
     }
 
     /// Clicks belong to the status item.
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// One layer of the symbol, scaled about its ink centre.
+private final class PieceView: NSImageView {
+    let piece: MenuBarIconPiece
+    let insets: NSEdgeInsets
+
+    init(piece: MenuBarIconPiece, frame: CGRect, insets: NSEdgeInsets) {
+        self.piece = piece
+        self.insets = insets
+        super.init(frame: frame)
+        image = piece.image
+        imageScaling = .scaleNone
+        wantsLayer = true
+        layer?.opacity = Float(piece.opacity)
+        setAccessibilityElement(false)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
+
+    /// AppKit keeps a view's layer anchored at its corner, so a scale about a point goes by translation.
+    var presentedScale: CGFloat {
+        (layer?.presentation() ?? layer)?.transform.m11 ?? 1
+    }
+
+    func setScale(_ factor: CGFloat) {
+        layer?.transform = transform(factor, about: piece.inkCentre)
+    }
+
+    private func transform(_ factor: CGFloat, about point: CGPoint) -> CATransform3D {
+        let f = max(factor, 0.001)
+        var t = CATransform3DMakeTranslation(point.x, point.y, 0)
+        t = CATransform3DScale(t, f, f, 1)
+        return CATransform3DTranslate(t, -point.x, -point.y, 0)
+    }
+
+    /// Scales from the size on screen down to `scale` about the point, then hides, so the layer stays at full size until its turn.
+    func shrink(to scale: CGFloat, about point: CGPoint, delay: TimeInterval, duration: TimeInterval) {
+        let animation = CABasicAnimation(keyPath: "transform")
+        animation.fromValue = transform(presentedScale, about: point)
+        animation.toValue = transform(scale, about: point)
+        animation.beginTime = CACurrentMediaTime() + delay
+        animation.duration = duration
+        animation.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        animation.fillMode = .backwards
+        layer?.transform = transform(0.001, about: point)
+        layer?.add(animation, forKey: "scale")
+        let hide = CABasicAnimation(keyPath: "opacity")
+        hide.fromValue = layer?.opacity
+        hide.toValue = 0
+        hide.beginTime = CACurrentMediaTime() + delay + duration
+        hide.duration = 0.001
+        hide.fillMode = .backwards
+        layer?.opacity = 0
+        layer?.add(hide, forKey: "hide")
+    }
+
+    func grow(from scale: CGFloat, delay: TimeInterval, duration: TimeInterval) {
+        let animation = CABasicAnimation(keyPath: "transform")
+        animation.fromValue = transform(scale, about: piece.inkCentre)
+        animation.toValue = transform(1, about: piece.inkCentre)
+        animation.beginTime = CACurrentMediaTime() + delay
+        animation.duration = duration
+        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        animation.fillMode = .backwards
+        layer?.transform = transform(1, about: piece.inkCentre)
+        layer?.add(animation, forKey: "scale")
+        // Nothing shows before its turn.
+        let show = CABasicAnimation(keyPath: "opacity")
+        show.fromValue = 0
+        show.toValue = layer?.opacity
+        show.beginTime = CACurrentMediaTime() + delay
+        show.duration = 0.001
+        show.fillMode = .backwards
+        layer?.add(show, forKey: "show")
+    }
+
+    /// Grows through the scales at the fractions 0, 0.2, 0.65 and 0.95 of the length, then to 1.
+    func grow(through scales: [CGFloat], delay: TimeInterval, duration: TimeInterval) {
+        let animation = CAKeyframeAnimation(keyPath: "transform")
+        animation.values = (scales + [1]).map { transform($0, about: piece.inkCentre) }
+        animation.keyTimes = [0, 0.2, 0.65, 0.95, 1]
+        animation.beginTime = CACurrentMediaTime() + delay
+        animation.duration = duration
+        animation.fillMode = .backwards
+        layer?.transform = transform(1, about: piece.inkCentre)
+        layer?.add(animation, forKey: "scale")
+        let show = CABasicAnimation(keyPath: "opacity")
+        show.fromValue = 0
+        show.toValue = layer?.opacity
+        show.beginTime = CACurrentMediaTime() + delay
+        show.duration = 0.001
+        show.fillMode = .backwards
+        layer?.add(show, forKey: "show")
+    }
+
+    /// A spring about the ink centre that overshoots a little and settles within the length.
+    func spring(from start: CGFloat? = nil, to scale: CGFloat, duration: TimeInterval) {
+        let animation = CASpringAnimation(keyPath: "transform")
+        animation.fromValue = transform(start ?? presentedScale, about: piece.inkCentre)
+        animation.toValue = transform(scale, about: piece.inkCentre)
+        animation.mass = 1
+        animation.stiffness = 180
+        animation.damping = 12
+        animation.initialVelocity = 0
+        animation.duration = duration
+        layer?.transform = transform(scale, about: piece.inkCentre)
+        layer?.add(animation, forKey: "scale")
+    }
+
+    func animateOpacity(to opacity: CGFloat, duration: TimeInterval, delay: TimeInterval = 0, timing: CAMediaTimingFunctionName = .easeInEaseOut) {
+        let animation = CABasicAnimation(keyPath: "opacity")
+        animation.fromValue = (layer?.presentation() ?? layer)?.opacity
+        animation.toValue = Float(opacity)
+        animation.beginTime = CACurrentMediaTime() + delay
+        animation.duration = duration
+        animation.timingFunction = CAMediaTimingFunction(name: timing)
+        animation.fillMode = .backwards
+        layer?.opacity = Float(opacity)
+        layer?.add(animation, forKey: "opacity")
+    }
 }

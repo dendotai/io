@@ -3,7 +3,7 @@ import AudioToolbox
 import ApplicationServices
 import CoreAudio
 
-// iconrun <record path> <outdir> [dry|-] <io.app path>: opens the Sound menu by an Accessibility press, records the menu bar strip around io's icon and the Sound icon at 120 fps, changes the output through the Sound menu's rows and the volume and mute through Core Audio, then closes the panel and restores the volume and mute it read first. "dry" only opens the panel, lists its rows, and closes it.
+// iconrun <record path> <outdir> [dry|-] <io.app path>: opens the Sound menu by an Accessibility press, records the menu bar strip around io's icon and the Sound icon at 120 fps, changes the output through the Sound menu's rows and the volume and mute through Core Audio, then closes the panel and restores the volume and mute it read first. "dry" only opens the panel, records one second, lists its rows, and closes it.
 let args = CommandLine.arguments
 let dry = args.count > 3 && args[3] == "dry"
 
@@ -67,9 +67,16 @@ func setMuted(_ m: UInt32) { var a = address(kAudioDevicePropertyMute); var m = 
 
 openPanel()
 if dry {
-    usleep(600_000); _ = try? Process.run(URL(fileURLWithPath: "/usr/sbin/screencapture"), arguments: ["-x", "-R-443,-1440,2560,33", "studio.png"]).waitUntilExit(); _ = try? Process.run(URL(fileURLWithPath: "/usr/sbin/screencapture"), arguments: ["-x", "-R0,0,1728,33", "builtin.png"]).waitUntilExit()
+    // One second of the bar with the menu open, so a frame of the active display's bar can be read.
+    let recorder = Process()
+    recorder.executableURL = URL(fileURLWithPath: args[1])
+    recorder.arguments = ["2014", "0", "350", "33", "1", args[2]]
+    recorder.environment = ["DISPLAY_ID": "2"]
+    try recorder.run()
+    recorder.waitUntilExit()
     for r in rows() { print(identifier(r), (attr(r, kAXDescriptionAttribute) as String?) ?? "") }
-    closePanel(); exit(0)
+    closePanel()
+    exit(0)
 }
 let startVolume = volume(), startMute = muted()
 let recorder = Process()
