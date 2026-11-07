@@ -3,7 +3,7 @@ import Priority
 
 /// A section's drag layer: the drag state its view draws, and the item that holds the view.
 struct DragLayerItem {
-    let drag: RowDrag
+    let rowDrag: RowDrag
     let item: NSMenuItem
 }
 
@@ -41,15 +41,15 @@ final class RowDragTracker {
         let pointerY = NSEvent.mouseLocation.y
         if let drag {
             let moved = drag.startY - pointerY
-            let state = layers[drag.direction].drag
+            let state = layers[drag.direction].rowDrag
             if moved != state.translation {
                 state.translation = moved
             }
             return
         }
         let layer = layers[direction]
-        layer.drag.uid = device.uid
-        layer.drag.translation = translation
+        layer.rowDrag.uid = device.uid
+        layer.rowDrag.translation = translation
         // The section may have gained or lost rows since the panel was built.
         if let view = layer.item.view {
             view.setFrameSize(view.fittingSize)
@@ -83,10 +83,10 @@ final class RowDragTracker {
         self.drag = nil
         panelLog.notice("drag end")
         let layer = layers[drag.direction]
-        if let move = layer.drag.move(in: model.rows[drag.direction] ?? []) {
+        if let move = layer.rowDrag.move(in: model.rows[drag.direction] ?? []) {
             model.reorder(move.device, to: move.to, in: drag.direction)
         }
-        layer.drag.uid = nil
+        layer.rowDrag.uid = nil
         didEnd?(layer.item.view?.window)
     }
 }

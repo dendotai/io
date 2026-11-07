@@ -40,11 +40,11 @@ final class StatusItemController {
         volumeSlider = Self.item(VolumeSlider(model: model))
         volumeSeparator = Self.item(PanelSeparator(inset: Metrics.contentInset))
         let sections = PerDirection { direction in
-            let drag = RowDrag(direction: direction)
+            let rowDrag = RowDrag(direction: direction)
             return SectionItems(
                 header: Self.item(SectionHeader(model: model, direction: direction)),
                 separator: Self.item(PanelSeparator(inset: direction.separatorInset)),
-                dragLayer: DragLayerItem(drag: drag, item: Self.item(DragLayer(model: model, drag: drag))))
+                dragLayer: DragLayerItem(rowDrag: rowDrag, item: Self.item(DragLayer(model: model, drag: rowDrag))))
         }
         self.sections = sections
         let menu = NSMenu()
