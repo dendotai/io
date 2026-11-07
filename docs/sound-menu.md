@@ -69,16 +69,22 @@ The menu's slider goes to 0 while the output is muted, and to its volume again a
 
 Read on macOS 27.2 in Dark Mode from recordings of the Sound icon beside io's icon, on the Studio Display's menu bar at about 30 fps. Ink is at 2x.
 
-The Sound icon's symbols match a rendering at 14 pt, medium weight: the same ink box within 1 px for each symbol in the size table on io issue 36, the same stroke widths (3 px per wave at 2x), and the same total ink within 0.1%.
+The Sound icon's symbols match a rendering at 14 pt, medium weight: the same ink box within 1 px for each symbol in the size table on #36, the same stroke widths (3 px per wave at 2x), and the same total ink within 0.1%.
 
 The Sound item's frame is 22 pt wide with 16 pt to the next system item's frame; a third-party item's frame has 4 pt to its neighbour's. From the ink of `speaker.wave.3.fill` at 0.34 to its neighbours' ink, the Sound icon has 37 and 43 px, which io's item matches at 32 pt wide.
 
-| Change                                   | Sound icon                                                     |
-| ---------------------------------------- | -------------------------------------------------------------- |
-| Level only, in one output or between two | the waves swap at once, no shrink                              |
-| To or from the slash, mute on or off     | the symbol shrinks and the new one grows, about 450–600 ms     |
-| Headphones, mute on or off               | the symbol stays about the same size, about 600 ms             |
-| Output with another symbol               | the old symbol shrinks and the new one grows, about 300–500 ms |
+io matches each change in the same recording, within about 100 ms:
+
+| Change                                    | Sound icon                                                     |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| Volume only, in one output or between two | the waves fade to the new volume, about 400 ms, with no shrink |
+| To or from the slash, mute on or off      | the symbol shrinks and the new one grows                       |
+| Headphones, mute on or off                | the symbol stays about the same size                           |
+| Output with another symbol                | the old symbol shrinks and the new one grows                   |
+
+At about 30 fps the recording cannot time the lengths in the table on #36; it compares io with the Sound icon frame by frame.
+
+Symbol transitions do not animate an AirPods symbol, so io shrinks and grows it on its own. With Reduce Motion on, every change in both icons fades the old symbol out and the new one in, over about 250–400 ms.
 
 ## Reading a value again
 

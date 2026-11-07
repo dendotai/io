@@ -76,6 +76,7 @@ final class StatusItemController {
         watchRightClicks()
         updateItems()
         iconView = statusItem.button.map(MenuBarIconView.init)
+        statusItem.button?.setAccessibilityLabel("io")
         updateIcon()
         #if DEBUG
             debugMark = statusItem.button.map(DebugMark.init)

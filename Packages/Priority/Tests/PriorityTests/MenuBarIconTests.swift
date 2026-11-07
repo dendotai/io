@@ -16,13 +16,16 @@ private func icon(_ outputUID: String?, _ name: String, _ variableValue: Double 
     #expect(icon(headphonesUID, "headphones").change(from: icon(speakersUID, "speaker.wave.3.fill")) == .output)
 }
 
-@Test func anotherOutputWithTheSameSymbolShowsOnlyItsLevel() {
-    #expect(icon(headphonesUID, "speaker.wave.3.fill", 0.34).change(from: icon(speakersUID, "speaker.wave.3.fill", 1)) == .level)
+@Test func anotherOutputWithTheSameSymbolShowsOnlyItsVolume() {
+    #expect(icon(headphonesUID, "speaker.wave.3.fill", 0.34).change(from: icon(speakersUID, "speaker.wave.3.fill", 1)) == .volume)
+}
+
+@Test func anotherOutputWithTheSameSymbolAndVolumeIsNoChange() {
     #expect(icon(headphonesUID, "speaker.wave.3.fill").change(from: icon(speakersUID, "speaker.wave.3.fill")) == nil)
 }
 
-@Test func aLevelChangeKeepsTheSymbol() {
-    #expect(icon(speakersUID, "speaker.wave.3.fill", 0.34).change(from: icon(speakersUID, "speaker.wave.3.fill", 1)) == .level)
+@Test func aVolumeChangeKeepsTheSymbol() {
+    #expect(icon(speakersUID, "speaker.wave.3.fill", 0.34).change(from: icon(speakersUID, "speaker.wave.3.fill", 1)) == .volume)
 }
 
 @Test func aMuteChangeWithinTheOutputChangesTheSymbol() {
