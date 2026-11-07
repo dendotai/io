@@ -19,7 +19,7 @@ final class StatusItemController {
     private let updateAvailableRow: NSMenuItem
     private var deviceItems: [Direction: [String: NSMenuItem]] = [:]
     /// Each AirPods row's group while folded open, built when it first folds open and again if its supported modes change.
-    private var listeningGroups: [String: (modes: [ListeningMode], item: NSMenuItem)] = [:]
+    private var listeningGroups: [String: ListeningModeGroupItem] = [:]
     private var foldedOpenUIDs: Set<String> = []
     /// Each AirPods row's fold layer, built when the panel opens.
     private var foldAnimations: [String: FoldAnimation] = [:]
@@ -138,7 +138,7 @@ final class StatusItemController {
                     items.append(idle.item)
                 }
                 if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
-                    let group = listeningGroups[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? (modes: modes, item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
+                    let group = listeningGroups[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? ListeningModeGroupItem(modes: modes, item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
                     listeningGroups[row.id] = group
                     let groupItem = group.item
                     names[ObjectIdentifier(groupItem)] = "listening mode of \"\(row.device.name)\""
@@ -302,6 +302,11 @@ private struct SectionItems {
     let header: NSMenuItem
     let separator: NSMenuItem
     let dragLayer: DragLayerItem
+}
+
+private struct ListeningModeGroupItem {
+    let modes: [ListeningMode]
+    let item: NSMenuItem
 }
 
 /// Reads what can change while the panel is closed, before it shows.
