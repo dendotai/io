@@ -36,7 +36,7 @@ Dragging a row in the panel to change its priority. It never switches the device
 _Avoid_: sort, rearrange
 
 **Hand pick**:
-A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects, a device above it connects, or Back to Auto is clicked.
+A click on a device in the panel. The device stays in use until it disconnects, a device above it connects, or Back to Auto is clicked.
 _Avoid_: override, manual mode
 
 **Back to Auto**:
