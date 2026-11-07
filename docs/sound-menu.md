@@ -84,7 +84,7 @@ io matches each change in the same recording, within about 100 ms:
 
 At about 30 fps the recording cannot time the lengths in the table on #36; it compares io with the Sound icon frame by frame.
 
-Symbol transitions do not animate an AirPods symbol, so io shrinks it in 200 ms and grows the new symbol in 250 ms on its own; the Sound icon's whole change took 370–550 ms, and io's about 430 ms. With Reduce Motion on, every change in both icons fades the old symbol out and the new one in, over about 250–400 ms.
+A symbol transition draws the old symbol in the new symbol's frame, which moves it sideways when the two differ in size, and leaves an AirPods symbol at full size. So io shrinks the old symbol in place and grows the new one itself: for an output change in 270 and 300 ms (the lengths on #36), for a slash change in 420 and 300 ms (this recording). On the active display's bar, io's centre then moves less than 1 px between frames, and each change ends within about 40 ms of the Sound icon's. On an inactive display's bar, macOS shows io's new image with no animation, and draws io's ink at 82 where the Sound icon's is 98, as for every item outside its menu bar process, the Input menu included. With Reduce Motion on, every change in both icons fades the old symbol out and the new one in, over about 250–400 ms.
 
 ## Reading a value again
 

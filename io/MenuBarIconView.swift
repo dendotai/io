@@ -17,9 +17,12 @@ final class MenuBarIconView: NSImageView {
         wantsLayer = true
         setAccessibilityElement(false)
         button.addSubview(self)
+        // A fixed frame, because a frame that takes each new symbol's size moves the symbol still on screen during a transition.
         NSLayoutConstraint.activate([
-            centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            trailingAnchor.constraint(equalTo: button.trailingAnchor),
+            topAnchor.constraint(equalTo: button.topAnchor),
+            bottomAnchor.constraint(equalTo: button.bottomAnchor),
         ])
     }
 
@@ -41,14 +44,15 @@ final class MenuBarIconView: NSImageView {
         }
         guard let change = icon.change(from: shown) else { return }
         let scale = stopScale()
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         switch change {
-        // Symbol transitions leave an AirPods symbol at full size, where the Sound icon shrinks and grows it as any other.
+        // The headphones keep their size as the slash comes and goes, as in the Sound icon.
+        case .symbol where icon.symbol.name.hasPrefix("headphones"): setSymbolImage(image, contentTransition: .automatic)
         // Reduce Motion goes to the system transition, which follows it.
-        case .output where (MenuBarSymbol.isModelSymbol(icon.symbol.name) || MenuBarSymbol.isModelSymbol(shown.symbol.name)) && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion:
-            scaleReplace(with: image, from: scale)
-        // The speaker's waves fill in one by one, as in the Sound icon.
-        case .output: setSymbolImage(image, contentTransition: .replace.downUp.byLayer)
-        case .symbol: setSymbolImage(image, contentTransition: .automatic)
+        case .output where reduceMotion, .symbol where reduceMotion: setSymbolImage(image, contentTransition: .automatic)
+        // A symbol transition draws the old symbol in the new one's frame, which moves it when the two differ in size, and leaves an AirPods symbol at full size; the Sound icon shrinks the old symbol in place and grows the new one.
+        case .output: scaleReplace(with: image, from: scale, shrink: 0.27, grow: 0.3)
+        case .symbol: scaleReplace(with: image, from: scale, shrink: 0.42, grow: 0.3)
         // Every symbol transition shrinks the icon, while the Sound icon fades the waves to the new volume.
         case .volume:
             let fade = CATransition()
@@ -70,19 +74,18 @@ final class MenuBarIconView: NSImageView {
     }
 
     /// The lengths are in Size, spacing, and animations in `docs/sound-menu.md`.
-    private func scaleReplace(with image: NSImage, from scale: CGFloat) {
+    private func scaleReplace(with image: NSImage, from scale: CGFloat, shrink: CFTimeInterval, grow: CFTimeInterval) {
         let generation = scaleGeneration
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             guard let self, generation == scaleGeneration else { return }
             self.image = image
-            superview?.layoutSubtreeIfNeeded()
             layer?.removeAnimation(forKey: "shrink")
-            let grow = self.scale(from: 0, to: 1, duration: 0.25, timing: .easeOut)
-            grow.isRemovedOnCompletion = true
-            layer?.add(grow, forKey: "grow")
+            let growth = self.scale(from: 0, to: 1, duration: grow, timing: .easeOut)
+            growth.isRemovedOnCompletion = true
+            layer?.add(growth, forKey: "grow")
         }
-        layer?.add(self.scale(from: scale, to: 0, duration: 0.2 * scale, timing: .easeIn), forKey: "shrink")
+        layer?.add(self.scale(from: scale, to: 0, duration: shrink * scale, timing: .easeIn), forKey: "shrink")
         CATransaction.commit()
     }
 
