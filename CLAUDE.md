@@ -1,6 +1,6 @@
 ## Conventions
 
-Every commit message takes a conventional prefix (`feat:`, `fix:`, `chore:`, …).
+Every commit message takes a conventional prefix (`feat:`, `fix:`, `chore:`, …). `bun install` turns on `.githooks/commit-msg`, which rejects a message the `commitlint` job would fail.
 
 Feature branches open PRs into `dev`; `dev` merges into `main` for a release.
 
