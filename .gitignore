@@ -8,3 +8,4 @@ build/
 .scratch/
 dist/
 node_modules/
+scripts/panel-log/pointer

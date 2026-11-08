@@ -751,7 +751,7 @@ private struct HoverRow<Content: View>: View {
                 RoundedRectangle(cornerRadius: style.radius)
                     .fill(fillReason != nil ? style.fill : .clear)
             )
-            .background(HoverProbe(id: id, name: logName))
+            .background(HoverProbe(id: id, name: logName, clearHover: { isHovered = false }))
             .onChange(of: fillReason, initial: true) {
                 ProbeView.attached[id]?.fillReason = fillReason
                 if fillReason != nil || ProbeView.attached[id] != nil {
