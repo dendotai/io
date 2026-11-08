@@ -46,7 +46,6 @@ final class FoldAnimation {
         isIdle = false
         self.isOpening = isOpening
         rows.setFrameSize(NSSize(width: Metrics.width, height: rows.fittingSize.height))
-        layOut()
         let target = isOpening ? groupHeight : 0
         let fromHeight = height, fromOpacity = group.alphaValue
         // Counted from the first tick, so the time the menu takes to swap its items is not skipped.
@@ -72,7 +71,8 @@ final class FoldAnimation {
         self.timer = timer
     }
 
-    private func layOut() {
+    /// `updateItems` calls it once a starting fold has replaced the real rows, because the stand-in shown beside them makes the menu taller for a frame.
+    func layOut() {
         // `NSMenu` gives a shown item at least 1 pt, and the rows below would jump by that much as a fold starts and ends.
         item.isHidden = isIdle
         let total = isIdle ? 0 : rows.frame.height + height

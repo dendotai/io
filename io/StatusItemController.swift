@@ -171,6 +171,7 @@ final class StatusItemController {
         while menu.items.count > items.count {
             menu.removeItem(at: items.count)
         }
+        foldAnimation?.layOut()
         if !moved.isEmpty || removedCount > 0 {
             panelLog.notice("items inserted: \(moved.joined(separator: ", ")); removed from the end: \(removedCount)")
         }
