@@ -293,6 +293,10 @@ final class MenuLog: NSObject, NSMenuDelegate {
         if !isWindowReported, let window {
             isWindowReported = true
             panelLog.notice("panel window \(window.windowNumber) frame=\(window.frame) level=\(window.level.rawValue) key=\(window.isKeyWindow) app active=\(NSApp.isActive) areas=\(WindowDump.trackingAreaCount(in: window))")
+            // Every open lists the windows, so a stale panel window or another process's window over the panel shows on the opens before a case too.
+            for line in WindowDump.ioWindows() + WindowDump.windowsOver(window.frame) {
+                panelLog.notice(line)
+            }
             #if DEBUG
                 if UserDefaults.standard.bool(forKey: "forceBadOpen") {
                     markBadOpen("forced by the forceBadOpen default", in: window)
@@ -374,25 +378,33 @@ nonisolated private func systemEventCallback(proxy: CGEventTapProxy, type: CGEve
 enum WindowDump {
     static func state(of panel: NSWindow) -> String {
         var lines = ["--- state dump ---", "screens: \(screens())", "frontmost: \(frontmost())", "panel window \(panel.windowNumber) frame=\(describe(panel.frame))"]
-        lines.append("io windows:")
-        for window in NSApp.windows {
-            lines.append("  \(type(of: window)) \(window.windowNumber) frame=\(describe(window.frame)) level=\(window.level.rawValue) visible=\(window.isVisible) alpha=\(window.alphaValue) ignoresMouse=\(window.ignoresMouseEvents)")
-        }
-        lines.append("windows over the panel (window list, top first):")
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
-        let panelCG = CGRect(x: panel.frame.minX, y: primaryHeight - panel.frame.maxY, width: panel.frame.width, height: panel.frame.height)
-        for window in CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] ?? [] {
-            guard let bounds = window[kCGWindowBounds as String] as? [String: CGFloat] else { continue }
-            let rect = CGRect(x: bounds["X"] ?? 0, y: bounds["Y"] ?? 0, width: bounds["Width"] ?? 0, height: bounds["Height"] ?? 0)
-            guard rect.intersects(panelCG) else { continue }
-            lines.append("  \(window[kCGWindowNumber as String] ?? "?") owner=\(window[kCGWindowOwnerName as String] ?? "?") pid=\(window[kCGWindowOwnerPID as String] ?? "?") layer=\(window[kCGWindowLayer as String] ?? "?") alpha=\(window[kCGWindowAlpha as String] ?? "?") bounds=\(describe(rect))")
-        }
+        lines += ioWindows() + windowsOver(panel.frame)
         lines.append("tracking areas in the panel window:")
         if let content = panel.contentView {
             walk(content, into: &lines)
         }
         lines.append("--- end of state dump ---")
         return lines.joined(separator: "\n")
+    }
+
+    static func ioWindows() -> [String] {
+        NSApp.windows.map { window in
+            "io window \(type(of: window)) \(window.windowNumber) frame=\(describe(window.frame)) level=\(window.level.rawValue) visible=\(window.isVisible) alpha=\(window.alphaValue) ignoresMouse=\(window.ignoresMouseEvents)"
+        }
+    }
+
+    /// Every on-screen window of any process whose bounds meet the panel's frame, top first.
+    static func windowsOver(_ frame: CGRect) -> [String] {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        let panelCG = CGRect(x: frame.minX, y: primaryHeight - frame.maxY, width: frame.width, height: frame.height)
+        var lines: [String] = []
+        for window in CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] ?? [] {
+            guard let bounds = window[kCGWindowBounds as String] as? [String: CGFloat] else { continue }
+            let rect = CGRect(x: bounds["X"] ?? 0, y: bounds["Y"] ?? 0, width: bounds["Width"] ?? 0, height: bounds["Height"] ?? 0)
+            guard rect.intersects(panelCG) else { continue }
+            lines.append("window over the panel \(window[kCGWindowNumber as String] ?? "?") owner=\(window[kCGWindowOwnerName as String] ?? "?") pid=\(window[kCGWindowOwnerPID as String] ?? "?") layer=\(window[kCGWindowLayer as String] ?? "?") alpha=\(window[kCGWindowAlpha as String] ?? "?") bounds=\(describe(rect))")
+        }
+        return lines
     }
 
     private static func walk(_ view: NSView, into lines: inout [String]) {
