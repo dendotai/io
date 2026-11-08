@@ -26,7 +26,6 @@ final class StatusItemController {
     private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
     private let dragTracker: RowDragTracker
-    private let openSubmenu = OpenSubmenu()
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
     private let rightClickMenuDelegate: RightClickMenuDelegate
@@ -124,12 +123,8 @@ final class StatusItemController {
             }
             var kept: [String: NSMenuItem] = [:]
             for row in rows[direction] ?? [] {
-                let item = deviceItems[direction]?[row.id] ?? Self.item(DeviceRow(model: model, direction: direction, device: row.device, dragActions: dragActions, openSubmenu: openSubmenu))
-                if !row.canHide {
-                    item.submenu = nil
-                } else if item.submenu == nil {
-                    item.submenu = hideMenu(row.device, in: direction)
-                }
+                let device = row.device
+                let item = deviceItems[direction]?[row.id] ?? Self.item(DeviceRow(model: model, direction: direction, device: device, dragActions: dragActions, hide: { [weak self] in self?.hide(device, in: direction) }))
                 kept[row.id] = item
                 names[ObjectIdentifier(item)] = "\(direction) \"\(row.device.name)\""
                 items.append(item)
@@ -226,40 +221,29 @@ final class StatusItemController {
 
     private var dragActions: RowDragActions {
         RowDragActions(
-            pressed: { [weak self] device, direction in self?.pressed(device, in: direction) },
             changed: { [weak self] device, direction, translation in
                 guard let self else { return }
                 dragTracker.changed(device, translation: translation, layer: section(for: direction).dragLayer)
             },
-            released: { [weak self] in self?.released() }
+            released: { [weak self] in
+                guard let self, dragTracker.isDragging else { return }
+                dragTracker.endAfterRelease()
+            }
         )
     }
 
-    /// AppKit reopens a pressed row's submenu about 200 ms after the press, with no move, and the drag swap then closes it again, so the pressed row has no "Hide" until release.
-    private func pressed(_ device: Device, in direction: Direction) {
-        deviceItems[direction]?[device.uid]?.submenu = nil
+    /// The row below slides under the resting pointer, and shows its hover and its Hide button only once the menu sees a pointer move.
+    private func hide(_ device: Device, in direction: Direction) {
+        model.hide(device, in: direction)
+        updateItemsUnderRestingPointer(in: panelWindow)
     }
 
-    /// A release that reaches the menu while a "›" row is under the pointer keeps "Hide" closed until the pointer moves, so a drag ends only after the menu has handled its release.
-    private func released() {
-        if dragTracker.isDragging {
-            dragTracker.endAfterRelease()
-            return
-        }
-        // After a click on a "›" row the menu opens "Hide" only once the pointer enters the row again, so the report passes over the row above first.
-        updateItemsUnderRestingPointer(in: panelWindow, reentering: true)
-    }
-
-    /// The menu picks the item under the pointer, and opens its "Hide" submenu, only on a pointer move, and the pointer has not moved since the update.
-    private func updateItemsUnderRestingPointer(in window: NSWindow?, reentering: Bool = false) {
+    /// The menu picks the item under the pointer only on a pointer move, and the pointer has not moved since the update.
+    private func updateItemsUnderRestingPointer(in window: NSWindow?) {
         updateItems()
         RunLoop.main.perform(inModes: [.common]) {
             guard let window else { return }
-            let location = window.convertPoint(fromScreen: NSEvent.mouseLocation)
-            if reentering {
-                Self.reportPointer(at: NSPoint(x: location.x, y: location.y + Metrics.deviceRowHeight), in: window)
-            }
-            Self.reportPointer(at: location, in: window)
+            Self.reportPointer(at: window.convertPoint(fromScreen: NSEvent.mouseLocation), in: window)
         }
     }
 
@@ -271,20 +255,6 @@ final class StatusItemController {
                 eventNumber: 0, clickCount: 0, pressure: 0)
         else { return }
         NSApp.postEvent(event, atStart: false)
-    }
-
-    private func hideMenu(_ device: Device, in direction: Direction) -> NSMenu {
-        let item = Self.item(HideRow { [weak self] in
-            // The row leaves the menu with its submenu open, and AppKit may not report the close.
-            self?.openSubmenu.uid = nil
-            self?.model.hide(device, in: direction)
-        })
-        // Names the row for `openSubmenu`.
-        item.representedObject = device.uid
-        let submenu = NSMenu()
-        submenu.delegate = openSubmenu
-        submenu.addItem(item)
-        return submenu
     }
 
     private func updateIcon() {

@@ -60,11 +60,6 @@ enum Metrics {
     static let foldChevronOpacity: CGFloat = 0.45
     /// The Sound menu's ⌄ ink strengthens during a press (`docs/sound-menu.md`, Fold chevron, real pointer): grey 150 to 38; io's ink at 0.85 read 66, so the press takes the full primary colour.
     static let foldChevronPressedOpacity: CGFloat = 1
-    static let hideWidth: CGFloat = 110
-    /// A standard menu item's highlight, measured at 2x.
-    static let hideRowHeight: CGFloat = 24
-    static let hideHighlightRadius: CGFloat = 7
-    static let hideTextInset: CGFloat = 11
     static let rightClickMenuWidth: CGFloat = 190
     static let switchWidth: CGFloat = 35
     static let switchHeight: CGFloat = 15
@@ -224,7 +219,6 @@ struct SectionHeader: View {
 
 /// What a drag on a device row reports. The drag itself is drawn by `DragLayer`, in a window over the open menu (ADR 0001).
 struct RowDragActions {
-    let pressed: (_ device: Device, _ direction: Direction) -> Void
     let changed: (_ device: Device, _ direction: Direction, _ translation: CGFloat) -> Void
     let released: () -> Void
 }
@@ -234,21 +228,26 @@ struct DeviceRow: View {
     let direction: Direction
     let device: Device
     var dragActions: RowDragActions?
-    var openSubmenu: OpenSubmenu?
+    var hide: (() -> Void)?
 
     var body: some View {
         if let row = model.rows[direction]?.first(where: { $0.id == device.uid }) {
-            DeviceRowLabel(row: row, direction: direction, isLifted: false, isSubmenuOpen: openSubmenu?.uid == device.uid) {
+            DeviceRowLabel(row: row, direction: direction, isLifted: false, hide: hide) {
                 model.toggleListeningModes(of: device)
             }
             .gesture(reorderOrUse(row))
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 0)
-                        .onChanged { _ in dragActions?.pressed(device, direction) }
                         .onEnded { _ in dragActions?.released() })
                 .accessibilityElement(children: .contain)
                 .accessibilityAddTraits(row.isConnected ? .isButton : [])
                 .accessibilityAction { use(row) }
+                .accessibilityActions {
+                    // The Hide button shows only under the pointer, which VoiceOver does not move.
+                    if row.canHide, let hide {
+                        Button("Hide", action: hide)
+                    }
+                }
         }
     }
 
@@ -269,13 +268,15 @@ private struct DeviceRowLabel: View {
     let row: AppModel.Row
     let direction: Direction
     let isLifted: Bool
-    var isSubmenuOpen = false
+    /// nil in the drag layer and the fold's rows, which show no Hide button.
+    var hide: (() -> Void)?
     /// nil in the drag layer, where the ⌄ only shows.
     var toggleListeningModes: (() -> Void)?
-    @State private var isFoldChevronHovered = false
+    @State private var isHovered = false
+    @State private var isRowButtonHovered = false
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, isHighlighted: isSubmenuOpen, isHoverHighlightHidden: isFoldChevronHovered, logName: "\(direction.title) \"\(row.device.name)\"") {
+        HoverRow(height: Metrics.deviceRowHeight, isHoverHighlightHidden: isRowButtonHovered, logName: "\(direction.title) \"\(row.device.name)\"") {
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: row.symbolName)
@@ -296,10 +297,18 @@ private struct DeviceRowLabel: View {
                 if let single = row.batteryLevels?.single {
                     SingleBatteryLevel(percent: single)
                 }
-                if row.canHide {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: Metrics.chevronSize, weight: .semibold))
-                        .foregroundStyle(Color.primary.opacity(0.7))
+                if row.canHide, let hide {
+                    Button(action: hide) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: Metrics.chevronSize))
+                            .imageScale(.small)
+                            .frame(width: Metrics.foldChevronWidth, height: Metrics.iconSize)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(FoldChevronButtonStyle())
+                    .onHover { isRowButtonHovered = $0 }
+                    .opacity(isHovered ? 1 : 0)
+                    .accessibilityHidden(true)
                 } else if row.listening != nil {
                     Button {
                         toggleListeningModes?()
@@ -312,11 +321,12 @@ private struct DeviceRowLabel: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(FoldChevronButtonStyle())
-                    .onHover { isFoldChevronHovered = $0 }
+                    .onHover { isRowButtonHovered = $0 }
                     .accessibilityLabel("Listening Mode")
                 }
             }
         }
+        .onHover { isHovered = $0 }
         .background {
             if isLifted {
                 RoundedRectangle(cornerRadius: Metrics.highlightRadius)
@@ -520,21 +530,6 @@ private struct SingleBatteryLevel: View {
     }
 }
 
-/// Which row's "Hide" submenu is open, so the row keeps its highlight while the pointer is in the submenu, like a standard menu item.
-@Observable final class OpenSubmenu: NSObject, NSMenuDelegate {
-    var uid: String?
-
-    func menuWillOpen(_ menu: NSMenu) {
-        uid = menu.items.first?.representedObject as? String
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        if uid == menu.items.first?.representedObject as? String {
-            uid = nil
-        }
-    }
-}
-
 @Observable final class RowDrag {
     let direction: Direction
     var uid: String?
@@ -603,22 +598,6 @@ struct PanelSeparator: View {
             .padding(.top, 5)
             .padding(.bottom, 4)
             .frame(width: Metrics.width)
-    }
-}
-
-/// The "Hide" item of a row's submenu. A custom view, because AppKit closes the whole panel when a standard item is chosen.
-struct HideRow: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HoverRow(height: Metrics.hideRowHeight, style: .hide, logName: "Hide") {
-                Text("Hide")
-            }
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, Metrics.edgeInset)
-        .frame(width: Metrics.hideWidth)
     }
 }
 
@@ -697,30 +676,16 @@ struct MenuRow: View {
     }
 }
 
-/// How a `HoverRow` draws its highlight. Hide highlights in the accent colour, like a standard menu item; the panel rows keep the Sound menu's grey.
+/// How a `HoverRow` fills its highlight: the Sound menu's grey, or the update row's blue.
 enum HoverRowStyle {
     case plain
-    case hide
     case update
-
-    var radius: CGFloat {
-        self == .hide ? Metrics.hideHighlightRadius : Metrics.highlightRadius
-    }
-
-    var textInset: CGFloat {
-        self == .hide ? Metrics.hideTextInset : Metrics.contentInset - Metrics.edgeInset
-    }
 
     var fill: Color {
         switch self {
         case .plain: Color.primary.opacity(0.09)
-        case .hide: Color.accentColor
         case .update: Color.accentColor.opacity(0.18)
         }
-    }
-
-    func text(isHovered: Bool) -> AnyShapeStyle {
-        self == .hide && isHovered ? AnyShapeStyle(.white) : AnyShapeStyle(.primary)
     }
 }
 
@@ -729,7 +694,7 @@ private struct HoverRow<Content: View>: View {
     let height: CGFloat
     var style = HoverRowStyle.plain
     var isHighlighted = false
-    /// The Sound menu's AirPods row shows no highlight with the pointer on its ⌄.
+    /// No highlight while the pointer is on the row's ⌄ or Hide button, as the Sound menu's AirPods row shows none on its ⌄.
     var isHoverHighlightHidden = false
     let logName: String
     @ViewBuilder let content: () -> Content
@@ -743,12 +708,12 @@ private struct HoverRow<Content: View>: View {
 
     var body: some View {
         content()
-            .foregroundStyle(style.text(isHovered: isHovered))
-            .padding(.horizontal, style.textInset)
+            .foregroundStyle(.primary)
+            .padding(.horizontal, Metrics.contentInset - Metrics.edgeInset)
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: style.radius)
+                RoundedRectangle(cornerRadius: Metrics.highlightRadius)
                     .fill(fillReason != nil ? style.fill : .clear)
             )
             .background(HoverProbe(id: id, name: logName))
