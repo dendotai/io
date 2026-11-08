@@ -273,10 +273,9 @@ private struct DeviceRowLabel: View {
     /// nil in the drag layer, where the ⌄ only shows.
     var toggleListeningModes: (() -> Void)?
     @State private var isHovered = false
-    @State private var isRowButtonHovered = false
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, isHoverHighlightHidden: isRowButtonHovered, logName: "\(direction.title) \"\(row.device.name)\"") {
+        HoverRow(height: Metrics.deviceRowHeight, logName: "\(direction.title) \"\(row.device.name)\"") {
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: row.symbolName)
@@ -306,7 +305,6 @@ private struct DeviceRowLabel: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(FoldChevronButtonStyle())
-                    .onHover { isRowButtonHovered = $0 }
                     .opacity(isHovered ? 1 : 0)
                     .accessibilityHidden(true)
                 } else if row.listening != nil {
@@ -321,7 +319,6 @@ private struct DeviceRowLabel: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(FoldChevronButtonStyle())
-                    .onHover { isRowButtonHovered = $0 }
                     .accessibilityLabel("Listening Mode")
                 }
             }
@@ -694,8 +691,6 @@ private struct HoverRow<Content: View>: View {
     let height: CGFloat
     var style = HoverRowStyle.plain
     var isHighlighted = false
-    /// No highlight while the pointer is on the row's ⌄ or Hide button, as the Sound menu's AirPods row shows none on its ⌄.
-    var isHoverHighlightHidden = false
     let logName: String
     @ViewBuilder let content: () -> Content
     @State private var isHovered = false
@@ -703,7 +698,7 @@ private struct HoverRow<Content: View>: View {
 
     private var fillReason: String? {
         if isHighlighted { return "highlighted" }
-        return isHovered && !isHoverHighlightHidden ? "hovered" : nil
+        return isHovered ? "hovered" : nil
     }
 
     var body: some View {
