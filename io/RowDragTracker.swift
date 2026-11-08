@@ -62,11 +62,6 @@ final class RowDragTracker {
         didStart?()
     }
 
-    /// Ends the drag once the menu has handled the release that reached it.
-    func endAfterRelease() {
-        RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.end() }
-    }
-
     private func watchRelease() {
         guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
         drag?.ticksSinceButtonUp += 1
@@ -75,7 +70,7 @@ final class RowDragTracker {
         }
     }
 
-    private func end() {
+    func end() {
         guard let drag else { return }
         drag.timer.invalidate()
         self.drag = nil

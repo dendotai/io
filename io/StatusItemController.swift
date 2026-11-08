@@ -228,7 +228,7 @@ final class StatusItemController {
             },
             released: { [weak self] in
                 guard let self, dragTracker.isDragging else { return }
-                dragTracker.endAfterRelease()
+                dragTracker.end()
             }
         )
     }
