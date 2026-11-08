@@ -54,12 +54,12 @@ enum Metrics {
     static let listeningIconColumn: CGFloat = 27
     static let listeningIconSize: CGFloat = 18
     /// The fold's "›" and "⌄" turn around one centre 22 in from the body's edge, with a lighter stroke than the "›" of a submenu: a 2x crop of the Sound menu in Dark Mode, peak grey 128 on 51.
-    static let foldChevronWidth: CGFloat = 16
+    static let rowButtonWidth: CGFloat = 16
     /// The swap's length in `docs/sound-menu.md`, Fold animation. Linear, because `.default` reached the last pixel 333 ms after the one before, against 17-50 ms in the Sound menu.
     static let foldChevronSwapDuration: TimeInterval = 0.45
-    static let foldChevronOpacity: CGFloat = 0.45
+    static let rowButtonOpacity: CGFloat = 0.45
     /// The Sound menu's ⌄ ink strengthens during a press (`docs/sound-menu.md`, Fold chevron, real pointer): grey 150 to 38; io's ink at 0.85 read 66, so the press takes the full primary colour.
-    static let foldChevronPressedOpacity: CGFloat = 1
+    static let rowButtonPressedOpacity: CGFloat = 1
     static let rightClickMenuWidth: CGFloat = 190
     static let switchWidth: CGFloat = 35
     static let switchHeight: CGFloat = 15
@@ -301,10 +301,10 @@ private struct DeviceRowLabel: View {
                         Image(systemName: "eye.slash")
                             .font(.system(size: Metrics.chevronSize))
                             .imageScale(.small)
-                            .frame(width: Metrics.foldChevronWidth, height: Metrics.iconSize)
+                            .frame(width: Metrics.rowButtonWidth, height: Metrics.iconSize)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(FoldChevronButtonStyle())
+                    .buttonStyle(RowButtonStyle())
                     .opacity(isHovered ? 1 : 0)
                     .accessibilityHidden(true)
                 } else if row.listening != nil {
@@ -315,10 +315,10 @@ private struct DeviceRowLabel: View {
                             .font(.system(size: Metrics.chevronSize))
                             .contentTransition(.symbolEffect(.replace))
                             .animation(.linear(duration: Metrics.foldChevronSwapDuration), value: row.isFoldedOpen)
-                            .frame(width: Metrics.foldChevronWidth, height: Metrics.iconSize)
+                            .frame(width: Metrics.rowButtonWidth, height: Metrics.iconSize)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(FoldChevronButtonStyle())
+                    .buttonStyle(RowButtonStyle())
                     .accessibilityLabel("Listening Mode")
                 }
             }
@@ -726,9 +726,9 @@ private struct HoverRow<Content: View>: View {
     }
 }
 
-private struct FoldChevronButtonStyle: ButtonStyle {
+private struct RowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color.primary.opacity(configuration.isPressed ? Metrics.foldChevronPressedOpacity : Metrics.foldChevronOpacity))
+            .foregroundStyle(Color.primary.opacity(configuration.isPressed ? Metrics.rowButtonPressedOpacity : Metrics.rowButtonOpacity))
     }
 }
