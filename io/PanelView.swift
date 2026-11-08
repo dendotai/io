@@ -53,7 +53,7 @@ enum Metrics {
     static let listeningCheckmarkColumn: CGFloat = 32
     static let listeningIconColumn: CGFloat = 27
     static let listeningIconSize: CGFloat = 18
-    /// The fold's "›" and "⌄" turn around one centre 22 in from the body's edge, with a lighter stroke than the "›" of a submenu: a 2x crop of the Sound menu in Dark Mode, peak grey 128 on 51.
+    /// The fold's "›" and "⌄" turn around one centre 22 in from the body's edge: a 2x crop of the Sound menu in Dark Mode, peak grey 128 on 51.
     static let rowButtonWidth: CGFloat = 16
     /// The swap's length in `docs/sound-menu.md`, Fold animation. Linear, because `.default` reached the last pixel 333 ms after the one before, against 17-50 ms in the Sound menu.
     static let foldChevronSwapDuration: TimeInterval = 0.45
