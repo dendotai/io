@@ -86,19 +86,17 @@ private func describe(_ rect: CGRect) -> String {
 
 /// The fields of an event AppKit delivered: its kind, window, place, number, source process, deltas, and the run loop mode it arrived in. Deltas and the source come from the `CGEvent`, because `NSEvent` raises on a delta read of a non-move event.
 private func describe(_ event: NSEvent) -> String {
-    let cg = event.cgEvent
-    let source = cg.map { "\($0.getIntegerValueField(.eventSourceUnixProcessID))" } ?? "?"
-    let delta = cg.map { "(\(Int($0.getDoubleValueField(.mouseEventDeltaX))),\(Int($0.getDoubleValueField(.mouseEventDeltaY))))" } ?? "?"
-    var tracking = ""
-    if event.type == .mouseEntered || event.type == .mouseExited || event.type == .cursorUpdate {
-        tracking = " tracking=\(event.trackingNumber) area=\(event.trackingArea.map { "\(ObjectIdentifier($0).hashValue)" } ?? "none")"
-    }
-    let mode = RunLoop.current.currentMode?.rawValue ?? "none"
-    // `NSEvent` raises on a number or subtype read of an event kind that has none, such as a key press that closes the panel.
-    let isMouse: Set<NSEvent.EventType> = [.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown, .rightMouseUp, .rightMouseDragged, .otherMouseDown, .otherMouseUp, .otherMouseDragged, .mouseEntered, .mouseExited, .cursorUpdate, .scrollWheel]
+    // `NSEvent` raises on a number, subtype, or CGEvent read of an event kind that has none: a key press that closes the panel, or a tracking event, which AppKit makes itself.
+    let isTracking = event.type == .mouseEntered || event.type == .mouseExited || event.type == .cursorUpdate
+    let isMouse: Set<NSEvent.EventType> = [.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown, .rightMouseUp, .rightMouseDragged, .otherMouseDown, .otherMouseUp, .otherMouseDragged, .scrollWheel]
+    let cg = isMouse.contains(event.type) ? event.cgEvent : nil
+    let source = cg.map { "\($0.getIntegerValueField(.eventSourceUnixProcessID))" } ?? "-"
+    let delta = cg.map { "(\(Int($0.getDoubleValueField(.mouseEventDeltaX))),\(Int($0.getDoubleValueField(.mouseEventDeltaY))))" } ?? "-"
+    let tracking = isTracking ? " tracking=\(event.trackingNumber) area=\(event.trackingArea.map { "\(ObjectIdentifier($0).hashValue)" } ?? "none")" : ""
     let hasSubtype = isMouse.contains(event.type) || [.appKitDefined, .systemDefined, .applicationDefined, .periodic].contains(event.type)
     let number = isMouse.contains(event.type) ? "\(event.eventNumber)" : "-"
     let subtype = hasSubtype ? "\(event.subtype.rawValue)" : "-"
+    let mode = RunLoop.current.currentMode?.rawValue ?? "none"
     return "type=\(event.type.rawValue) subtype=\(subtype) window=\(event.window?.windowNumber ?? -1) location=\(describe(event.locationInWindow)) number=\(number) source=\(source) delta=\(delta)\(tracking) mode=\(mode)"
 }
 
@@ -255,11 +253,19 @@ final class MenuLog: NSObject, NSMenuDelegate {
         panelLog.notice("menu open #\(openCount) seconds since launch=\(Int(ProcessInfo.processInfo.systemUptime - launchedAt)) items=\(menu.items.count) pointer=\(describe(NSEvent.mouseLocation)) screens=\(WindowDump.screens()) frontmost=\(WindowDump.frontmost()) event \(event)")
         lastTick = ProcessInfo.processInfo.systemUptime
         openMenu = menu
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .mouseEntered, .mouseExited, .cursorUpdate, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown, .appKitDefined, .systemDefined, .applicationDefined]) { event in
-            panelLog.notice("app event \(describe(event))")
-            return event
+        // `defaults write ai.den.io disableEventMonitor -bool true` and `disableSystemTap` switch one layer off, to find which one changes what the panel receives.
+        if !UserDefaults.standard.bool(forKey: "disableEventMonitor") {
+            // A local monitor on mouseMoved stops every tracking event in the panel (sweep A of PR 90, 0 hover enters), so moves come from the system tap and the monitor watches the rest; `monitorMouseMoved` adds them for a test.
+            var mask: NSEvent.EventTypeMask = [.mouseEntered, .mouseExited, .cursorUpdate, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown, .appKitDefined, .systemDefined, .applicationDefined]
+            if UserDefaults.standard.bool(forKey: "monitorMouseMoved") { mask.insert(.mouseMoved) }
+            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { event in
+                panelLog.notice("app event \(describe(event))")
+                return event
+            }
         }
-        systemTap.enable()
+        if !UserDefaults.standard.bool(forKey: "disableSystemTap") {
+            systemTap.enable()
+        }
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -315,7 +321,9 @@ final class MenuLog: NSObject, NSMenuDelegate {
                 panelLog.notice("GREY-WITHOUT-POINTER \(view.report); all grey rows: \(greyRows)")
             }
             view.isReportedWithoutPointer = isGreyWithoutPointer
-            view.ticksGreyWithoutPointer = isGreyWithoutPointer && view.fillReason == "hovered" && NSEvent.pressedMouseButtons == 0 ? view.ticksGreyWithoutPointer + 1 : 0
+            // A pointer on a row's edge pixel is inside for SwiftUI and outside for the frame, so the clear allows 1 pt; a dropped exit leaves the pointer rows away.
+            let isFarFromPointer = view.fillReason == "hovered" && NSEvent.pressedMouseButtons == 0 && view.screenFrame.map { !$0.insetBy(dx: -1, dy: -1).contains(pointer) } == true
+            view.ticksGreyWithoutPointer = isFarFromPointer ? view.ticksGreyWithoutPointer + 1 : 0
             if view.ticksGreyWithoutPointer == Self.clearAfterTicks {
                 tickClears += 1
                 panelLog.notice("fill cleared by tick: \(view.report)")
@@ -340,33 +348,49 @@ final class MenuLog: NSObject, NSMenuDelegate {
     }
 }
 
-/// A listen-only tap on the session's pointer events, on while the panel shows: what the system produced, beside what AppKit delivered.
+/// A listen-only tap on the session's pointer events, on while the panel shows: what the system produced, beside what AppKit delivered. It runs on its own thread, because the system switches a tap off when its callback waits on a stalled main thread, and the callback switches it on again when that happens anyway.
 private final class SystemEventTap {
-    private var tap: CFMachPort?
+    nonisolated(unsafe) static var tap: CFMachPort?
+    /// On while the panel shows; the callback switches the tap on again only then, because the switch-off at close reports as a disable too.
+    nonisolated(unsafe) static var isWanted = false
+    private var thread: Thread?
     private var isReported = false
 
     func enable() {
-        if tap == nil {
-            let mask: CGEventMask = [CGEventType.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown].reduce(0) { $0 | (1 << $1.rawValue) }
-            tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly, eventsOfInterest: mask, callback: systemEventCallback, userInfo: nil)
-            if let tap {
-                CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
-            } else if !isReported {
-                isReported = true
-                panelLog.notice("system event tap unavailable")
+        Self.isWanted = true
+        if thread == nil {
+            let thread = Thread { [weak self] in
+                let mask: CGEventMask = [CGEventType.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .rightMouseDown].reduce(0) { $0 | (1 << $1.rawValue) }
+                guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly, eventsOfInterest: mask, callback: systemEventCallback, userInfo: nil) else {
+                    panelLog.notice("system event tap unavailable")
+                    return
+                }
+                Self.tap = tap
+                CGEvent.tapEnable(tap: tap, enable: true)
+                CFRunLoopAddSource(CFRunLoopGetCurrent(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+                _ = self
+                CFRunLoopRun()
             }
+            thread.name = "ai.den.io.system-event-tap"
+            thread.start()
+            self.thread = thread
+            return
         }
-        if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+        if let tap = Self.tap { CGEvent.tapEnable(tap: tap, enable: true) }
     }
 
     func disable() {
-        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        Self.isWanted = false
+        if let tap = Self.tap { CGEvent.tapEnable(tap: tap, enable: false) }
     }
 }
 
 nonisolated private func systemEventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, userInfo: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        panelLog.notice("system event tap disabled: type=\(type.rawValue)")
+        if SystemEventTap.isWanted, let tap = SystemEventTap.tap {
+            panelLog.notice("system event tap disabled: type=\(type.rawValue); enabled again")
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
         return nil
     }
     let location = event.location
