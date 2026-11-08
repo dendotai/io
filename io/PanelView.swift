@@ -272,10 +272,9 @@ private struct DeviceRowLabel: View {
     var hide: (() -> Void)?
     /// nil in the drag layer, where the ⌄ only shows.
     var toggleListeningModes: (() -> Void)?
-    @State private var isHovered = false
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, logName: "\(direction.title) \"\(row.device.name)\"") {
+        HoverRow(height: Metrics.deviceRowHeight, logName: "\(direction.title) \"\(row.device.name)\"") { isHovered in
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: row.symbolName)
@@ -317,7 +316,6 @@ private struct DeviceRowLabel: View {
                 }
             }
         }
-        .onHover { isHovered = $0 }
         .background {
             if isLifted {
                 RoundedRectangle(cornerRadius: Metrics.highlightRadius)
@@ -420,7 +418,7 @@ struct ListeningModeRow: View {
         Button {
             model.setListeningMode(mode, of: device)
         } label: {
-            HoverRow(height: Metrics.listeningRowPitch, logName: "listening mode") {
+            HoverRow(height: Metrics.listeningRowPitch, logName: "listening mode") { _ in
                 HStack(spacing: 0) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .semibold))
@@ -610,7 +608,7 @@ struct UpdateRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.menuRowHeight, style: .update, isHighlighted: isHighlighted, logName: "update") {
+            HoverRow(height: Metrics.menuRowHeight, style: .update, isHighlighted: isHighlighted, logName: "update") { _ in
                 Text(updater.updateTitle ?? "")
                     .foregroundStyle(Color.accentColor)
             }
@@ -657,7 +655,7 @@ struct MenuRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.menuRowHeight, logName: title) {
+            HoverRow(height: Metrics.menuRowHeight, logName: title) { _ in
                 Text(title)
             }
         }
@@ -686,7 +684,8 @@ private struct HoverRow<Content: View>: View {
     var style = HoverRowStyle.plain
     var isHighlighted = false
     let logName: String
-    @ViewBuilder let content: () -> Content
+    /// Takes the row's hover, so a control shown on hover clears with the highlight when a lost exit is cleared.
+    @ViewBuilder let content: (_ isHovered: Bool) -> Content
     @State private var isHovered = false
     @State private var id = UUID()
 
@@ -696,7 +695,7 @@ private struct HoverRow<Content: View>: View {
     }
 
     var body: some View {
-        content()
+        content(isHovered)
             .foregroundStyle(.primary)
             .padding(.horizontal, Metrics.contentInset - Metrics.edgeInset)
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
