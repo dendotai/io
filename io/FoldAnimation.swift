@@ -71,7 +71,7 @@ final class FoldAnimation {
         self.timer = timer
     }
 
-    /// `updateItems` calls it once a starting fold has replaced the real rows, because the stand-in shown beside them makes the menu taller for a frame.
+    /// Runs once a starting fold has replaced the real rows: shown beside them, the stand-in makes the menu taller for a frame.
     func layOut() {
         // `NSMenu` gives a shown item at least 1 pt, and the rows below would jump by that much as a fold starts and ends.
         item.isHidden = isIdle
