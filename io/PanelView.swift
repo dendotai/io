@@ -299,10 +299,7 @@ private struct DeviceRowLabel: View {
                 if row.canHide, let hide {
                     Button(action: hide) {
                         Image(systemName: "eye.slash")
-                            .font(.system(size: Metrics.chevronSize))
                             .imageScale(.small)
-                            .frame(width: Metrics.rowButtonWidth, height: Metrics.iconSize)
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(RowButtonStyle())
                     .opacity(isHovered ? 1 : 0)
@@ -312,11 +309,8 @@ private struct DeviceRowLabel: View {
                         toggleListeningModes?()
                     } label: {
                         Image(systemName: row.isFoldedOpen ? "chevron.down" : "chevron.right")
-                            .font(.system(size: Metrics.chevronSize))
                             .contentTransition(.symbolEffect(.replace))
                             .animation(.linear(duration: Metrics.foldChevronSwapDuration), value: row.isFoldedOpen)
-                            .frame(width: Metrics.rowButtonWidth, height: Metrics.iconSize)
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(RowButtonStyle())
                     .accessibilityLabel("Listening Mode")
@@ -729,6 +723,9 @@ private struct HoverRow<Content: View>: View {
 private struct RowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .font(.system(size: Metrics.chevronSize))
+            .frame(width: Metrics.rowButtonWidth, height: Metrics.iconSize)
+            .contentShape(Rectangle())
             .foregroundStyle(Color.primary.opacity(configuration.isPressed ? Metrics.rowButtonPressedOpacity : Metrics.rowButtonOpacity))
     }
 }
