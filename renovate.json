@@ -16,10 +16,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "semantic-release runs through bunx, outside package.json, so every line that names its version is bumped here.",
+      "description": "semantic-release and its exec plugin run through bunx, outside package.json, so every line that names their versions is bumped here.",
       "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
-      "matchStrings": ["\\bsemantic-release@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
-      "depNameTemplate": "semantic-release",
+      "matchStrings": ["(?<depName>@semantic-release/exec|semantic-release)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
       "datasourceTemplate": "npm"
     },
     {
