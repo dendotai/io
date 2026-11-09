@@ -8,8 +8,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
-    "@commitlint/config-conventional": "21.2.3",
-    "@semantic-release/exec": "7.1.0"
+    "@commitlint/config-conventional": "21.2.3"
   },
   "release": {
     "branches": [

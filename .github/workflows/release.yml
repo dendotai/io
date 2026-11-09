@@ -32,7 +32,7 @@ jobs:
 
       # Its prepare step runs scripts/build-release.sh before the tag, so a failed build publishes nothing. RELEASING.md has the flow.
       - name: Release
-        run: bunx semantic-release@25.0.9
+        run: bunx --package semantic-release@25.0.9 --package @semantic-release/exec@7.1.0 semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEVELOPER_ID_APPLICATION_CERTIFICATE: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE }}
