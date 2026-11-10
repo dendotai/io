@@ -7,27 +7,26 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { fail, readPackageFiles } from "./renovate-report.mjs";
+import { fail, PINS_LIST, pinPlace, readPackageFiles } from "./renovate-report.mjs";
 
 const packageFiles = readPackageFiles(process.argv[2]);
 const filesOf = (manager) => new Set((packageFiles[manager] ?? []).map((f) => f.packageFile));
 
 const problems = [];
 
-const place = ({ file, depName }) => `${depName} in ${file}`;
 const listed = new Set(
-  JSON.parse(readFileSync("maintenance/updates/renovate-pins.json", "utf8")).map(place),
+  JSON.parse(readFileSync(PINS_LIST, "utf8")).map(pinPlace),
 );
 const foundPins = (packageFiles.regex ?? []).flatMap((f) =>
   f.deps.map((d) => ({ file: f.packageFile, depName: d.depName })),
 );
-const found = new Set(foundPins.map(place));
+const found = new Set(foundPins.map(pinPlace));
 for (const p of listed)
   if (!found.has(p))
     problems.push(
       `Renovate did not find ${p}: its regex rule in renovate.json no longer matches the line.`,
     );
-writeFileSync(process.argv[3], JSON.stringify(foundPins.filter((p) => !listed.has(place(p)))));
+writeFileSync(process.argv[3], JSON.stringify(foundPins.filter((p) => !listed.has(pinPlace(p)))));
 
 const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean);
 // Renovate leaves a file with nothing to update out of its report, so such a file is not expected there.
