@@ -20,10 +20,15 @@ final class AppUpdater: NSObject, SPUUserDriver {
     /// Only the release script sets `PUBLISHED_RELEASE`, so a local build never replaces itself with a published release.
     func start() {
         #if PUBLISHED_RELEASE
-            let updater = SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: self, delegate: nil)
+            let sparkleUpdater = SPUUpdater(
+                hostBundle: .main,
+                applicationBundle: .main,
+                userDriver: self,
+                delegate: nil
+            )
             do {
-                try updater.start()
-                self.updater = updater
+                try sparkleUpdater.start()
+                updater = sparkleUpdater
             } catch {
                 NSLog("io: updater start failed: \(error)")
             }
@@ -41,11 +46,11 @@ final class AppUpdater: NSObject, SPUUserDriver {
         pendingUpdate = nil
     }
 
-    func show(_: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
+    func show(_: SPUUpdatePermissionRequest, reply: (SUUpdatePermissionResponse) -> Void) {
         reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
     }
 
-    func showUserInitiatedUpdateCheck(cancellation _: @escaping () -> Void) {}
+    func showUserInitiatedUpdateCheck(cancellation _: () -> Void) {}
 
     /// Sparkle starts no other check while this reply waits, so the row stays until the click.
     func showUpdateFound(
@@ -65,17 +70,17 @@ final class AppUpdater: NSObject, SPUUserDriver {
 
     func showUpdateReleaseNotesFailedToDownloadWithError(_: any Error) {}
 
-    func showUpdateNotFoundWithError(_: any Error, acknowledgement: @escaping () -> Void) {
+    func showUpdateNotFoundWithError(_: any Error, acknowledgement: () -> Void) {
         acknowledgement()
     }
 
     /// The next daily check finds the update again and the row returns.
-    func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {
+    func showUpdaterError(_ error: any Error, acknowledgement: () -> Void) {
         NSLog("io: update failed: \(error)")
         acknowledgement()
     }
 
-    func showDownloadInitiated(cancellation _: @escaping () -> Void) {}
+    func showDownloadInitiated(cancellation _: () -> Void) {}
 
     func showDownloadDidReceiveExpectedContentLength(_: UInt64) {}
 
@@ -85,13 +90,13 @@ final class AppUpdater: NSObject, SPUUserDriver {
 
     func showExtractionReceivedProgress(_: Double) {}
 
-    func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
+    func showReady(toInstallAndRelaunch reply: (SPUUserUpdateChoice) -> Void) {
         reply(.install)
     }
 
-    func showInstallingUpdate(withApplicationTerminated _: Bool, retryTerminatingApplication _: @escaping () -> Void) {}
+    func showInstallingUpdate(withApplicationTerminated _: Bool, retryTerminatingApplication _: () -> Void) {}
 
-    func showUpdateInstalledAndRelaunched(_: Bool, acknowledgement: @escaping () -> Void) {
+    func showUpdateInstalledAndRelaunched(_: Bool, acknowledgement: () -> Void) {
         acknowledgement()
     }
 

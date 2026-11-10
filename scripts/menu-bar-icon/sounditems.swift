@@ -10,7 +10,7 @@ func attr<T>(_ element: AXUIElement, _ name: String) -> T? {
     ) == .success ? value as? T : nil
 }
 
-func walk(_ element: AXUIElement, _ depth: Int = 0) {
+func walk(_ element: AXUIElement, _ depth: Int) {
     if (attr(element, kAXIdentifierAttribute) as String?) == "com.apple.menuextra.sound" {
         var position = CGPoint.zero; var size = CGSize.zero
         if let positionValue: AXValue = attr(element, kAXPositionAttribute) {
@@ -31,4 +31,4 @@ guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "
     fatalError("MenuBarAgent is not running")
 }
 
-walk(AXUIElementCreateApplication(app.processIdentifier))
+walk(AXUIElementCreateApplication(app.processIdentifier), 0)

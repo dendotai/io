@@ -8,7 +8,7 @@ final class StatusItemController {
     private let statusItem = NSStatusBar.system.statusItem(withLength: 32)
     private let model: AppModel
     private let updater: AppUpdater
-    private let menu: NSMenu
+    private let panel: NSMenu
     private let volumeSlider: NSMenuItem
     private let volumeSeparator: NSMenuItem
     private let outputSection: SectionItems
@@ -26,8 +26,12 @@ final class StatusItemController {
     private var foldAnimation: FoldAnimation?
     /// During a drag, one item holds the dragged row's whole section, so the row can slide over its neighbours (ADR 0001).
     private let dragTracker: RowDragTracker
+    // `NSMenu.delegate` is weak, so this field is the delegate's only owner.
+    // swiftlint:disable:next weak_delegate
     private let panelDelegate: PanelDelegate
     private let rightClickMenu = NSMenu()
+    // `NSMenu.delegate` is weak, so this field is the delegate's only owner.
+    // swiftlint:disable:next weak_delegate
     private let rightClickMenuDelegate: RightClickMenuDelegate
     private var iconView: MenuBarIconView?
     #if DEBUG
@@ -49,12 +53,11 @@ final class StatusItemController {
         }
         outputSection = makeSection(.output)
         inputSection = makeSection(.input)
-        let menu = NSMenu()
-        self.menu = menu
+        panel = NSMenu()
         // A custom view item does not close the menu when clicked, and the Sound menu closes as System Settings opens.
-        func closingMenu(_ action: @escaping () -> Void) -> () -> Void {
+        let closingMenu = { [panel] (action: @escaping () -> Void) in
             {
-                menu.cancelTracking()
+                panel.cancelTracking()
                 action()
             }
         }
@@ -65,13 +68,13 @@ final class StatusItemController {
         dragTracker = RowDragTracker(model: model)
         panelDelegate = PanelDelegate(model: model)
         rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
-        menu.delegate = panelDelegate
+        panel.delegate = panelDelegate
         panelDelegate.willOpen = { [weak self] in self?.prepareFoldAnimations() }
-        statusItem.menu = menu
+        statusItem.menu = panel
         dragTracker.didStart = { [weak self] in self?.updateItems() }
         dragTracker.didEnd = { [weak self] window in self?.updateItemsUnderRestingPointer(in: window) }
         rightClickMenu.delegate = rightClickMenuDelegate
-        rightClickMenuDelegate.didClose = { [weak self] in self?.statusItem.menu = menu }
+        rightClickMenuDelegate.didClose = { [weak self] in self?.statusItem.menu = self?.panel }
         watchRightClicks()
         updateItems()
         iconView = statusItem.button.map(MenuBarIconView.init)
@@ -173,17 +176,17 @@ final class StatusItemController {
 
         var moved: [String] = []
         for (index, item) in items.enumerated()
-            where !menu.items.indices.contains(index) || menu.items[index] !== item
+            where !panel.items.indices.contains(index) || panel.items[index] !== item
         {
             if item.menu != nil {
-                menu.removeItem(item)
+                panel.removeItem(item)
             }
-            menu.insertItem(item, at: index)
+            panel.insertItem(item, at: index)
             moved.append(names[ObjectIdentifier(item)] ?? "other")
         }
-        let removedCount = menu.items.count - items.count
-        while menu.items.count > items.count {
-            menu.removeItem(at: items.count)
+        let removedCount = panel.items.count - items.count
+        while panel.items.count > items.count {
+            panel.removeItem(at: items.count)
         }
         foldAnimation?.layOut()
         if !moved.isEmpty || removedCount > 0 {
@@ -222,7 +225,7 @@ final class StatusItemController {
                 foldAnimation = nil
                 updateItemsUnderRestingPointer(in: panelWindow)
                 // The window can stay 1 pt taller than its items after a fold, until the menu measures itself again.
-                _ = menu.size
+                _ = panel.size
             }
         }
     }
@@ -235,7 +238,7 @@ final class StatusItemController {
     }
 
     private var panelWindow: NSWindow? {
-        menu.items.first?.view?.window
+        panel.items.first?.view?.window
     }
 
     private var dragActions: RowDragActions {

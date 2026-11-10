@@ -117,9 +117,9 @@ struct VolumeSlider: View {
                 .font(.system(size: 13, weight: .bold))
                 .padding(.leading, Metrics.contentInset)
             HStack(spacing: 3.5) {
-                Image(systemName: "speaker.fill")
+                Image(systemName: "speaker.fill").accessibilityHidden(true)
                 Track(value: model.sliderVolume ?? 0, set: model.setVolume)
-                Image(systemName: "speaker.wave.3.fill")
+                Image(systemName: "speaker.wave.3.fill").accessibilityHidden(true)
             }
             .font(.system(size: 16))
             .foregroundStyle(Color.primary.opacity(0.55))
@@ -294,6 +294,7 @@ private struct DeviceRowLabel: View {
                         .foregroundStyle(row.isInUse ? Color.white : Color.primary.opacity(0.5))
                         .frame(width: Metrics.iconSize, height: Metrics.iconSize)
                         .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(row.device.name)
                             .lineLimit(1)
@@ -444,6 +445,8 @@ struct ListeningModeRow: View {
                         .opacity(row?.listening?.current == mode ? 1 : 0)
                         .padding(.leading, Metrics.listeningCheckmarkInset)
                         .frame(width: Metrics.listeningCheckmarkColumn, alignment: .leading)
+                        // The row's `isSelected` trait says what the checkmark shows.
+                        .accessibilityHidden(true)
                     Group {
                         if let icon = ListeningModeIcon.images[mode] {
                             Image(nsImage: icon)
@@ -451,6 +454,7 @@ struct ListeningModeRow: View {
                                 .resizable()
                                 .frame(width: Metrics.listeningIconSize, height: Metrics.listeningIconSize)
                                 .foregroundStyle(Color.primary.opacity(0.5))
+                                .accessibilityHidden(true)
                         }
                     }
                     .frame(width: Metrics.listeningIconColumn, alignment: .leading)
@@ -485,25 +489,40 @@ private struct BatteryLine: View {
     var body: some View {
         HStack(spacing: Metrics.batteryGap) {
             if let buds = battery.buds {
-                level(buds, symbolName: symbolName, gap: Metrics.budsGlyphGap)
+                level(buds, symbolName: symbolName, name: "Battery", gap: Metrics.budsGlyphGap)
             }
             if let left = battery.left {
-                level(left, symbolName: DeviceSymbol.bud(of: symbolName, side: "left"), gap: Metrics.budGlyphGap)
+                level(
+                    left,
+                    symbolName: DeviceSymbol.bud(of: symbolName, side: "left"),
+                    name: "Left",
+                    gap: Metrics.budGlyphGap
+                )
             }
             if let right = battery.right {
-                level(right, symbolName: DeviceSymbol.bud(of: symbolName, side: "right"), gap: Metrics.budGlyphGap)
+                level(
+                    right,
+                    symbolName: DeviceSymbol.bud(of: symbolName, side: "right"),
+                    name: "Right",
+                    gap: Metrics.budGlyphGap
+                )
             }
             if let chargingCase = battery.chargingCase {
-                level(chargingCase, symbolName: DeviceSymbol.chargingCase(of: symbolName), gap: Metrics.caseGlyphGap)
+                level(
+                    chargingCase,
+                    symbolName: DeviceSymbol.chargingCase(of: symbolName),
+                    name: "Case",
+                    gap: Metrics.caseGlyphGap
+                )
             }
         }
         .font(.system(size: Metrics.batteryTextSize))
         .foregroundStyle(.secondary)
     }
 
-    private func level(_ percent: Int, symbolName: String, gap: CGFloat) -> some View {
+    private func level(_ percent: Int, symbolName: String, name: String, gap: CGFloat) -> some View {
         HStack(spacing: gap) {
-            Image(systemName: symbolName)
+            Image(systemName: symbolName).accessibilityLabel(name)
             Text("\(percent)%")
         }
     }

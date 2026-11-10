@@ -151,12 +151,9 @@ final class Sink: NSObject, SCStreamOutput {
 let sink = Sink()
 var stream: SCStream?
 let ownWindowID = CGWindowID(window.windowNumber)
-Task {
+func startCapture() async throws {
     try await Task.sleep(for: .milliseconds(300))
-    let content: SCShareableContent
-    do { content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true) } catch {
-        print("capture failed", error); exit(1)
-    }
+    let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
     let display = need(content.displays.first { $0.displayID == CGMainDisplayID() }, "no main display to capture")
     let config = SCStreamConfiguration()
     // The window sits at the main display's bottom-left corner; the region is in points with a top-left origin.
@@ -177,10 +174,17 @@ Task {
         type: .screen,
         sampleHandlerQueue: DispatchQueue(label: "frames", qos: .userInteractive)
     )
-    do { try await captureStream.startCapture(); print("capturing", display.width, display.height) } catch { print(
-        "capture failed",
-        error
-    ); exit(1) }
+    try await captureStream.startCapture()
+    print("capturing", display.width, display.height)
+}
+
+Task {
+    do {
+        try await startCapture()
+    } catch {
+        FileHandle.standardError.write(Data("capture failed: \(error)\n".utf8))
+        exit(1)
+    }
 }
 
 let steps = Array(args.dropFirst(2))

@@ -84,7 +84,7 @@ final class MenuBarIconView: NSView {
 
     /// The old symbol's layers go in the system's order and lengths, then the new symbol's layers grow from the swap scale. A magic pair keeps its base and springs the slash alone.
     private func replace(with symbol: MenuBarSymbol, magic: Bool) {
-        let generation = generation
+        let startGeneration = generation
         let new = make(symbol)
         new.forEach { $0.setScale(0.001) }
         let old = pieces
@@ -164,14 +164,14 @@ final class MenuBarIconView: NSView {
         }
         let end = swap + max(Transition.baseGrow, Transition.wavesGrow, Transition.slashGrow, Transition.magicSpring)
         DispatchQueue.main.asyncAfter(deadline: .now() + end + 0.05) { [weak self] in
-            guard let self, generation == self.generation else { return }
+            guard let self, startGeneration == generation else { return }
             removeOutgoing()
         }
     }
 
     /// With Reduce Motion the Sound icon fades the old symbol out and the new one in.
     private func crossfade(to symbol: MenuBarSymbol) {
-        let generation = generation
+        let startGeneration = generation
         let new = make(symbol)
         let old = pieces
         pieces = new
@@ -185,7 +185,7 @@ final class MenuBarIconView: NSView {
             view.animateOpacity(to: 0, duration: Transition.fade)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + Transition.fade) { [weak self] in
-            guard let self, generation == self.generation else { return }
+            guard let self, startGeneration == generation else { return }
             removeOutgoing()
         }
     }
@@ -197,8 +197,8 @@ final class MenuBarIconView: NSView {
 
     /// The symbol's pieces as subviews, on the symbol's own canvas centred in the button, so each symbol sits where an image of it would.
     private func make(_ symbol: MenuBarSymbol) -> [PieceView] {
-        let (pieces, size, insets) = MenuBarIconPieces.pieces(of: symbol, scale: scale)
-        return pieces.map { piece in
+        let (symbolPieces, size, insets) = MenuBarIconPieces.pieces(of: symbol, scale: scale)
+        return symbolPieces.map { piece in
             let view = PieceView(
                 piece: piece,
                 frame: CGRect(origin: canvasOrigin(for: size, insets: insets), size: size),

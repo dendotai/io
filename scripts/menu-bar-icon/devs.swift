@@ -3,7 +3,7 @@ import CoreAudio
 import Foundation
 
 func propertyAddress(_ selector: AudioObjectPropertySelector,
-                     _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress
+                     _ scope: AudioObjectPropertyScope) -> AudioObjectPropertyAddress
 {
     .init(
         mSelector: selector,
@@ -13,10 +13,16 @@ func propertyAddress(_ selector: AudioObjectPropertySelector,
 }
 
 let systemObject = AudioObjectID(kAudioObjectSystemObject)
-var address = propertyAddress(kAudioHardwarePropertyDefaultOutputDevice); var defaultOutputID =
+var address = propertyAddress(
+    kAudioHardwarePropertyDefaultOutputDevice,
+    kAudioObjectPropertyScopeGlobal
+); var defaultOutputID =
     AudioDeviceID(0); var size = UInt32(4)
 AudioObjectGetPropertyData(systemObject, &address, 0, nil, &size, &defaultOutputID)
-address = propertyAddress(kAudioHardwarePropertyDevices); AudioObjectGetPropertyDataSize(
+address = propertyAddress(
+    kAudioHardwarePropertyDevices,
+    kAudioObjectPropertyScopeGlobal
+); AudioObjectGetPropertyDataSize(
     systemObject,
     &address,
     0,
@@ -44,7 +50,10 @@ for id in ids {
     {
         continue
     }
-    var nameAddress = propertyAddress(kAudioObjectPropertyName); var deviceName: CFString =
+    var nameAddress = propertyAddress(
+        kAudioObjectPropertyName,
+        kAudioObjectPropertyScopeGlobal
+    ); var deviceName: CFString =
         "" as CFString; var nameSize =
         UInt32(MemoryLayout<CFString>
             .size); AudioObjectGetPropertyData(
@@ -55,7 +64,10 @@ for id in ids {
             &nameSize,
             &deviceName
         )
-    var transportAddress = propertyAddress(kAudioDevicePropertyTransportType); var transportType =
+    var transportAddress = propertyAddress(
+        kAudioDevicePropertyTransportType,
+        kAudioObjectPropertyScopeGlobal
+    ); var transportType =
         UInt32(0); var valueSize =
         UInt32(4); AudioObjectGetPropertyData(
             id,
@@ -65,7 +77,10 @@ for id in ids {
             &valueSize,
             &transportType
         )
-    var runningAddress = propertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere); var isRunning =
+    var runningAddress = propertyAddress(
+        kAudioDevicePropertyDeviceIsRunningSomewhere,
+        kAudioObjectPropertyScopeGlobal
+    ); var isRunning =
         UInt32(0); valueSize =
         4; AudioObjectGetPropertyData(
             id,

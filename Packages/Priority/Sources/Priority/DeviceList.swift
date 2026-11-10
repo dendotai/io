@@ -22,8 +22,11 @@ public struct Device: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+/// Keeps a device list across launches.
 public protocol DeviceListStore {
+    /// The saved devices in priority order, or none when no saved list can be read.
     func load() -> [Device]
+    /// Runs after each `update`, `reorder` and `hide`.
     func save(_ devices: [Device])
 }
 
@@ -35,12 +38,15 @@ public enum NewDevicePlacement: Sendable {
 
 /// The remembered devices of the Output list or the Input list in priority order, and the device the app uses.
 public final class DeviceList {
+    /// Every remembered device, connected or not, in priority order.
     public private(set) var devices: [Device]
+    /// The devices macOS reported as connected at the last `update`.
     public private(set) var connectedUIDs: Set<String> = []
     private var handPickUID: String?
     private let newDevicePlacement: NewDevicePlacement
     private let store: DeviceListStore
 
+    /// Loads the remembered devices from `store`.
     public init(newDevices: NewDevicePlacement, store: DeviceListStore) {
         newDevicePlacement = newDevices
         self.store = store
@@ -107,6 +113,7 @@ public final class DeviceList {
         store.save(devices)
     }
 
+    /// Only a disconnected device that is not built in can be hidden.
     public func canHide(_ device: Device) -> Bool {
         guard let remembered = devices.first(where: { $0.uid == device.uid }) else { return false }
         return !remembered.isBuiltIn && !connectedUIDs.contains(device.uid)
@@ -124,11 +131,13 @@ public final class DeviceList {
         return devices.prefix { $0.uid != uid }.contains { newlyConnectedUIDs.contains($0.uid) }
     }
 
+    /// Starts a hand pick of a connected device; a disconnected device is ignored.
     public func pick(_ device: Device) {
         guard connectedUIDs.contains(device.uid) else { return }
         handPickUID = device.uid
     }
 
+    /// Ends the hand pick, so the highest connected device is in use again (Back to Auto).
     public func endHandPick() {
         handPickUID = nil
     }

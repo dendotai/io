@@ -30,11 +30,11 @@ public struct MenuBarSymbol: Equatable, Sendable {
         if hasHeadphones {
             return MenuBarSymbol(name: deviceSymbol)
         }
-        let variableValue = switch percent {
+        let waveValue = switch percent {
         case ...33: 0.01
         case ...66: 0.34
         default: 1.0
         }
-        return MenuBarSymbol(name: "speaker.wave.3.fill", variableValue: variableValue)
+        return MenuBarSymbol(name: "speaker.wave.3.fill", variableValue: waveValue)
     }
 }

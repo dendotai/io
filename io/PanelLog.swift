@@ -273,22 +273,33 @@ final class MenuLog: NSObject, NSMenuDelegate {
     private var tickClears = 0
     private var eventMonitor: Any?
     private let systemTap = SystemEventTap()
+    private let observers: [(center: NotificationCenter, token: any NSObjectProtocol)]
 
     override init() {
+        let screenCenter = NotificationCenter.default
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        observers = [
+            (screenCenter, screenCenter.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                panelLog.notice("screens changed: \(WindowDump.screens())")
+            }),
+            (workspaceCenter, workspaceCenter.addObserver(
+                forName: NSWorkspace.activeSpaceDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                panelLog.notice("space changed: \(WindowDump.frontmost())")
+            }),
+        ]
         super.init()
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            panelLog.notice("screens changed: \(WindowDump.screens())")
-        }
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            panelLog.notice("space changed: \(WindowDump.frontmost())")
+    }
+
+    isolated deinit {
+        for (center, token) in observers {
+            center.removeObserver(token)
         }
     }
 
@@ -333,11 +344,11 @@ final class MenuLog: NSObject, NSMenuDelegate {
         if !UserDefaults.standard.bool(forKey: "disableSystemTap") {
             systemTap.enable()
         }
-        let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+        let tickTimer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             self?.tick()
         }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        RunLoop.main.add(tickTimer, forMode: .common)
+        timer = tickTimer
     }
 
     func menuDidClose(_: NSMenu) {
@@ -440,7 +451,7 @@ private final class SystemEventTap {
     func enable() {
         Self.isWanted = true
         if thread == nil {
-            let thread = Thread { [weak self] in
+            let tapThread = Thread { [weak self] in
                 let mask: CGEventMask = [
                     CGEventType.mouseMoved,
                     .leftMouseDown,
@@ -448,7 +459,7 @@ private final class SystemEventTap {
                     .leftMouseDragged,
                     .rightMouseDown,
                 ].reduce(0) { $0 | (1 << $1.rawValue) }
-                guard let tap = CGEvent.tapCreate(
+                guard let createdTap = CGEvent.tapCreate(
                     tap: .cgSessionEventTap,
                     place: .headInsertEventTap,
                     options: .listenOnly,
@@ -459,15 +470,19 @@ private final class SystemEventTap {
                     panelLog.notice("system event tap unavailable")
                     return
                 }
-                Self.tap = tap
-                CGEvent.tapEnable(tap: tap, enable: true)
-                CFRunLoopAddSource(CFRunLoopGetCurrent(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+                Self.tap = createdTap
+                CGEvent.tapEnable(tap: createdTap, enable: true)
+                CFRunLoopAddSource(
+                    CFRunLoopGetCurrent(),
+                    CFMachPortCreateRunLoopSource(nil, createdTap, 0),
+                    .commonModes
+                )
                 _ = self
                 CFRunLoopRun()
             }
-            thread.name = "ai.den.io.system-event-tap"
-            thread.start()
-            self.thread = thread
+            tapThread.name = "ai.den.io.system-event-tap"
+            tapThread.start()
+            thread = tapThread
             return
         }
         if let tap = Self.tap {
