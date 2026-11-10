@@ -17,6 +17,8 @@ enum Metrics {
     static let knobHeight: CGFloat = 16
     /// Half the menu row height: the Sound menu's highlight on "Sound Settings…" is a capsule.
     static let highlightRadius: CGFloat = 11
+    /// The Sound menu's radius on a 32 pt device row: the Hover highlight in `docs/sound-menu.md`.
+    static let deviceHighlightRadius: CGFloat = 10
     /// A shorter move is a click, so a click never reorders.
     static let dragThreshold: CGFloat = 4
     static let chevronSize: CGFloat = 12
@@ -274,7 +276,7 @@ private struct DeviceRowLabel: View {
     var toggleListeningModes: (() -> Void)?
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, logName: "\(direction.title) \"\(row.device.name)\"") { isHovered in
+        HoverRow(height: Metrics.deviceRowHeight, radius: Metrics.deviceHighlightRadius, logName: "\(direction.title) \"\(row.device.name)\"") { isHovered in
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: row.symbolName)
@@ -318,7 +320,7 @@ private struct DeviceRowLabel: View {
         }
         .background {
             if isLifted {
-                RoundedRectangle(cornerRadius: Metrics.highlightRadius)
+                RoundedRectangle(cornerRadius: Metrics.deviceHighlightRadius)
                     .fill(.background)
                     .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
             }
@@ -683,6 +685,7 @@ private struct HoverRow<Content: View>: View {
     let height: CGFloat
     var style = HoverRowStyle.plain
     var isHighlighted = false
+    var radius = Metrics.highlightRadius
     let logName: String
     /// Takes the row's hover, so a control shown on hover clears with the highlight when a lost exit is cleared.
     @ViewBuilder let content: (_ isHovered: Bool) -> Content
@@ -701,7 +704,7 @@ private struct HoverRow<Content: View>: View {
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: Metrics.highlightRadius)
+                RoundedRectangle(cornerRadius: radius)
                     .fill(fillReason != nil ? style.fill : .clear)
             )
             .background(HoverProbe(id: id, name: logName, clearHover: { isHovered = false }))
