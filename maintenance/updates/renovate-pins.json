@@ -10,5 +10,9 @@
   {
     "file": "io.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     "depName": "acme-test/fake-pin-a"
+  },
+  {
+    "file": "io.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+    "depName": "acme-test/fake-pin-b"
   }
 ]
