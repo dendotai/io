@@ -12,7 +12,7 @@ A comparison of a Debug build's icon with the Sound icon first hides the Debug m
 
 ## Version pins
 
-A change that adds, moves, renames or reshapes a line a `customManagers` rule in `renovate.json` reads updates `renovate.json` and `maintenance/updates/renovate-pins.json` in the same commit, because Renovate skips a version pin it cannot find and reports no error. The weekly `renovate` workflow opens a `needs-human` issue when a run missed one. What counts as a version pin, and the ones with no update rule, are in `maintenance/updates/README.md`.
+A change that adds, moves, renames or reshapes a line a `customManagers` rule in `renovate.json` reads updates `renovate.json` and `maintenance/updates/renovate-pins.json` in the same commit, because Renovate skips a version pin it cannot find and reports no error. The `dependency-submission` workflow, on each push to `dev`, opens a `needs-human` issue when Renovate missed one. What counts as a version pin, and the ones with no update rule, are in `maintenance/updates/README.md`.
 
 ## Agent skills
 

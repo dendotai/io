@@ -1,27 +1,15 @@
 #!/usr/bin/env bun
-// Fail when Renovate's last run missed a version pin it is meant to update.
+// Fail when Renovate missed a version pin it is meant to update.
 //
 //   bun maintenance/updates/check-renovate.mjs <report.json>
 //
-// <report.json> is the file Renovate writes with `reportType: file` (https://docs.renovatebot.com/self-hosted-configuration/#reporttype). Renovate skips a line its regex rule cannot match, and a file its ignore presets cover, and reports no error; what this compares is in maintenance/updates/README.md, "The check after each run".
+// <report.json> is the file Renovate writes with `reportType: file` (https://docs.renovatebot.com/self-hosted-configuration/#reporttype). Renovate skips a line its regex rule cannot match, and a file its ignore presets cover, and reports no error; what this compares is in maintenance/updates/README.md, "The check on each push".
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { fail, readPackageFiles } from "./renovate-report.mjs";
 
-const reportPath = process.argv[2];
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
-
-let report;
-try {
-  report = JSON.parse(readFileSync(reportPath, "utf8"));
-} catch (err) {
-  fail(`Cannot read the Renovate report at ${reportPath}: ${err.message}`);
-}
-// An empty object when the report shape changes (`reportType` is experimental), so every expected place reads as missing.
-const packageFiles = Object.values(report.repositories ?? {})[0]?.packageFiles ?? {};
+const packageFiles = readPackageFiles(process.argv[2]);
 const filesOf = (manager) => new Set((packageFiles[manager] ?? []).map((f) => f.packageFile));
 
 const problems = [];
