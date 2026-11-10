@@ -95,4 +95,6 @@ Renovate skips a line its regex rule cannot match, and a file its ignore presets
 - Every regex finding against the places in `maintenance/updates/renovate-pins.json`, both ways.
 - Every tracked `package.json` with dependencies, and every workflow with a `uses:` line or a versioned `runs-on:`, against the files the `bun` and `github-actions` managers found.
 
-A failure opens one issue, **Renovate missed an expected version pin**, labelled `needs-human`, or comments on it when it is already open. Fix the rule or the list, then close the issue.
+A pin Renovate found that the list lacks opens one PR that adds a line for each such pin (`maintenance/updates/open-pins-pr.mjs`), so the PR merges as it is; a pin an open PR already adds is skipped. Close the PR when a rule in `renovate.json` matches a line it should not.
+
+A listed pin Renovate no longer finds, or a file a manager skipped, opens one issue, **Renovate missed an expected version pin**, labelled `needs-human`, or comments on it when it is already open, because the fix needs to know whether the change was meant. Fix the rule or the list, then close the issue.
