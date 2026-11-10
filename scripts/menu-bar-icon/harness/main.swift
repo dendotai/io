@@ -41,14 +41,17 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { print(
 ) }
 
 func icon(_ step: String) -> MenuBarIcon {
-    let p = step.split(separator: ":").map(String.init)
+    let fields = step.split(separator: ":").map(String.init)
     return MenuBarIcon(
-        outputUID: p[0],
-        symbol: MenuBarSymbol(name: p[1], variableValue: p.count > 2 ? Double(p[2])! : 1)
+        outputUID: fields[0],
+        symbol: MenuBarSymbol(name: fields[1], variableValue: fields.count > 2 ? Double(fields[2])! : 1)
     )
 }
 
-struct Frame { let ms: Int; let ink: Double; let box: String; let cy: Double; let cx: Double; let png: Data? }
+struct Frame {
+    let elapsedMs: Int; let ink: Double; let box: String; let centroidY: Double; let centroidX: Double; let png: Data?
+}
+
 var frames: [Frame] = []
 let start = Date()
 /// Reads one window through ScreenCaptureKit at the display's refresh rate; the sums are cheap at 64×44 px, so they run in the callback.
@@ -69,24 +72,27 @@ final class Sink: NSObject, SCStreamOutput {
         if first == nil {
             first = time
         }
-        let ms = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first!)) * 1000).rounded())
+        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first!)) * 1000).rounded())
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixels, .readOnly) }
-        let w = CVPixelBufferGetWidth(pixels), h = CVPixelBufferGetHeight(pixels),
+        let width = CVPixelBufferGetWidth(pixels), height = CVPixelBufferGetHeight(pixels),
             row = CVPixelBufferGetBytesPerRow(pixels)
         let base = CVPixelBufferGetBaseAddress(pixels)!.assumingMemoryBound(to: UInt8.self)
-        var hasher = Hasher(); hasher.combine(Data(bytes: base, count: row * h)); let hash = hasher.finalize()
+        var hasher = Hasher(); hasher.combine(Data(bytes: base, count: row * height)); let hash = hasher.finalize()
         if hash == lastHash {
             return
         }
         lastHash = hash
-        var sum = 0.0, sy = 0.0, sx = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
-        for y in 0 ..< h {
-            for x in 0 ..< w {
-                let p = base + y * row + x * 4
-                let b = Double(max(p[0], p[1], p[2])) / 255
-                if b > 0.35 {
-                    sum += b; sy += b * Double(y); sx += b * Double(x); minX = min(minX, x); maxX = max(
+        var sum = 0.0, sumY = 0.0, sumX = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
+        for y in 0 ..< height {
+            for x in 0 ..< width {
+                let pixel = base + y * row + x * 4
+                let brightness = Double(max(pixel[0], pixel[1], pixel[2])) / 255
+                if brightness > 0.35 {
+                    sum += brightness; sumY += brightness * Double(y); sumX += brightness * Double(x); minX = min(
+                        minX,
+                        x
+                    ); maxX = max(
                         maxX,
                         x
                     ); minY = min(minY, y); maxY = max(maxY, y)
@@ -96,10 +102,10 @@ final class Sink: NSObject, SCStreamOutput {
         let box = maxX < 0 ? "none" : "\(maxX - minX + 1)x\(maxY - minY + 1) y\(minY)"
         var png: Data?
         if ProcessInfo.processInfo.environment["DUMP"] != nil {
-            let provider = CGDataProvider(data: Data(bytes: base, count: row * h) as CFData)!
+            let provider = CGDataProvider(data: Data(bytes: base, count: row * height) as CFData)!
             let image = CGImage(
-                width: w,
-                height: h,
+                width: width,
+                height: height,
                 bitsPerComponent: 8,
                 bitsPerPixel: 32,
                 bytesPerRow: row,
@@ -114,11 +120,11 @@ final class Sink: NSObject, SCStreamOutput {
             png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
         }
         frames.append(Frame(
-            ms: ms,
+            elapsedMs: elapsedMs,
             ink: sum,
             box: box,
-            cy: sum > 0 ? sy / sum : 0,
-            cx: sum > 0 ? sx / sum : 0,
+            centroidY: sum > 0 ? sumY / sum : 0,
+            centroidX: sum > 0 ? sumX / sum : 0,
             png: png
         ))
     }
@@ -168,12 +174,17 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + Double(steps.count) * Dou
         try? FileManager.default.createDirectory(
             atPath: dir,
             withIntermediateDirectories: true
-        ); for f in frames {
-            try? f.png?.write(to: URL(fileURLWithPath: dir + String(format: "/f%05d.png", f.ms)))
+        ); for frame in frames {
+            try? frame.png?.write(to: URL(fileURLWithPath: dir + String(format: "/f%05d.png", frame.elapsedMs)))
         }
     }
-    for f in frames {
-        print(f.ms, String(format: "%.0f", f.ink), f.box, String(format: "c %.1f,%.1f", f.cx, f.cy))
+    for frame in frames {
+        print(
+            frame.elapsedMs,
+            String(format: "%.0f", frame.ink),
+            frame.box,
+            String(format: "c %.1f,%.1f", frame.centroidX, frame.centroidY)
+        )
     }; fflush(stdout)
     exit(0)
 }

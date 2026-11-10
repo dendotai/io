@@ -11,16 +11,18 @@ let symbols: [(String, Double)] = [
     ("airpods.max", 1),
 ]
 let threshold = Int(CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "64")!
-func ink(_ name: String, _ v: Double, _ config: NSImage.SymbolConfiguration?) -> (Int, Int, Double, Double) {
-    var img = NSImage(systemSymbolName: name, variableValue: v, accessibilityDescription: nil)!
+func ink(_ name: String, _ variableValue: Double,
+         _ config: NSImage.SymbolConfiguration?) -> (Int, Int, Double, Double)
+{
+    var img = NSImage(systemSymbolName: name, variableValue: variableValue, accessibilityDescription: nil)!
     if let config {
         img = img.withSymbolConfiguration(config)!
     }
-    let w = Int(img.size.width * 2) + 4, h = Int(img.size.height * 2) + 4
+    let width = Int(img.size.width * 2) + 4, height = Int(img.size.height * 2) + 4
     let rep = NSBitmapImageRep(
         bitmapDataPlanes: nil,
-        pixelsWide: w,
-        pixelsHigh: h,
+        pixelsWide: width,
+        pixelsHigh: height,
         bitsPerSample: 8,
         samplesPerPixel: 4,
         hasAlpha: true,
@@ -29,16 +31,16 @@ func ink(_ name: String, _ v: Double, _ config: NSImage.SymbolConfiguration?) ->
         bytesPerRow: 0,
         bitsPerPixel: 0
     )!
-    rep.size = NSSize(width: Double(w) / 2, height: Double(h) / 2)
+    rep.size = NSSize(width: Double(width) / 2, height: Double(height) / 2)
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     img.draw(in: NSRect(x: 1, y: 1, width: img.size.width, height: img.size.height))
     NSGraphicsContext.restoreGraphicsState()
-    var minX = w, maxX = -1, minY = h, maxY = -1
+    var minX = width, maxX = -1, minY = height, maxY = -1
     for y in 0 ..<
-        h
+        height
     {
-        for x in 0 ..< w {
+        for x in 0 ..< width {
             if Int(rep.colorAt(x: x, y: y)!.alphaComponent * 255) > threshold {
                 minX = min(
                     minX,
@@ -55,6 +57,12 @@ let config: NSImage.SymbolConfiguration? = arg == "default" ? nil : NSImage.Symb
     pointSize: Double(arg)!,
     weight: .regular
 )
-for (n, v) in symbols {
-    let r = ink(n, v, config); print(arg, n, v, "\(r.0)x\(r.1)", "pt \(r.2)x\(r.3)")
+for (name, variableValue) in symbols {
+    let inkBox = ink(name, variableValue, config); print(
+        arg,
+        name,
+        variableValue,
+        "\(inkBox.0)x\(inkBox.1)",
+        "pt \(inkBox.2)x\(inkBox.3)"
+    )
 }

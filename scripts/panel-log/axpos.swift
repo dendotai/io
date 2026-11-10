@@ -3,26 +3,26 @@ import Foundation
 
 // axpos <pid>: prints "x y w h" of the open panel's "Listening Mode" button, in global points (top-left origin), by Accessibility.
 let pid = pid_t(CommandLine.arguments[1])!
-func attr(_ e: AXUIElement, _ a: String) -> CFTypeRef? {
-    var v: CFTypeRef?; AXUIElementCopyAttributeValue(
-        e,
-        a as CFString,
-        &v
-    ); return v
+func attr(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
+    var value: CFTypeRef?; AXUIElementCopyAttributeValue(
+        element,
+        attribute as CFString,
+        &value
+    ); return value
 }
 
-func find(_ e: AXUIElement) -> AXUIElement? {
-    if (attr(e, kAXRoleAttribute) as? String) == "AXButton",
+func find(_ element: AXUIElement) -> AXUIElement? {
+    if (attr(element, kAXRoleAttribute) as? String) == "AXButton",
        [kAXDescriptionAttribute, kAXTitleAttribute].contains(where: { (attr(
-           e,
+           element,
            $0
        ) as? String) == "Listening Mode" })
     {
-        return e
+        return element
     }
-    for c in attr(e, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
-        if let f = find(c) {
-            return f
+    for child in attr(element, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
+        if let found = find(child) {
+            return found
         }
     }
     return nil
@@ -31,7 +31,7 @@ func find(_ e: AXUIElement) -> AXUIElement? {
 let app = AXUIElementCreateApplication(pid)
 guard let bar = attr(app, "AXExtrasMenuBar"),
       let button = find(bar as! AXUIElement) else { print("button not found"); exit(1) }
-var p = CGPoint.zero, s = CGSize.zero
-AXValueGetValue(attr(button, kAXPositionAttribute) as! AXValue, .cgPoint, &p)
-AXValueGetValue(attr(button, kAXSizeAttribute) as! AXValue, .cgSize, &s)
-print("\(Int(p.x)) \(Int(p.y)) \(Int(s.width)) \(Int(s.height))")
+var position = CGPoint.zero, size = CGSize.zero
+AXValueGetValue(attr(button, kAXPositionAttribute) as! AXValue, .cgPoint, &position)
+AXValueGetValue(attr(button, kAXSizeAttribute) as! AXValue, .cgSize, &size)
+print("\(Int(position.x)) \(Int(position.y)) \(Int(size.width)) \(Int(size.height))")

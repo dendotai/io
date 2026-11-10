@@ -561,9 +561,9 @@ private struct SingleBatteryLevel: View {
 
     func drop(into model: AppModel) {
         let rows = model.rows[direction] ?? []
-        guard let from = rows.firstIndex(where: { $0.id == uid }), let to = targetIndex(in: rows),
-              to != from else { return }
-        model.reorder(rows[from].device, to: to, in: direction)
+        guard let from = rows.firstIndex(where: { $0.id == uid }), let target = targetIndex(in: rows),
+              target != from else { return }
+        model.reorder(rows[from].device, to: target, in: direction)
     }
 }
 
@@ -590,16 +590,16 @@ struct DragLayer: View {
 
     private func offset(at index: Int) -> CGFloat {
         guard let from = rows.firstIndex(where: { $0.id == drag.uid }),
-              let to = drag.targetIndex(in: rows) else { return 0 }
+              let target = drag.targetIndex(in: rows) else { return 0 }
         if index == from {
-            let up = -CGFloat(from) * Metrics.deviceRowHeight
-            let down = CGFloat(rows.count - 1 - from) * Metrics.deviceRowHeight
-            return min(max(drag.translation, up), down)
+            let upLimit = -CGFloat(from) * Metrics.deviceRowHeight
+            let downLimit = CGFloat(rows.count - 1 - from) * Metrics.deviceRowHeight
+            return min(max(drag.translation, upLimit), downLimit)
         }
-        if from < index, index <= to {
+        if from < index, index <= target {
             return -Metrics.deviceRowHeight
         }
-        if to <= index, index < from {
+        if target <= index, index < from {
             return Metrics.deviceRowHeight
         }
         return 0

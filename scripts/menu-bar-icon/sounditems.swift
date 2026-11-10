@@ -2,28 +2,28 @@ import AppKit
 import ApplicationServices
 
 /// Lists every Sound item MenuBarAgent hosts, with its frame.
-func attr<T>(_ e: AXUIElement, _ n: String) -> T? {
-    var v: CFTypeRef?; return AXUIElementCopyAttributeValue(
-        e,
-        n as CFString,
-        &v
-    ) == .success ? v as? T : nil
+func attr<T>(_ element: AXUIElement, _ name: String) -> T? {
+    var value: CFTypeRef?; return AXUIElementCopyAttributeValue(
+        element,
+        name as CFString,
+        &value
+    ) == .success ? value as? T : nil
 }
 
-func walk(_ e: AXUIElement, _ d: Int = 0) {
-    if (attr(e, kAXIdentifierAttribute) as String?) == "com.apple.menuextra.sound" {
-        var p = CGPoint.zero; var s = CGSize.zero
-        if let pv: AXValue = attr(e, kAXPositionAttribute) {
-            AXValueGetValue(pv, .cgPoint, &p)
+func walk(_ element: AXUIElement, _ depth: Int = 0) {
+    if (attr(element, kAXIdentifierAttribute) as String?) == "com.apple.menuextra.sound" {
+        var position = CGPoint.zero; var size = CGSize.zero
+        if let positionValue: AXValue = attr(element, kAXPositionAttribute) {
+            AXValueGetValue(positionValue, .cgPoint, &position)
         }
-        if let sv: AXValue = attr(e, kAXSizeAttribute) {
-            AXValueGetValue(sv, .cgSize, &s)
+        if let sizeValue: AXValue = attr(element, kAXSizeAttribute) {
+            AXValueGetValue(sizeValue, .cgSize, &size)
         }
-        print("sound item at", p, s)
+        print("sound item at", position, size)
     }
-    guard d < 12 else { return }
-    for c in (attr(e, kAXChildrenAttribute) as [AXUIElement]?) ?? [] {
-        walk(c, d + 1)
+    guard depth < 12 else { return }
+    for child in (attr(element, kAXChildrenAttribute) as [AXUIElement]?) ?? [] {
+        walk(child, depth + 1)
     }
 }
 

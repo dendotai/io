@@ -5,11 +5,11 @@ import Foundation
 let args = CommandLine.arguments.dropFirst().map(\.self)
 let x = Double(args[1])!, y = Double(args[2])!
 
-func post(_ type: CGEventType, _ px: Double, _ py: Double) {
+func post(_ type: CGEventType, _ pointX: Double, _ pointY: Double) {
     let event = CGEvent(
         mouseEventSource: nil,
         mouseType: type,
-        mouseCursorPosition: CGPoint(x: px, y: py),
+        mouseCursorPosition: CGPoint(x: pointX, y: pointY),
         mouseButton: type == .rightMouseDown || type == .rightMouseUp ? .right : .left
     )
     event?.setIntegerValueField(.mouseEventClickState, value: 1)
@@ -26,17 +26,17 @@ case "click":
     usleep(150_000)
     post(.leftMouseUp, x, y)
 case "drag":
-    let to = Double(args[3])!
+    let targetY = Double(args[3])!
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
     usleep(150_000)
     for step in 1 ... 20 {
-        post(.leftMouseDragged, x, y + (to - y) * Double(step) / 20)
+        post(.leftMouseDragged, x, y + (targetY - y) * Double(step) / 20)
         usleep(20000)
     }
     usleep(150_000)
-    post(.leftMouseUp, x, to)
+    post(.leftMouseUp, x, targetY)
 case "rightclick":
     post(.mouseMoved, x, y)
     usleep(100_000)
@@ -44,59 +44,59 @@ case "rightclick":
     usleep(150_000)
     post(.rightMouseUp, x, y)
 case "draghold":
-    let to = Double(args[3])!
+    let targetY = Double(args[3])!
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
     usleep(150_000)
     for step in 1 ... 20 {
-        post(.leftMouseDragged, x, y + (to - y) * Double(step) / 20)
+        post(.leftMouseDragged, x, y + (targetY - y) * Double(step) / 20)
         usleep(20000)
     }
     sleep(3)
-    post(.leftMouseUp, x, to)
+    post(.leftMouseUp, x, targetY)
 case "pausedrag":
-    let to = Double(args[3])!
+    let targetY = Double(args[3])!
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
     usleep(400_000)
-    post(.leftMouseDragged, x, y + (to > y ? 1 : -1))
+    post(.leftMouseDragged, x, y + (targetY > y ? 1 : -1))
     usleep(300_000)
     for step in 1 ... 20 {
-        post(.leftMouseDragged, x, y + (to - y) * Double(step) / 20)
+        post(.leftMouseDragged, x, y + (targetY - y) * Double(step) / 20)
         usleep(20000)
     }
     usleep(150_000)
-    post(.leftMouseUp, x, to)
+    post(.leftMouseUp, x, targetY)
 case "slowdrag":
-    let to = Double(args[3])!
+    let targetY = Double(args[3])!
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
     for step in 1 ... 3 {
         usleep(80000)
-        post(.leftMouseDragged, x, y + Double(step) * (to > y ? 1 : -1))
+        post(.leftMouseDragged, x, y + Double(step) * (targetY > y ? 1 : -1))
     }
     for step in 1 ... 20 {
-        post(.leftMouseDragged, x, y + (to - y) * Double(step) / 20)
+        post(.leftMouseDragged, x, y + (targetY - y) * Double(step) / 20)
         usleep(20000)
     }
     usleep(150_000)
-    post(.leftMouseUp, x, to)
+    post(.leftMouseUp, x, targetY)
 case "fastdrag":
-    let to = Double(args[3])!
+    let targetY = Double(args[3])!
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
     usleep(8000)
-    let steps = Int(abs(to - y))
+    let steps = Int(abs(targetY - y))
     for step in 1 ... steps {
-        post(.leftMouseDragged, x, y + Double(step) * (to > y ? 1 : -1))
+        post(.leftMouseDragged, x, y + Double(step) * (targetY > y ? 1 : -1))
         usleep(8000)
     }
     usleep(150_000)
-    post(.leftMouseUp, x, to)
+    post(.leftMouseUp, x, targetY)
 default:
     break
 }
