@@ -3,5 +3,12 @@
     "file": "io.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     "depName": "sparkle-project/Sparkle"
   },
-  { "file": "io.xcodeproj/project.pbxproj", "depName": "sparkle-project/Sparkle" }
+  {
+    "file": "io.xcodeproj/project.pbxproj",
+    "depName": "sparkle-project/Sparkle"
+  },
+  {
+    "file": "io.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+    "depName": "acme-test/fake-pin"
+  }
 ]
