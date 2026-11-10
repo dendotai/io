@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "dependencies": {
+      "devDependencies": {
         "@semantic-release/exec": "7.1.0",
         "renovate": "44.225.1",
         "semantic-release": "25.0.9",
