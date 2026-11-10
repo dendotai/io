@@ -64,11 +64,11 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --cwd .github
 
       # On a pull_request run, semantic-release reads the branch from GitHub's variables as `refs/pull/<n>/merge`, a branch no config lists, and exits before it checks anything. With GITHUB_ACTIONS unset it reads the branch from git instead: the PR head, checked out as a local branch of the same name, which `--branches` makes the release branch for this run.
       - run: |
           git checkout -B "$GITHUB_HEAD_REF"
-          env -u GITHUB_ACTIONS bunx --package semantic-release@25.0.9 --package @semantic-release/exec@7.1.0 semantic-release --dry-run --branches "$GITHUB_HEAD_REF"
+          env -u GITHUB_ACTIONS .github/node_modules/.bin/semantic-release --dry-run --branches "$GITHUB_HEAD_REF"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

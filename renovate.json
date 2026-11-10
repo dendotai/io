@@ -11,23 +11,9 @@
       "description": "A closed PR skips the version its title names. The default major title names only the major (`to v5`), so closing it would skip every later v5 release.",
       "matchUpdateTypes": ["major"],
       "commitMessageExtra": "to {{{newVersion}}}"
-    },
-    {
-      "description": "renovate runs through bunx in dependency-submission.yml and as a Docker image in renovate.yml; one group moves both pins in one PR until issue 98 leaves one pin.",
-      "matchPackageNames": ["renovate", "ghcr.io/renovatebot/renovate"],
-      "groupName": "renovate"
     }
   ],
   "customManagers": [
-    {
-      "customType": "regex",
-      "description": "semantic-release, its exec plugin, and renovate run through bunx, outside package.json, so every line that names their versions is bumped here.",
-      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
-      "matchStrings": [
-        "(?<depName>@semantic-release/exec|semantic-release|renovate)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-      ],
-      "datasourceTemplate": "npm"
-    },
     {
       "customType": "regex",
       "description": "Renovate's Swift manager reads only Package.swift, and an Xcode project stores its resolved packages here. One match edits revision and version together; the name comes from the URL, so any GitHub-hosted package matches.",
