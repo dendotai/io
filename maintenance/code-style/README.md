@@ -26,7 +26,7 @@ The scripts use no bun, so CI runs them on the `xcode-27` runner with no setup s
 - The style opt-in rules and the other idiomatic opt-in rules stay off: they repeat or contradict SwiftFormat and fix no bug.
 - `opening_brace` is off and `trailing_comma` takes `mandatory_comma: true`, so SwiftFormat owns braces and commas.
 - `line_length` ignores comments, because a comment paragraph is one line.
-- `identifier_name` allows `x`, `y`, `i` and `id`; other short names are renamed.
+- `identifier_name` allows `x`, `y`, `i` and `id`.
 - `lint-swift.sh` runs SwiftLint with `--strict`, so a warning fails it.
 - A spot where a force unwrap, force try or force cast cannot fail carries `// swiftlint:disable:next <rule>` with its reason.
 - The rules under "Rules with findings not fixed yet" in `disabled_rules` are off until a PR fixes their findings and removes them from the list.
