@@ -28,5 +28,4 @@ The scripts use no bun, so CI runs them on the `xcode-27` runner with no setup s
 - `line_length` ignores comments, because a comment paragraph is one line.
 - `identifier_name` allows `x`, `y`, `i` and `id`.
 - `lint-swift.sh` runs SwiftLint with `--strict`, so a warning fails it.
-- A spot where a force unwrap, force try or force cast cannot fail carries `// swiftlint:disable:next <rule>` with its reason.
-- The rules under "Rules with findings not fixed yet" in `disabled_rules` are off until a PR fixes their findings and removes them from the list.
+- A finding that is safe where it stands, as a force unwrap that cannot fail, carries `// swiftlint:disable:next <rule>` with its reason.

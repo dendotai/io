@@ -114,84 +114,64 @@ final class StatusItemController {
 
         startFoldAnimations(rows[.output] ?? [])
 
-        var items: [NSMenuItem] = [volumeSlider, volumeSeparator]
-        var names: [ObjectIdentifier: String] = [:]
+        var list = PanelItemList()
+        list.append(volumeSlider)
+        list.append(volumeSeparator)
         for direction in Direction.allCases {
-            let section = section(for: direction)
-            items.append(section.header)
-            if dragTracker.direction == direction {
-                items.append(section.dragLayer.item)
-                names[ObjectIdentifier(section.dragLayer.item)] = "\(direction) drag layer"
-                items.append(section.separator)
-                continue
-            }
-            var kept: [String: NSMenuItem] = [:]
-            for row in rows[direction] ?? [] {
-                let device = row.device
-                let item = deviceItems[direction]?[row.id] ?? Self.item(DeviceRow(
-                    model: model,
-                    direction: direction,
-                    device: device,
-                    dragActions: dragActions,
-                    hide: { [weak self] in self?.hide(device, in: direction) }
-                ))
-                kept[row.id] = item
-                names[ObjectIdentifier(item)] = "\(direction) \"\(row.device.name)\""
-                items.append(item)
-                if foldAnimation == nil, let idle = foldAnimations[row.id] {
-                    names[ObjectIdentifier(idle.item)] = "idle fold"
-                    items.append(idle.item)
-                }
-                if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
-                    let group = listeningGroups[row.id]
-                        .flatMap { $0.modes == modes ? $0 : nil } ?? ListeningModeGroupItem(
-                            modes: modes,
-                            item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes))
-                        )
-                    listeningGroups[row.id] = group
-                    let groupItem = group.item
-                    names[ObjectIdentifier(groupItem)] = "listening mode of \"\(row.device.name)\""
-                    items.append(groupItem)
-                }
-            }
-            deviceItems[direction] = kept
-            items.append(section.separator)
+            appendSection(direction, rows: rows[direction] ?? [], to: &list)
         }
         if airPodsName != nil {
-            items.append(airPodsSettings)
-            names[ObjectIdentifier(airPodsSettings)] = "AirPods Settings"
+            list.append(airPodsSettings, name: "AirPods Settings")
         }
-        items.append(soundSettings)
+        list.append(soundSettings)
         if isUpdateAvailable {
-            items += [updateSeparator, updateAvailableRow]
-            names[ObjectIdentifier(updateAvailableRow)] = "Update"
+            list.append(updateSeparator)
+            list.append(updateAvailableRow, name: "Update")
         }
         if let foldAnimation, !dragTracker.isDragging, let rowItem = deviceItems[.output]?[foldAnimation.uid],
-           let start = items.firstIndex(of: rowItem),
-           let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
+           let start = list.items.firstIndex(of: rowItem),
+           let end = list.items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
         {
-            items.replaceSubrange((start + 1) ..< end, with: [foldAnimation.item])
-            names[ObjectIdentifier(foldAnimation.item)] = "fold"
+            list.replace((start + 1) ..< end, with: foldAnimation.item, name: "fold")
         }
+        show(list)
+    }
 
-        var moved: [String] = []
-        for (index, item) in items.enumerated()
-            where !panel.items.indices.contains(index) || panel.items[index] !== item
-        {
-            if item.menu != nil {
-                panel.removeItem(item)
+    private func appendSection(_ direction: Direction, rows: [AppModel.Row], to list: inout PanelItemList) {
+        let section = section(for: direction)
+        list.append(section.header)
+        if dragTracker.direction == direction {
+            list.append(section.dragLayer.item, name: "\(direction) drag layer")
+            list.append(section.separator)
+            return
+        }
+        var kept: [String: NSMenuItem] = [:]
+        for row in rows {
+            let device = row.device
+            let item = deviceItems[direction]?[row.id] ?? Self.item(DeviceRow(
+                model: model,
+                direction: direction,
+                device: device,
+                dragActions: dragActions,
+                hide: { [weak self] in self?.hide(device, in: direction) }
+            ))
+            kept[row.id] = item
+            list.append(item, name: "\(direction) \"\(row.device.name)\"")
+            if foldAnimation == nil, let idle = foldAnimations[row.id] {
+                list.append(idle.item, name: "idle fold")
             }
-            panel.insertItem(item, at: index)
-            moved.append(names[ObjectIdentifier(item)] ?? "other")
+            if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
+                let group = listeningGroups[row.id]
+                    .flatMap { $0.modes == modes ? $0 : nil } ?? ListeningModeGroupItem(
+                        modes: modes,
+                        item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes))
+                    )
+                listeningGroups[row.id] = group
+                list.append(group.item, name: "listening mode of \"\(row.device.name)\"")
+            }
         }
-        let removedCount = panel.items.count - items.count
-        while panel.items.count > items.count {
-            panel.removeItem(at: items.count)
-        }
-        foldAnimation?.layOut()
-        if !moved.isEmpty || removedCount > 0 {
-            panelLog.notice("items inserted: \(moved.joined(separator: ", ")); removed from the end: \(removedCount)")
-        }
+        deviceItems[direction] = kept
+        list.append(section.separator)
     }
 
     /// Runs before the panel shows, because an item inserted into an open menu leaves the panel empty, on most first opens after launch, for over a second.
@@ -290,11 +270,56 @@ final class StatusItemController {
     }
 }
 
+private extension StatusItemController {
+    /// Inserts only the items not yet at their place, and logs them by name.
+    func show(_ list: PanelItemList) {
+        let items = list.items
+        var moved: [String] = []
+        for (index, item) in items.enumerated()
+            where !panel.items.indices.contains(index) || panel.items[index] !== item
+        {
+            if item.menu != nil {
+                panel.removeItem(item)
+            }
+            panel.insertItem(item, at: index)
+            moved.append(list.names[ObjectIdentifier(item)] ?? "other")
+        }
+        let removedCount = panel.items.count - items.count
+        while panel.items.count > items.count {
+            panel.removeItem(at: items.count)
+        }
+        foldAnimation?.layOut()
+        if !moved.isEmpty || removedCount > 0 {
+            panelLog.notice("items inserted: \(moved.joined(separator: ", ")); removed from the end: \(removedCount)")
+        }
+    }
+}
+
 /// A section's items, built with the panel and kept while io runs; the drag layer is built here, so a drag starts without building a view.
 private struct SectionItems {
     let header: NSMenuItem
     let separator: NSMenuItem
     let dragLayer: DragLayerItem
+}
+
+/// The panel's items in order, with the name the log gives each one.
+private struct PanelItemList {
+    private(set) var items: [NSMenuItem] = []
+    private(set) var names: [ObjectIdentifier: String] = [:]
+
+    mutating func append(_ item: NSMenuItem) {
+        items.append(item)
+    }
+
+    mutating func append(_ item: NSMenuItem, name: String) {
+        items.append(item)
+        names[ObjectIdentifier(item)] = name
+    }
+
+    mutating func replace(_ range: Range<Int>, with item: NSMenuItem, name: String) {
+        items.replaceSubrange(range, with: [item])
+        names[ObjectIdentifier(item)] = name
+    }
 }
 
 private struct ListeningModeGroupItem {

@@ -44,7 +44,8 @@ enum DeviceSymbol {
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var model = [UInt8](repeating: 0, count: size)
         sysctlbyname("hw.model", &model, &size, nil, 0)
-        return String(decoding: model.dropLast(), as: UTF8.self)
+        // `hw.model` is ASCII; an empty code gets the generic laptop, as an unknown model does.
+        return String(bytes: model.dropLast(), encoding: .utf8) ?? ""
     }
 
     /// AirPods cases are named "<buds>.chargingcase.wireless.fill" and Beats cases "<buds>.chargingcase.fill"; buds with no case symbol of their own get the AirPods one.

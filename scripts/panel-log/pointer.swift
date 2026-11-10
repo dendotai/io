@@ -6,8 +6,8 @@ let args = CommandLine.arguments.dropFirst().map(\.self)
 func number(_ index: Int) -> Double {
     guard index < args.count, let value = Double(args[index]) else {
         FileHandle.standardError.write(Data(
-            "usage: pointer move X Y | click X Y | rightclick X Y | drag X Y1 Y2 | draghold X Y1 Y2 | pausedrag X Y1 Y2 | slowdrag X Y1 Y2 | fastdrag X Y1 Y2\n"
-                .utf8
+            ("usage: pointer move X Y | click X Y | rightclick X Y | drag X Y1 Y2 | draghold X Y1 Y2"
+                + " | pausedrag X Y1 Y2 | slowdrag X Y1 Y2 | fastdrag X Y1 Y2\n").utf8
         ))
         exit(1)
     }
