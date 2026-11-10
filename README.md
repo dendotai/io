@@ -32,6 +32,8 @@ curl -fsSL https://github.com/dendotai/io/releases/latest/download/io.zip -o /tm
 
 Run `bun install` once after a clone or in a new worktree. It installs commitlint and turns on the commit message check in `.githooks/commit-msg`.
 
+`bun run format` formats every Swift file, and `bun run format -- --check` lists the files that need it. `bun run lint` lints the Swift code; a warning fails it. Both download their tool on the first run (see [`maintenance/code-style/`](maintenance/code-style/README.md)).
+
 ## License
 
 MIT, see [LICENSE](LICENSE).

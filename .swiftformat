@@ -1,0 +1,6 @@
+# SwiftFormat's default rules only; maintenance/code-style/README.md says why each option is set.
+--swiftversion 6.0
+--indent 4
+--maxwidth 120
+--disable wrapSingleLineComments
+--exclude **/.build,**/.swiftpm,**/DerivedData,build,dist,.tools,node_modules,.github/node_modules

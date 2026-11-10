@@ -6,5 +6,13 @@
   {
     "file": "io.xcodeproj/project.pbxproj",
     "depName": "sparkle-project/Sparkle"
+  },
+  {
+    "file": "tools.toml",
+    "depName": "nicklockwood/SwiftFormat"
+  },
+  {
+    "file": "tools.toml",
+    "depName": "realm/SwiftLint"
   }
 ]

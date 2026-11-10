@@ -35,6 +35,12 @@ const packageOf = ({ manager, packageFile, dep }) => {
   )
     // A Swift package ships inside the app, so it is a runtime package.
     return { url: `pkg:swift/github.com/${dep.packageName}@${dep.currentValue}`, scope: "runtime" };
+  if (dep.datasource === "github-releases" && manager === "regex" && packageFile === "tools.toml")
+    // Each tool in tools.toml is a Swift package on GitHub that runs only on a developer Mac and in CI.
+    return {
+      url: `pkg:swift/github.com/${dep.packageName}@${dep.currentValue}`,
+      scope: "development",
+    };
 };
 
 /** @returns {string[]} the package URLs of every registry package in the lockfile */
