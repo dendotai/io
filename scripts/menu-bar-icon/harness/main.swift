@@ -98,54 +98,76 @@ final class Sink: NSObject, SCStreamOutput {
             return
         }
         lastHash = hash
-        var sum = 0.0, sumY = 0.0, sumX = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
+        let ink = Ink(of: base, width: width, height: height, row: row)
+        let png = ProcessInfo.processInfo.environment["DUMP"] == nil ? nil : pngData(
+            of: base,
+            width: width,
+            height: height,
+            row: row,
+            elapsedMs: elapsedMs
+        )
+        frames.append(Frame(
+            elapsedMs: elapsedMs,
+            ink: ink.sum,
+            box: ink.box,
+            centroidY: ink.centroidY,
+            centroidX: ink.centroidX,
+            png: png
+        ))
+    }
+}
+
+/// The bright pixels of one frame, weighted by brightness: their sum, centroid, and bounding box.
+struct Ink {
+    let sum: Double
+    let centroidX: Double
+    let centroidY: Double
+    let box: String
+
+    init(of base: UnsafeMutablePointer<UInt8>, width: Int, height: Int, row: Int) {
+        var total = 0.0, sumY = 0.0, sumX = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
         for y in 0 ..< height {
             for x in 0 ..< width {
                 let pixel = base + y * row + x * 4
                 let brightness = Double(max(pixel[0], pixel[1], pixel[2])) / 255
                 if brightness > 0.35 {
-                    sum += brightness; sumY += brightness * Double(y); sumX += brightness * Double(x); minX = min(
-                        minX,
-                        x
-                    ); maxX = max(
-                        maxX,
-                        x
-                    ); minY = min(minY, y); maxY = max(maxY, y)
+                    total += brightness
+                    sumY += brightness * Double(y)
+                    sumX += brightness * Double(x)
+                    minX = min(minX, x)
+                    maxX = max(maxX, x)
+                    minY = min(minY, y)
+                    maxY = max(maxY, y)
                 }
             }
         }
-        let box = maxX < 0 ? "none" : "\(maxX - minX + 1)x\(maxY - minY + 1) y\(minY)"
-        var png: Data?
-        if ProcessInfo.processInfo.environment["DUMP"] != nil {
-            let provider = need(
-                CGDataProvider(data: Data(bytes: base, count: row * height) as CFData),
-                "cannot read frame at \(elapsedMs) ms"
-            )
-            let image = need(CGImage(
-                width: width,
-                height: height,
-                bitsPerComponent: 8,
-                bitsPerPixel: 32,
-                bytesPerRow: row,
-                space: need(CGColorSpace(name: CGColorSpace.sRGB), "no sRGB colour space"),
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo
-                    .byteOrder32Little.rawValue),
-                provider: provider,
-                decode: nil,
-                shouldInterpolate: false,
-                intent: .defaultIntent
-            ), "cannot make an image of frame at \(elapsedMs) ms")
-            png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
-        }
-        frames.append(Frame(
-            elapsedMs: elapsedMs,
-            ink: sum,
-            box: box,
-            centroidY: sum > 0 ? sumY / sum : 0,
-            centroidX: sum > 0 ? sumX / sum : 0,
-            png: png
-        ))
+        box = maxX < 0 ? "none" : "\(maxX - minX + 1)x\(maxY - minY + 1) y\(minY)"
+        sum = total
+        centroidY = total > 0 ? sumY / total : 0
+        centroidX = total > 0 ? sumX / total : 0
     }
+}
+
+func pngData(of base: UnsafeMutablePointer<UInt8>, width: Int, height: Int, row: Int, elapsedMs: Int) -> Data? {
+    let provider = need(
+        CGDataProvider(data: Data(bytes: base, count: row * height) as CFData),
+        "cannot read frame at \(elapsedMs) ms"
+    )
+    let image = need(CGImage(
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bitsPerPixel: 32,
+        bytesPerRow: row,
+        space: need(CGColorSpace(name: CGColorSpace.sRGB), "no sRGB colour space"),
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo
+            .byteOrder32Little.rawValue),
+        provider: provider,
+        decode: nil,
+        shouldInterpolate: false,
+        intent: .defaultIntent
+    ), "cannot make an image of frame at \(elapsedMs) ms")
+    return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
 }
 
 let sink = Sink()

@@ -2,12 +2,11 @@
     import AppKit
 
     /// A dot over the menu bar icon, not part of its image, so the icon's own pixels stay comparable with the Sound icon. `defaults write ai.den.io hideDebugMark -bool true` hides it at once, and `defaults delete ai.den.io hideDebugMark` shows it again.
-    final class DebugMark: NSObject {
-        private static let hideKey = "hideDebugMark"
+    final class DebugMark {
         private let dot = DotView()
+        private var observation: NSKeyValueObservation?
 
         init(on button: NSStatusBarButton) {
-            super.init()
             button.addSubview(dot)
             NSLayoutConstraint.activate([
                 dot.widthAnchor.constraint(equalToConstant: 5),
@@ -15,19 +14,20 @@
                 dot.topAnchor.constraint(equalTo: button.topAnchor, constant: 3),
                 dot.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -1),
             ])
-            // Only key-value observing reports a change another process makes.
-            UserDefaults.standard.addObserver(self, forKeyPath: Self.hideKey, options: [.initial], context: nil)
+            // Only key-value observing reports a change another process makes, and it can call from any thread.
+            observation = UserDefaults.standard
+                .observe(\.hideDebugMark, options: [.initial]) { @Sendable [weak self] _, _ in
+                    Task { @MainActor in self?.dot.isHidden = UserDefaults.standard.hideDebugMark }
+                }
         }
+    }
 
-        override nonisolated func observeValue(
-            forKeyPath _: String?,
-            of _: Any?,
-            change _: [NSKeyValueChangeKey: Any]?,
-            context _: UnsafeMutableRawPointer?
-        ) {
-            Task { @MainActor in
-                dot.isHidden = UserDefaults.standard.bool(forKey: Self.hideKey)
-            }
+    private extension UserDefaults {
+        static let hideDebugMarkKey = "hideDebugMark"
+
+        /// Key-value observing of `UserDefaults` needs a property named as its key.
+        @objc dynamic var hideDebugMark: Bool {
+            bool(forKey: Self.hideDebugMarkKey)
         }
     }
 

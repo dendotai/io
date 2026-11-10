@@ -30,10 +30,17 @@ enum MenuBarIconPieces {
     /// One pure colour per layer for the palette rendering that tells the layers apart, in the symbol's layer order; an edge pixel between two layers blends their colours, and each gets its share. A symbol here has at most three layers.
     private static let palette: [NSColor] = [.red, .green, .blue]
 
-    /// The symbol's pieces in drawing order: its base layer first, then its other layers, and a speaker's waves one by one from the body outwards, each at the opacity the symbol's own rendering gives it, as a dim wave at a lower volume or the tips of the AirPods Pro. `insets` are the image's alignment rect insets, which the status bar centres.
-    static func pieces(of symbol: MenuBarSymbol,
-                       scale: CGFloat) -> (pieces: [MenuBarIconPiece], size: CGSize, insets: NSEdgeInsets)
-    {
+    /// A symbol's pieces, on the canvas of `size` points; `insets` are the image's alignment rect insets, which the status bar centres.
+    struct SymbolPieces {
+        static let empty = SymbolPieces(pieces: [], size: .zero, insets: NSEdgeInsetsZero)
+
+        let pieces: [MenuBarIconPiece]
+        let size: CGSize
+        let insets: NSEdgeInsets
+    }
+
+    /// The symbol's pieces in drawing order: its base layer first, then its other layers, and a speaker's waves one by one from the body outwards, each at the opacity the symbol's own rendering gives it, as a dim wave at a lower volume or the tips of the AirPods Pro.
+    static func pieces(of symbol: MenuBarSymbol, scale: CGFloat) -> SymbolPieces {
         // The pieces come from the symbol with every wave active, so a dim wave is a piece at full alpha with a lower opacity, which a volume change can move.
         guard
             let image = NSImage(
@@ -45,11 +52,23 @@ enum MenuBarIconPieces {
             let coloured = NSImage(systemSymbolName: symbol.name, variableValue: 1, accessibilityDescription: nil)?
                 .withSymbolConfiguration(configuration.applying(.init(paletteColors: palette))),
             let plain = render(image, size: image.size, scale: scale),
-            let rep = render(coloured, size: image.size, scale: scale)
-        else { return ([], .zero, NSEdgeInsetsZero) }
+            let rep = render(coloured, size: image.size, scale: scale),
+            let pieces = pieces(of: symbol, layers: layers(in: rep), plain: plain, canvas: image.size, scale: scale)
+        else { return .empty }
         let size = image.size
+        let aligned = image.alignmentRect
+        let insets = NSEdgeInsets(
+            top: size.height - aligned.maxY,
+            left: aligned.minX,
+            bottom: aligned.minY,
+            right: size.width - aligned.maxX
+        )
+        return SymbolPieces(pieces: pieces, size: size, insets: insets)
+    }
+
+    /// The palette rendering's pixels, one list per palette colour.
+    private static func layers(in rep: NSBitmapImageRep) -> [[Pixel]] {
         var layers: [[Pixel]] = [[], [], []]
-        var opacities: [[CGFloat]] = [[], [], []]
         for y in 0 ..< rep.pixelsHigh {
             for x in 0 ..< rep.pixelsWide {
                 guard let colour = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
@@ -57,17 +76,22 @@ enum MenuBarIconPieces {
                 let shares = [colour.redComponent, colour.greenComponent, colour.blueComponent]
                 let total = shares.reduce(0, +)
                 guard total > 0 else { continue }
-                let plainAlpha = plain.colorAt(x: x, y: y)?.alphaComponent ?? 0
                 for (layer, share) in shares.enumerated() where share / total > 0.02 {
-                    let alpha = colour.alphaComponent * share / total
-                    layers[layer].append(Pixel(x: x, y: y, alpha: alpha))
-                    // A pixel inside one layer tells that layer's opacity in the plain rendering.
-                    if share / total > 0.98, colour.alphaComponent > 0.98 {
-                        opacities[layer].append(plainAlpha)
-                    }
+                    layers[layer].append(Pixel(x: x, y: y, alpha: colour.alphaComponent * share / total))
                 }
             }
         }
+        return layers
+    }
+
+    /// Nil when AppKit cannot make a piece's image.
+    private static func pieces(
+        of symbol: MenuBarSymbol,
+        layers: [[Pixel]],
+        plain: NSBitmapImageRep,
+        canvas: CGSize,
+        scale: CGFloat
+    ) -> [MenuBarIconPiece]? {
         // The base shape leads a symbol's layers: the body of a speaker, the headphones under a slash.
         let ordered = layers.indices.filter { !layers[$0].isEmpty }.sorted { indexA, indexB in
             let inkA = layers[indexA].reduce(0) { $0 + $1.alpha }, inkB = layers[indexB].reduce(0) { $0 + $1.alpha }
@@ -80,26 +104,17 @@ enum MenuBarIconPieces {
             let role: MenuBarIconPiece.Role = index == 0 ? .base : isWaves ? .wave : symbol.name
                 .hasSuffix(".slash") || symbol.name.contains(".slash.") ? .slash : .other
             for part in isWaves ? components(pixels) : [pixels] {
-                guard let template = templateImage(part, canvas: size, scale: scale) else {
-                    return ([], .zero, NSEdgeInsetsZero)
-                }
+                guard let template = templateImage(part, canvas: canvas, scale: scale) else { return nil }
                 pieces.append(MenuBarIconPiece(
                     image: template,
                     role: role,
-                    inkCentre: inkCentre(part, canvas: size, scale: scale),
-                    inkEnd: inkEnd(part, canvas: size, scale: scale),
+                    inkCentre: inkCentre(part, canvas: canvas, scale: scale),
+                    inkEnd: inkEnd(part, canvas: canvas, scale: scale),
                     opacity: opacity(of: part, in: plain)
                 ))
             }
         }
-        let aligned = image.alignmentRect
-        let insets = NSEdgeInsets(
-            top: size.height - aligned.maxY,
-            left: aligned.minX,
-            bottom: aligned.minY,
-            right: size.width - aligned.maxX
-        )
-        return (pieces, size, insets)
+        return pieces
     }
 
     /// The layer's opacity in the plain rendering: the alpha of its solid pixels there. A dim wave is at 0.3, the tips of the AirPods Pro at 0.5.

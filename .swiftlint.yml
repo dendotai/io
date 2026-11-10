@@ -57,18 +57,6 @@ opt_in_rules:
 disabled_rules:
   # SwiftFormat owns braces.
   - opening_brace
-  # Rules with findings not fixed yet: a PR that fixes a rule's findings removes it from this list.
-  - block_based_kvo
-  - closure_body_length
-  - cyclomatic_complexity
-  - file_length
-  - for_where
-  - function_body_length
-  - large_tuple
-  - line_length
-  - optional_data_string_conversion
-  - type_body_length
-  - void_function_in_ternary
 
 line_length:
   ignores_comments: true

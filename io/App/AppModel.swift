@@ -140,10 +140,8 @@ final class AppModel {
             let current = listeningModesByAddress[address]?.current
             // A pair that disconnected within the second has no mode to read back.
             if current != mode, AirPodsListeningMode.isConnected(address: address) {
-                panelLog
-                    .notice(
-                        "listening mode set to \(mode.rawValue) reads back \(current.map { "\($0.rawValue)" } ?? "nothing")"
-                    )
+                let readBack = current.map { "\($0.rawValue)" } ?? "nothing"
+                panelLog.notice("listening mode set to \(mode.rawValue) reads back \(readBack)")
                 stopListeningModes()
             } else {
                 updateRows()

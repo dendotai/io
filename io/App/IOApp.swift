@@ -31,10 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
         #endif
-        panelLog
-            .notice(
-                "launch \(Bundle.main.bundlePath) version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown") on \(ProcessInfo.processInfo.operatingSystemVersionString)"
-            )
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown"
+        let system = ProcessInfo.processInfo.operatingSystemVersionString
+        panelLog.notice("launch \(Bundle.main.bundlePath) version \(version) on \(system)")
         LoginItem.registerOnFirstLaunch()
         model.start()
         #if DEBUG

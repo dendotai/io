@@ -24,7 +24,7 @@ final class Sink: NSObject, SCStreamOutput {
     var first: CMTime?
     var lastHash: Int?
     var duplicates = 0
-    var frames: [(elapsedMs: Int, width: Int, height: Int, bytesPerRow: Int, data: Data)] = []
+    var frames: [Frame] = []
     func stream(_: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, let attachments = CMSampleBufferGetSampleAttachmentsArray(
                   buffer,
@@ -43,19 +43,36 @@ final class Sink: NSObject, SCStreamOutput {
             bytes: need(CVPixelBufferGetBaseAddress(pixels), "frame at \(elapsedMs) ms has no pixels"),
             count: CVPixelBufferGetDataSize(pixels)
         )
-        let size = (CVPixelBufferGetWidth(pixels), CVPixelBufferGetHeight(pixels), CVPixelBufferGetBytesPerRow(pixels))
+        let width = CVPixelBufferGetWidth(pixels), height = CVPixelBufferGetHeight(pixels)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixels)
         CVPixelBufferUnlockBaseAddress(pixels, .readOnly)
         var hasher = Hasher(); hasher.combine(data); let hash = hasher.finalize()
         if hash == lastHash {
             duplicates += 1; return
         }
         lastHash = hash
-        frames.append((elapsedMs, size.0, size.1, size.2, data))
+        frames.append(Frame(elapsedMs: elapsedMs, width: width, height: height, bytesPerRow: bytesPerRow, data: data))
     }
+}
+
+/// A distinct frame's pixels, copied out of the stream's buffer.
+struct Frame {
+    let elapsedMs: Int
+    let width: Int
+    let height: Int
+    let bytesPerRow: Int
+    let data: Data
 }
 
 let sink = Sink()
 func record() async throws {
+    try await capture()
+    try writeFrames()
+    printSummary()
+    exit(0)
+}
+
+func capture() async throws {
     let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
     let displayID = CGDirectDisplayID(ProcessInfo.processInfo.environment["DISPLAY_ID"]
         .flatMap(UInt32.init) ?? CGMainDisplayID())
@@ -83,6 +100,9 @@ func record() async throws {
     print("recording"); fflush(stdout)
     try await Task.sleep(for: .seconds(seconds))
     try await stream.stopCapture()
+}
+
+func writeFrames() throws {
     var list = ""
     for frame in sink.frames {
         let provider = need(CGDataProvider(data: frame.data as CFData), "cannot read frame at \(frame.elapsedMs) ms")
@@ -106,6 +126,9 @@ func record() async throws {
         list += "\(frame.elapsedMs) \(name)\n"
     }
     try list.write(to: out.appendingPathComponent("frames.txt"), atomically: true, encoding: .utf8)
+}
+
+func printSummary() {
     let times = sink.frames.map(\.elapsedMs)
     let gaps = zip(times.dropFirst(), times).map { $0 - $1 }
     let span = (times.last ?? 0) - (times.first ?? 0)
@@ -118,7 +141,6 @@ func record() async throws {
         Double(span) / Double(max(times.count - 1, 1)),
         gaps.max() ?? 0
     ))
-    exit(0)
 }
 
 Task {

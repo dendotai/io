@@ -24,9 +24,15 @@ else {
     exit(1)
 }
 
-func ink(_ name: String, _ variableValue: Double,
-         _ config: NSImage.SymbolConfiguration?) -> (Int, Int, Double, Double)
-{
+/// The ink's size in pixels at 2x, and the image's size in points.
+struct InkBox {
+    let inkWidth: Int
+    let inkHeight: Int
+    let imageWidth: Double
+    let imageHeight: Double
+}
+
+func ink(_ name: String, _ variableValue: Double, _ config: NSImage.SymbolConfiguration?) -> InkBox {
     var img = need(
         NSImage(systemSymbolName: name, variableValue: variableValue, accessibilityDescription: nil),
         "no symbol \(name)"
@@ -54,15 +60,19 @@ func ink(_ name: String, _ variableValue: Double,
     NSGraphicsContext.restoreGraphicsState()
     var minX = width, maxX = -1, minY = height, maxY = -1
     for y in 0 ..< height {
-        for x in 0 ..< width {
-            if Int(need(rep.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render").alphaComponent * 255) >
-                threshold
-            {
-                minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
-            }
+        for x in 0 ..< width
+            where Int(need(rep.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render").alphaComponent * 255) >
+            threshold
+        {
+            minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
         }
     }
-    return (maxX - minX + 1, maxY - minY + 1, img.size.width, img.size.height)
+    return InkBox(
+        inkWidth: maxX - minX + 1,
+        inkHeight: maxY - minY + 1,
+        imageWidth: img.size.width,
+        imageHeight: img.size.height
+    )
 }
 
 let arg = args[1]
@@ -72,7 +82,7 @@ for (name, variableValue) in symbols {
         arg,
         name,
         variableValue,
-        "\(inkBox.0)x\(inkBox.1)",
-        "pt \(inkBox.2)x\(inkBox.3)"
+        "\(inkBox.inkWidth)x\(inkBox.inkHeight)",
+        "pt \(inkBox.imageWidth)x\(inkBox.imageHeight)"
     )
 }
