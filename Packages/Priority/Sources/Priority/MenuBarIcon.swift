@@ -17,8 +17,12 @@ public struct MenuBarIcon: Equatable, Sendable {
 
     /// nil when the icon stays as it is.
     public func change(from old: MenuBarIcon) -> Change? {
-        if symbol == old.symbol { return nil }
-        if symbol.name == old.symbol.name { return .volume }
+        if symbol == old.symbol {
+            return nil
+        }
+        if symbol.name == old.symbol.name {
+            return .volume
+        }
         return outputUID == old.outputUID ? .symbol : .output
     }
 }

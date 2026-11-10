@@ -28,9 +28,13 @@ final class RowDragTracker {
     var didEnd: ((NSWindow?) -> Void)?
 
     /// The section whose drag layer shows in place of its rows.
-    var direction: Direction? { drag?.layer.rowDrag.direction }
+    var direction: Direction? {
+        drag?.layer.rowDrag.direction
+    }
 
-    var isDragging: Bool { drag != nil }
+    var isDragging: Bool {
+        drag != nil
+    }
 
     init(model: AppModel) {
         self.model = model

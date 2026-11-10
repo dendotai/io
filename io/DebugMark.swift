@@ -19,7 +19,12 @@
             UserDefaults.standard.addObserver(self, forKeyPath: Self.hideKey, options: [.initial], context: nil)
         }
 
-        nonisolated override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+        override nonisolated func observeValue(
+            forKeyPath _: String?,
+            of _: Any?,
+            change _: [NSKeyValueChangeKey: Any]?,
+            context _: UnsafeMutableRawPointer?
+        ) {
             Task { @MainActor in
                 dot.isHidden = UserDefaults.standard.bool(forKey: Self.hideKey)
             }
@@ -39,11 +44,13 @@
         }
 
         @available(*, unavailable)
-        required init?(coder: NSCoder) {
+        required init?(coder _: NSCoder) {
             fatalError("init(coder:) is not used")
         }
 
         /// Clicks belong to the status item.
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func hitTest(_: NSPoint) -> NSView? {
+            nil
+        }
     }
 #endif

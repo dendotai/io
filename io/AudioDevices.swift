@@ -22,14 +22,16 @@ enum AudioDevices {
         return ids.compactMap { id in
             let transport = transportType(id)
             guard hasStreams(id, direction), !isHidden(id), !excludedTransports.contains(transport),
-                let uid = string(id, kAudioDevicePropertyDeviceUID),
-                let name = string(id, kAudioObjectPropertyName)
+                  let uid = string(id, kAudioDevicePropertyDeviceUID),
+                  let name = string(id, kAudioObjectPropertyName)
             else { return nil }
             let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
-            let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource.map(builtInDataSources.contains) == true
+            let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource
+                .map(builtInDataSources.contains) == true
             let symbolName = DeviceSymbol.name(
                 direction: direction, transportType: transport, isBuiltIn: isBuiltIn, name: name,
-                modelUID: string(id, kAudioDevicePropertyModelUID))
+                modelUID: string(id, kAudioDevicePropertyModelUID)
+            )
             let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
             return Reported(id: id, device: device, symbolName: symbolName)
         }
@@ -39,7 +41,9 @@ enum AudioDevices {
         var address = address(direction.defaultDeviceSelector)
         var id = AudioDeviceID(0)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &id) == noErr, id != kAudioObjectUnknown else {
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &id) == noErr,
+              id != kAudioObjectUnknown
+        else {
             return nil
         }
         return id
@@ -102,10 +106,16 @@ enum AudioDevices {
     }
 
     /// The replacement for the `AudioHardwareService` volume calls, which the SDK marks as no longer supported.
-    private static let volumeAddress = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume, scope: kAudioObjectPropertyScopeOutput)
+    private static let volumeAddress = address(
+        kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+        scope: kAudioObjectPropertyScopeOutput
+    )
     private static let muteAddress = address(kAudioDevicePropertyMute, scope: kAudioObjectPropertyScopeOutput)
 
-    static func observe(onDevicesChange: @escaping @MainActor () -> Void, onDefaultChange: @escaping @MainActor () -> Void) {
+    static func observe(
+        onDevicesChange: @escaping @MainActor () -> Void,
+        onDefaultChange: @escaping @MainActor () -> Void
+    ) {
         var devices = address(kAudioHardwarePropertyDevices)
         AudioObjectAddPropertyListenerBlock(system, &devices, .main) { _, _ in
             MainActor.assumeIsolated { onDevicesChange() }
@@ -173,12 +183,12 @@ enum AudioDevices {
     }
 }
 
-extension Direction {
-    fileprivate var streamScope: AudioObjectPropertyScope {
+private extension Direction {
+    var streamScope: AudioObjectPropertyScope {
         self == .output ? kAudioObjectPropertyScopeOutput : kAudioObjectPropertyScopeInput
     }
 
-    fileprivate var defaultDeviceSelector: AudioObjectPropertySelector {
+    var defaultDeviceSelector: AudioObjectPropertySelector {
         self == .output ? kAudioHardwarePropertyDefaultOutputDevice : kAudioHardwarePropertyDefaultInputDevice
     }
 }

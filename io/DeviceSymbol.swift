@@ -14,7 +14,9 @@ enum DeviceSymbol {
 
     /// Core Audio reports a Bluetooth device's model UID as "<product ID> <vendor ID>" in hex, such as "2027 4c".
     /// The headphone jack's devices report the built-in transport too, so `isBuiltIn` tells the Mac's own speakers and microphone apart from them.
-    static func name(direction: Direction, transportType: UInt32, isBuiltIn: Bool, name: String, modelUID: String?) -> String {
+    static func name(direction: Direction, transportType: UInt32, isBuiltIn: Bool, name: String,
+                     modelUID: String?) -> String
+    {
         switch transportType {
         case kAudioDeviceTransportTypeBuiltIn:
             // The Sound menu shows a laptop for "External Microphone"; io shows the `headphones` of its "External Headphones" instead.
@@ -47,7 +49,10 @@ enum DeviceSymbol {
 
     /// AirPods cases are named "<buds>.chargingcase.wireless.fill" and Beats cases "<buds>.chargingcase.fill"; buds with no case symbol of their own get the AirPods one.
     static func chargingCase(of symbolName: String) -> String {
-        firstExisting(["\(symbolName).chargingcase.wireless.fill", "\(symbolName).chargingcase.fill"]) ?? "airpods.chargingcase.wireless.fill"
+        firstExisting([
+            "\(symbolName).chargingcase.wireless.fill",
+            "\(symbolName).chargingcase.fill",
+        ]) ?? "airpods.chargingcase.wireless.fill"
     }
 
     /// One bud of a pair, such as "airpods.pro.gen3.left"; AirPods 3 name theirs in the singular, "airpod.gen3.left", and a pair with no bud symbols of its own gets the generic bud.

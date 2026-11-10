@@ -1,11 +1,16 @@
 import Foundation
-import Testing
 import Priority
+import Testing
 
 final class MemoryStore: DeviceListStore {
     var saved: [Device] = []
-    func load() -> [Device] { saved }
-    func save(_ devices: [Device]) { saved = devices }
+    func load() -> [Device] {
+        saved
+    }
+
+    func save(_ devices: [Device]) {
+        saved = devices
+    }
 }
 
 let speakers = Device(uid: "speakers", name: "MacBook Pro Speakers")

@@ -9,8 +9,13 @@ final class AppUpdater: NSObject, SPUUserDriver {
     /// Held only to keep Sparkle running.
     @ObservationIgnored private var updater: SPUUpdater?
 
-    var availableVersion: String? { pendingUpdate?.version }
-    var updateTitle: String? { availableVersion.map { "Update to \($0)" } }
+    var availableVersion: String? {
+        pendingUpdate?.version
+    }
+
+    var updateTitle: String? {
+        availableVersion.map { "Update to \($0)" }
+    }
 
     /// Only the release script sets `PUBLISHED_RELEASE`, so a local build never replaces itself with a published release.
     func start() {
@@ -36,14 +41,18 @@ final class AppUpdater: NSObject, SPUUserDriver {
         pendingUpdate = nil
     }
 
-    func show(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
+    func show(_: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
         reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
     }
 
-    func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {}
+    func showUserInitiatedUpdateCheck(cancellation _: @escaping () -> Void) {}
 
     /// Sparkle starts no other check while this reply waits, so the row stays until the click.
-    func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
+    func showUpdateFound(
+        with appcastItem: SUAppcastItem,
+        state _: SPUUserUpdateState,
+        reply: @escaping (SPUUserUpdateChoice) -> Void
+    ) {
         // An information-only item has nothing to install, and Sparkle's documentation forbids an install reply to it.
         if appcastItem.isInformationOnlyUpdate {
             reply(.dismiss)
@@ -52,11 +61,11 @@ final class AppUpdater: NSObject, SPUUserDriver {
         }
     }
 
-    func showUpdateReleaseNotes(with downloadData: SPUDownloadData) {}
+    func showUpdateReleaseNotes(with _: SPUDownloadData) {}
 
-    func showUpdateReleaseNotesFailedToDownloadWithError(_ error: any Error) {}
+    func showUpdateReleaseNotesFailedToDownloadWithError(_: any Error) {}
 
-    func showUpdateNotFoundWithError(_ error: any Error, acknowledgement: @escaping () -> Void) {
+    func showUpdateNotFoundWithError(_: any Error, acknowledgement: @escaping () -> Void) {
         acknowledgement()
     }
 
@@ -66,23 +75,23 @@ final class AppUpdater: NSObject, SPUUserDriver {
         acknowledgement()
     }
 
-    func showDownloadInitiated(cancellation: @escaping () -> Void) {}
+    func showDownloadInitiated(cancellation _: @escaping () -> Void) {}
 
-    func showDownloadDidReceiveExpectedContentLength(_ expectedContentLength: UInt64) {}
+    func showDownloadDidReceiveExpectedContentLength(_: UInt64) {}
 
-    func showDownloadDidReceiveData(ofLength length: UInt64) {}
+    func showDownloadDidReceiveData(ofLength _: UInt64) {}
 
     func showDownloadDidStartExtractingUpdate() {}
 
-    func showExtractionReceivedProgress(_ progress: Double) {}
+    func showExtractionReceivedProgress(_: Double) {}
 
     func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
         reply(.install)
     }
 
-    func showInstallingUpdate(withApplicationTerminated applicationTerminated: Bool, retryTerminatingApplication: @escaping () -> Void) {}
+    func showInstallingUpdate(withApplicationTerminated _: Bool, retryTerminatingApplication _: @escaping () -> Void) {}
 
-    func showUpdateInstalledAndRelaunched(_ relaunched: Bool, acknowledgement: @escaping () -> Void) {
+    func showUpdateInstalledAndRelaunched(_: Bool, acknowledgement: @escaping () -> Void) {
         acknowledgement()
     }
 

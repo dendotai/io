@@ -13,7 +13,12 @@
             UserDefaults.standard.addObserver(self, forKeyPath: Self.key, options: [.initial], context: nil)
         }
 
-        nonisolated override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+        override nonisolated func observeValue(
+            forKeyPath _: String?,
+            of _: Any?,
+            change _: [NSKeyValueChangeKey: Any]?,
+            context _: UnsafeMutableRawPointer?
+        ) {
             Task { @MainActor in
                 guard let name = UserDefaults.standard.string(forKey: Self.key) else { return }
                 model.pickOutput(named: name)

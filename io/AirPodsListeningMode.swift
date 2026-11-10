@@ -17,8 +17,8 @@ enum AirPodsListeningMode {
     static func start() -> Bool {
         let initSelector = NSSelectorFromString("initWithQueue:options:")
         guard manager == nil, let managerClass = NSClassFromString("CBClassicManager") as? NSObject.Type,
-            managerClass.instancesRespond(to: initSelector),
-            let alloc = managerClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject
+              managerClass.instancesRespond(to: initSelector),
+              let alloc = managerClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject
         else { return manager != nil }
         let initialize = unsafeBitCast(alloc.method(for: initSelector), to: InitManager.self)
         manager = initialize(alloc, initSelector, .main, nil)
@@ -30,9 +30,9 @@ enum AirPodsListeningMode {
         var states: [String: State] = [:]
         for device in IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? [] where device.isConnected() {
             guard let address = device.addressString, let peer = peer(of: device),
-                let isANCSupported = number(device, "isANCSupported")?.boolValue,
-                let productID = number(peer, "productID")?.uint16Value,
-                let rawMode = number(peer, "listeningMode")?.uint8Value
+                  let isANCSupported = number(device, "isANCSupported")?.boolValue,
+                  let productID = number(peer, "productID")?.uint16Value,
+                  let rawMode = number(peer, "listeningMode")?.uint8Value
             else { continue }
             let supported = ListeningMode.supported(productID: productID, isANCSupported: isANCSupported)
             guard !supported.isEmpty else { continue }
@@ -53,7 +53,7 @@ enum AirPodsListeningMode {
     /// Returns false when the pair or its peer is gone; the caller reads the mode back to learn whether the AirPods took it.
     static func set(_ mode: ListeningMode, address: String) -> Bool {
         guard let device = IOBluetoothDevice(addressString: address), let peer = peer(of: device),
-            peer.responds(to: NSSelectorFromString("setListeningMode:"))
+              peer.responds(to: NSSelectorFromString("setListeningMode:"))
         else { return false }
         peer.setValue(NSNumber(value: mode.rawValue), forKey: "listeningMode")
         return true
@@ -78,12 +78,17 @@ enum ListeningModeIcon {
     static let images: [ListeningMode: NSImage] = {
         var images: [ListeningMode: NSImage] = [:]
         let bundle = Bundle(path: "/System/Library/PrivateFrameworks/HeadphoneCommonUIKit.framework")
-        for (mode, name) in [(ListeningMode.off, "Off"), (.transparency, "Transparency"), (.noiseCancellation, "Noise Cancellation")] {
+        for (mode, name) in [
+            (ListeningMode.off, "Off"),
+            (.transparency, "Transparency"),
+            (.noiseCancellation, "Noise Cancellation"),
+        ] {
             images[mode] = bundle?.image(forResource: name)
         }
         let privateSymbol = NSSelectorFromString("imageWithPrivateSystemSymbolName:")
         if NSImage.responds(to: privateSymbol) {
-            images[.adaptive] = NSImage.perform(privateSymbol, with: "person.and.sparkles.fill")?.takeUnretainedValue() as? NSImage
+            images[.adaptive] = NSImage.perform(privateSymbol, with: "person.and.sparkles.fill")?
+                .takeUnretainedValue() as? NSImage
         }
         return images
     }()

@@ -1,5 +1,5 @@
-import Testing
 import Priority
+import Testing
 
 @Test(arguments: [
     ("MacBookPro18,1", "macbook.gen2"),

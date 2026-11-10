@@ -1,5 +1,5 @@
-import Testing
 import Priority
+import Testing
 
 private let slash = MenuBarSymbol(name: "speaker.slash.fill")
 
@@ -27,9 +27,12 @@ private func waves(_ variableValue: Double) -> MenuBarSymbol {
 }
 
 @Test func headphonesShowTheirSymbolAboveZeroAndTheSlashAtZeroOrMute() {
-    #expect(MenuBarSymbol.of(deviceSymbol: "headphones", volume: 0.01, isMuted: false) == MenuBarSymbol(name: "headphones"))
-    #expect(MenuBarSymbol.of(deviceSymbol: "headphones", volume: 0, isMuted: false) == MenuBarSymbol(name: "headphones.slash"))
-    #expect(MenuBarSymbol.of(deviceSymbol: "headphones", volume: 0.5, isMuted: true) == MenuBarSymbol(name: "headphones.slash"))
+    #expect(MenuBarSymbol
+        .of(deviceSymbol: "headphones", volume: 0.01, isMuted: false) == MenuBarSymbol(name: "headphones"))
+    #expect(MenuBarSymbol
+        .of(deviceSymbol: "headphones", volume: 0, isMuted: false) == MenuBarSymbol(name: "headphones.slash"))
+    #expect(MenuBarSymbol
+        .of(deviceSymbol: "headphones", volume: 0.5, isMuted: true) == MenuBarSymbol(name: "headphones.slash"))
 }
 
 @Test(arguments: ["airpods.pro.gen3", "airpods.max", "beats.studiobuds"])

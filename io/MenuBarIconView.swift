@@ -26,7 +26,7 @@ final class MenuBarIconView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) is not used")
     }
 
@@ -100,20 +100,34 @@ final class MenuBarIconView: NSView {
             let oldIsSlash = old.contains { $0.piece.role == .slash }
             let oldHasWaves = old.contains { $0.piece.role == .wave }
             // One band erases all the waves, so the short inner wave goes first.
-            let waveHalfHeight = old.filter { $0.piece.role == .wave }.map { $0.piece.inkCentre.y - $0.piece.inkEnd.y }.max() ?? 0
+            let waveHalfHeight = old.filter { $0.piece.role == .wave }.map { $0.piece.inkCentre.y - $0.piece.inkEnd.y }
+                .max() ?? 0
             for view in old {
                 switch view.piece.role {
                 case .wave:
-                    view.wipe(through: Transition.wipeCurve, halfHeight: waveHalfHeight, delay: 0, duration: Transition.wavesWipe)
+                    view.wipe(
+                        through: Transition.wipeCurve,
+                        halfHeight: waveHalfHeight,
+                        delay: 0,
+                        duration: Transition.wavesWipe
+                    )
                     swap = max(swap, Transition.wavesWipe)
                 case .slash:
                     view.shrink(to: 0.001, about: view.piece.inkEnd, delay: 0, duration: Transition.slashShrink)
                     swap = max(swap, Transition.slashShrink)
                 case .base, .other:
-                    let duration = oldIsSlash ? Transition.slashBodyShrink : oldHasWaves ? Transition.bodyShrink : Transition.baseShrink
+                    let duration = oldIsSlash ? Transition.slashBodyShrink : oldHasWaves ? Transition
+                        .bodyShrink : Transition.baseShrink
                     let delay = oldHasWaves ? Transition.wavesWipe - Transition.bodyShrink : 0
-                    let timing = oldIsSlash || oldHasWaves ? CAMediaTimingFunction(name: .easeIn) : Transition.baseShrinkTiming
-                    view.shrink(to: Transition.swapScale, about: view.piece.inkCentre, delay: delay, duration: duration, timing: timing)
+                    let timing = oldIsSlash || oldHasWaves ? CAMediaTimingFunction(name: .easeIn) : Transition
+                        .baseShrinkTiming
+                    view.shrink(
+                        to: Transition.swapScale,
+                        about: view.piece.inkCentre,
+                        delay: delay,
+                        duration: duration,
+                        timing: timing
+                    )
                     swap = max(swap, delay + duration)
                 }
             }
@@ -138,7 +152,11 @@ final class MenuBarIconView: NSView {
                 continue
             }
             switch view.piece.role {
-            case .base: view.grow(from: Transition.swapScale, delay: swap, duration: newHasWaves ? Transition.bodyGrow : Transition.baseGrow)
+            case .base: view.grow(
+                    from: Transition.swapScale,
+                    delay: swap,
+                    duration: newHasWaves ? Transition.bodyGrow : Transition.baseGrow
+                )
             case .other: view.grow(from: Transition.swapScale, delay: swap, duration: Transition.baseGrow)
             case .wave: view.grow(through: Transition.accentGrowth, delay: swap, duration: Transition.wavesGrow)
             case .slash: view.grow(through: Transition.accentGrowth, delay: swap, duration: Transition.slashGrow)
@@ -181,7 +199,11 @@ final class MenuBarIconView: NSView {
     private func make(_ symbol: MenuBarSymbol) -> [PieceView] {
         let (pieces, size, insets) = MenuBarIconPieces.pieces(of: symbol, scale: scale)
         return pieces.map { piece in
-            let view = PieceView(piece: piece, frame: CGRect(origin: canvasOrigin(for: size, insets: insets), size: size), insets: insets)
+            let view = PieceView(
+                piece: piece,
+                frame: CGRect(origin: canvasOrigin(for: size, insets: insets), size: size),
+                insets: insets
+            )
             addSubview(view)
             return view
         }
@@ -189,7 +211,10 @@ final class MenuBarIconView: NSView {
 
     /// The image's alignment rect centred on the button, on the pixel grid at 2x, as the status bar places an image.
     private func canvasOrigin(for size: CGSize, insets: NSEdgeInsets) -> CGPoint {
-        let aligned = CGSize(width: size.width - insets.left - insets.right, height: size.height - insets.top - insets.bottom)
+        let aligned = CGSize(
+            width: size.width - insets.left - insets.right,
+            height: size.height - insets.top - insets.bottom
+        )
         let x = (bounds.width - aligned.width) / 2 - insets.left
         let y = (bounds.height - aligned.height) / 2 - insets.bottom
         return CGPoint(x: (x * 2).rounded() / 2, y: (y * 2).rounded() / 2)
@@ -203,7 +228,9 @@ final class MenuBarIconView: NSView {
         }
     }
 
-    private var scale: CGFloat { window?.backingScaleFactor ?? 2 }
+    private var scale: CGFloat {
+        window?.backingScaleFactor ?? 2
+    }
 
     /// `headphones` and `headphones.slash`: the symbol only gains or loses its slash, which the system's magic replace animates alone.
     private static func isSlashPair(_ a: String, _ b: String) -> Bool {
@@ -211,7 +238,9 @@ final class MenuBarIconView: NSView {
     }
 
     /// Clicks belong to the status item.
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_: NSPoint) -> NSView? {
+        nil
+    }
 }
 
 /// One layer of the symbol, scaled about its ink centre.
@@ -231,7 +260,7 @@ private final class PieceView: NSImageView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) is not used")
     }
 
@@ -252,7 +281,13 @@ private final class PieceView: NSImageView {
     }
 
     /// Scales from the size on screen down to `scale` about the point, then hides, so the layer stays at full size until its turn.
-    func shrink(to scale: CGFloat, about point: CGPoint, delay: TimeInterval, duration: TimeInterval, timing: CAMediaTimingFunction = CAMediaTimingFunction(name: .easeIn)) {
+    func shrink(
+        to scale: CGFloat,
+        about point: CGPoint,
+        delay: TimeInterval,
+        duration: TimeInterval,
+        timing: CAMediaTimingFunction = CAMediaTimingFunction(name: .easeIn)
+    ) {
         let animation = CABasicAnimation(keyPath: "transform")
         animation.fromValue = transform(presentedScale, about: point)
         animation.toValue = transform(scale, about: point)
@@ -362,7 +397,12 @@ private final class PieceView: NSImageView {
         layer?.add(animation, forKey: "scale")
     }
 
-    func animateOpacity(to opacity: CGFloat, duration: TimeInterval, delay: TimeInterval = 0, timing: CAMediaTimingFunctionName = .easeInEaseOut) {
+    func animateOpacity(
+        to opacity: CGFloat,
+        duration: TimeInterval,
+        delay: TimeInterval = 0,
+        timing: CAMediaTimingFunctionName = .easeInEaseOut
+    ) {
         let animation = CABasicAnimation(keyPath: "opacity")
         animation.fromValue = (layer?.presentation() ?? layer)?.opacity
         animation.toValue = Float(opacity)
