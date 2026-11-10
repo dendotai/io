@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true
         # An explicit `shell: bash` runs with pipefail, so a failing check fails the step through `tee`.
         shell: bash
-        run: bun maintenance/updates/check-renovate.mjs renovate-report/report.json 2>&1 | tee renovate-report/check-renovate.txt
+        run: bun maintenance/updates/check-renovate.mjs renovate-report/report.json renovate-report/unlisted-pins.json 2>&1 | tee renovate-report/check-renovate.txt
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -85,12 +85,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bun maintenance/updates/check-advisory-lists.mjs renovate-report/report.json
 
+      - name: Create the app token
+        id: app-token
+        if: hashFiles('renovate-report/unlisted-pins.json') != '' && (success() || failure())
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RENOVATE_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
+
+      - name: Open a PR that lists each version pin the list lacks
+        id: add-missing-pins
+        if: hashFiles('renovate-report/unlisted-pins.json') != '' && (success() || failure())
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: bun maintenance/updates/open-pins-pr.mjs renovate-report/unlisted-pins.json
+
       - name: Report a missed version pin
-        if: needs.extract.outputs.check == 'failure' && (success() || failure())
+        if: (needs.extract.outputs.check == 'failure' || steps.add-missing-pins.outcome == 'failure') && (success() || failure())
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: Renovate missed an expected version pin
+          PR_OUTCOME: ${{ steps.add-missing-pins.outcome }}
         run: |
+          if [ "$PR_OUTCOME" = failure ]; then
+            echo "Opening the PR for the pins the list lacks failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> renovate-report/check-renovate.txt
+          fi
           issue=$(gh issue list --state open --label needs-human --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
           if [ -n "$issue" ]; then
             gh issue comment "$issue" --body-file renovate-report/check-renovate.txt

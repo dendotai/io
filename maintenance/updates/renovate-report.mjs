@@ -1,6 +1,10 @@
-// Read the file Renovate writes with `reportType: file` (https://docs.renovatebot.com/self-hosted-configuration/#reporttype), for the scripts in this folder.
+// Read Renovate's report, the file it writes with `reportType: file` (https://docs.renovatebot.com/self-hosted-configuration/#reporttype), and the pin list, for the scripts in this folder.
 
 import { readFileSync } from "node:fs";
+
+export const PINS_LIST = "maintenance/updates/renovate-pins.json";
+
+export const pinPlace = ({ file, depName }) => `${depName} in ${file}`;
 
 export const fail = (message) => {
   console.error(message);
