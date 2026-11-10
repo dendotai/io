@@ -21,9 +21,11 @@ public struct BatteryLevels: Equatable, Sendable {
     public static func byName(_ sources: [[String: Any]]) -> [String: BatteryLevels] {
         var levelsByGroup: [String: BatteryLevels] = [:]
         var nameByGroup: [String: String] = [:]
-        for source in sources where source["Type"] as? String == "Accessory Source" && source["Is Present"] as? Bool != false {
+        for source in sources
+            where source["Type"] as? String == "Accessory Source" && source["Is Present"] as? Bool != false
+        {
             guard let name = source["Name"] as? String, let current = source["Current Capacity"] as? Int,
-                let max = source["Max Capacity"] as? Int, max > 0
+                  let max = source["Max Capacity"] as? Int, max > 0
             else { continue }
             let group = source["Group Identifier"] as? String ?? name
             let level = Int((Double(current) / Double(max) * 100).rounded())

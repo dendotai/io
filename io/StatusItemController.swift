@@ -44,7 +44,8 @@ final class StatusItemController {
             return SectionItems(
                 header: Self.item(SectionHeader(model: model, direction: direction)),
                 separator: Self.item(PanelSeparator(inset: direction.separatorInset)),
-                dragLayer: DragLayerItem(rowDrag: rowDrag, item: Self.item(DragLayer(model: model, drag: rowDrag))))
+                dragLayer: DragLayerItem(rowDrag: rowDrag, item: Self.item(DragLayer(model: model, drag: rowDrag)))
+            )
         }
         outputSection = makeSection(.output)
         inputSection = makeSection(.input)
@@ -124,7 +125,13 @@ final class StatusItemController {
             var kept: [String: NSMenuItem] = [:]
             for row in rows[direction] ?? [] {
                 let device = row.device
-                let item = deviceItems[direction]?[row.id] ?? Self.item(DeviceRow(model: model, direction: direction, device: device, dragActions: dragActions, hide: { [weak self] in self?.hide(device, in: direction) }))
+                let item = deviceItems[direction]?[row.id] ?? Self.item(DeviceRow(
+                    model: model,
+                    direction: direction,
+                    device: device,
+                    dragActions: dragActions,
+                    hide: { [weak self] in self?.hide(device, in: direction) }
+                ))
                 kept[row.id] = item
                 names[ObjectIdentifier(item)] = "\(direction) \"\(row.device.name)\""
                 items.append(item)
@@ -133,7 +140,11 @@ final class StatusItemController {
                     items.append(idle.item)
                 }
                 if row.isFoldedOpen, foldAnimation?.uid != row.id, let modes = row.listening?.supported {
-                    let group = listeningGroups[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? ListeningModeGroupItem(modes: modes, item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes)))
+                    let group = listeningGroups[row.id]
+                        .flatMap { $0.modes == modes ? $0 : nil } ?? ListeningModeGroupItem(
+                            modes: modes,
+                            item: Self.item(ListeningModeGroup(model: model, device: row.device, modes: modes))
+                        )
                     listeningGroups[row.id] = group
                     let groupItem = group.item
                     names[ObjectIdentifier(groupItem)] = "listening mode of \"\(row.device.name)\""
@@ -152,15 +163,18 @@ final class StatusItemController {
             items += [updateSeparator, updateAvailableRow]
             names[ObjectIdentifier(updateAvailableRow)] = "Update"
         }
-        if let foldAnimation, !dragTracker.isDragging, let rowItem = deviceItems[.output]?[foldAnimation.uid], let start = items.firstIndex(of: rowItem),
-            let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
+        if let foldAnimation, !dragTracker.isDragging, let rowItem = deviceItems[.output]?[foldAnimation.uid],
+           let start = items.firstIndex(of: rowItem),
+           let end = items.firstIndex(of: airPodsName != nil ? airPodsSettings : soundSettings)
         {
-            items.replaceSubrange((start + 1)..<end, with: [foldAnimation.item])
+            items.replaceSubrange((start + 1) ..< end, with: [foldAnimation.item])
             names[ObjectIdentifier(foldAnimation.item)] = "fold"
         }
 
         var moved: [String] = []
-        for (index, item) in items.enumerated() where !menu.items.indices.contains(index) || menu.items[index] !== item {
+        for (index, item) in items.enumerated()
+            where !menu.items.indices.contains(index) || menu.items[index] !== item
+        {
             if item.menu != nil {
                 menu.removeItem(item)
             }
@@ -196,7 +210,11 @@ final class StatusItemController {
             }
             let isPanelOpen = panelWindow?.isVisible == true
             guard isPanelOpen, !dragTracker.isDragging, let modes = row.listening?.supported else { continue }
-            let animation = foldAnimations[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? FoldAnimation(model: model, device: row.device, modes: modes)
+            let animation = foldAnimations[row.id].flatMap { $0.modes == modes ? $0 : nil } ?? FoldAnimation(
+                model: model,
+                device: row.device,
+                modes: modes
+            )
             foldAnimations[row.id] = animation
             foldAnimation = animation
             animation.start(isOpening: row.isFoldedOpen) { [weak self, weak animation] in
@@ -253,7 +271,8 @@ final class StatusItemController {
             let event = NSEvent.mouseEvent(
                 with: .mouseMoved, location: location, modifierFlags: [],
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-                eventNumber: 0, clickCount: 0, pressure: 0)
+                eventNumber: 0, clickCount: 0, pressure: 0
+            )
         else { return }
         NSApp.postEvent(event, atStart: false)
     }
@@ -328,7 +347,7 @@ private final class RightClickMenuDelegate: NSObject, NSMenuDelegate {
         menu.addItem(item("Quit io", #selector(quit)))
     }
 
-    func menuDidClose(_ menu: NSMenu) {
+    func menuDidClose(_: NSMenu) {
         didClose?()
     }
 

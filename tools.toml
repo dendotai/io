@@ -1,0 +1,11 @@
+# Each table is one command-line tool: `maintenance/tools/install-tools.sh` downloads `file` from the GitHub release `version` of `repo` and puts the executable named like the table in `.tools/bin/`. Renovate reads `repo` and `version` (`renovate.json`) only when `version` is on the line after `repo`.
+
+[swiftformat]
+repo = "nicklockwood/SwiftFormat"
+version = "0.64.6"
+file = "swiftformat.zip"
+
+[swiftlint]
+repo = "realm/SwiftLint"
+version = "0.65.1"
+file = "portable_swiftlint.zip"

@@ -96,7 +96,11 @@ struct PanelView: View {
             MenuRow(title: "Sound Settings…", action: model.openSoundSettings)
             if updater.availableVersion != nil {
                 PanelSeparator(inset: Metrics.edgeInset)
-                UpdateRow(updater: updater, isHighlighted: UserDefaults.standard.bool(forKey: "renderUpdateHighlighted"), action: updater.installUpdate)
+                UpdateRow(
+                    updater: updater,
+                    isHighlighted: UserDefaults.standard.bool(forKey: "renderUpdateHighlighted"),
+                    action: updater.installUpdate
+                )
             }
         }
     }
@@ -156,18 +160,19 @@ struct VolumeSlider: View {
                             guard isEnabled, travel > 0 else { return }
                             let fraction = (drag.location.x - Metrics.knobWidth / 2) / travel
                             set(Float(min(max(fraction, 0), 1)))
-                        })
+                        }
+                )
             }
             .frame(height: Metrics.knobHeight)
         }
     }
 
     /// A superellipse: the Sound menu's knob is fuller than an ellipse and rounder than a rounded rectangle, and an exponent of 2.3 fits its outline row by row at 2x.
-    nonisolated private struct Knob: Shape {
+    private nonisolated struct Knob: Shape {
         func path(in rect: CGRect) -> Path {
             let exponent = 2.3
             var path = Path()
-            for step in 0...120 {
+            for step in 0 ... 120 {
                 let angle = Double(step) / 120 * 2 * .pi
                 let x = pow(abs(cos(angle)), 2 / exponent) * (cos(angle) < 0 ? -1 : 1)
                 let y = pow(abs(sin(angle)), 2 / exponent) * (sin(angle) < 0 ? -1 : 1)
@@ -238,18 +243,19 @@ struct DeviceRow: View {
                 model.toggleListeningModes(of: device)
             }
             .gesture(reorderOrUse(row))
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 0)
-                        .onEnded { _ in dragActions?.released() })
-                .accessibilityElement(children: .contain)
-                .accessibilityAddTraits(row.isConnected ? .isButton : [])
-                .accessibilityAction { use(row) }
-                .accessibilityActions {
-                    // The Hide button shows only under the pointer, which VoiceOver does not move.
-                    if row.canHide, let hide {
-                        Button("Hide", action: hide)
-                    }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { _ in dragActions?.released() }
+            )
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(row.isConnected ? .isButton : [])
+            .accessibilityAction { use(row) }
+            .accessibilityActions {
+                // The Hide button shows only under the pointer, which VoiceOver does not move.
+                if row.canHide, let hide {
+                    Button("Hide", action: hide)
                 }
+            }
         }
     }
 
@@ -276,7 +282,11 @@ private struct DeviceRowLabel: View {
     var toggleListeningModes: (() -> Void)?
 
     var body: some View {
-        HoverRow(height: Metrics.deviceRowHeight, radius: Metrics.deviceHighlightRadius, logName: "\(direction.title) \"\(row.device.name)\"") { isHovered in
+        HoverRow(
+            height: Metrics.deviceRowHeight,
+            radius: Metrics.deviceHighlightRadius,
+            logName: "\(direction.title) \"\(row.device.name)\""
+        ) { isHovered in
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: row.symbolName)
@@ -344,7 +354,10 @@ struct ListeningModeGroup: View {
                 ListeningModeRow(model: model, device: device, mode: mode)
             }
         }
-        .background(ListeningBand().padding(.top, Metrics.listeningBandTop).padding(.bottom, Metrics.listeningBandBottom))
+        .background(ListeningBand().padding(.top, Metrics.listeningBandTop).padding(
+            .bottom,
+            Metrics.listeningBandBottom
+        ))
     }
 }
 
@@ -406,15 +419,19 @@ struct FoldBelowRows: View {
     }
 }
 
-
 /// One mode under "Listening Mode", with a checkmark on the current one. The last row carries the gap to the next device row.
 struct ListeningModeRow: View {
     let model: AppModel
     let device: Device
     let mode: ListeningMode
 
-    private var row: AppModel.Row? { model.rows[.output]?.first { $0.id == device.uid } }
-    private var isLast: Bool { row?.listening?.supported.last == mode }
+    private var row: AppModel.Row? {
+        model.rows[.output]?.first { $0.id == device.uid }
+    }
+
+    private var isLast: Bool {
+        row?.listening?.supported.last == mode
+    }
 
     var body: some View {
         Button {
@@ -507,13 +524,19 @@ private struct SingleBatteryLevel: View {
                         .strokeBorder(Color.primary.opacity(Metrics.singleBatteryOutlineOpacity), lineWidth: 1)
                     RoundedRectangle(cornerRadius: Metrics.singleBatteryFillRadius)
                         .fill(Color.primary.opacity(Metrics.singleBatteryFillOpacity))
-                        .frame(width: Metrics.singleBatteryFillWidth * CGFloat(percent) / 100, height: Metrics.singleBatteryFillHeight)
+                        .frame(
+                            width: Metrics.singleBatteryFillWidth * CGFloat(percent) / 100,
+                            height: Metrics.singleBatteryFillHeight
+                        )
                         .padding(.leading, 2)
                 }
                 .frame(width: Metrics.singleBatteryBodyWidth, height: Metrics.singleBatteryBodyHeight)
-                UnevenRoundedRectangle(bottomTrailingRadius: Metrics.singleBatteryNubWidth, topTrailingRadius: Metrics.singleBatteryNubWidth)
-                    .fill(Color.primary.opacity(Metrics.singleBatteryOutlineOpacity))
-                    .frame(width: Metrics.singleBatteryNubWidth, height: Metrics.singleBatteryNubHeight)
+                UnevenRoundedRectangle(
+                    bottomTrailingRadius: Metrics.singleBatteryNubWidth,
+                    topTrailingRadius: Metrics.singleBatteryNubWidth
+                )
+                .fill(Color.primary.opacity(Metrics.singleBatteryOutlineOpacity))
+                .frame(width: Metrics.singleBatteryNubWidth, height: Metrics.singleBatteryNubHeight)
             }
         }
         .fixedSize()
@@ -535,9 +558,11 @@ private struct SingleBatteryLevel: View {
         let shift = Int((translation / Metrics.deviceRowHeight).rounded())
         return min(max(from + shift, 0), rows.count - 1)
     }
+
     func drop(into model: AppModel) {
         let rows = model.rows[direction] ?? []
-        guard let from = rows.firstIndex(where: { $0.id == uid }), let to = targetIndex(in: rows), to != from else { return }
+        guard let from = rows.firstIndex(where: { $0.id == uid }), let to = targetIndex(in: rows),
+              to != from else { return }
         model.reorder(rows[from].device, to: to, in: direction)
     }
 }
@@ -547,7 +572,9 @@ struct DragLayer: View {
     let model: AppModel
     let drag: RowDrag
 
-    private var rows: [AppModel.Row] { model.rows[drag.direction] ?? [] }
+    private var rows: [AppModel.Row] {
+        model.rows[drag.direction] ?? []
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -562,16 +589,17 @@ struct DragLayer: View {
     }
 
     private func offset(at index: Int) -> CGFloat {
-        guard let from = rows.firstIndex(where: { $0.id == drag.uid }), let to = drag.targetIndex(in: rows) else { return 0 }
+        guard let from = rows.firstIndex(where: { $0.id == drag.uid }),
+              let to = drag.targetIndex(in: rows) else { return 0 }
         if index == from {
             let up = -CGFloat(from) * Metrics.deviceRowHeight
             let down = CGFloat(rows.count - 1 - from) * Metrics.deviceRowHeight
             return min(max(drag.translation, up), down)
         }
-        if from < index && index <= to {
+        if from < index, index <= to {
             return -Metrics.deviceRowHeight
         }
-        if to <= index && index < from {
+        if to <= index, index < from {
             return Metrics.deviceRowHeight
         }
         return 0
@@ -610,7 +638,9 @@ struct UpdateRow: View {
 
     var body: some View {
         Button(action: action) {
-            HoverRow(height: Metrics.menuRowHeight, style: .update, isHighlighted: isHighlighted, logName: "update") { _ in
+            HoverRow(height: Metrics.menuRowHeight, style: .update, isHighlighted: isHighlighted,
+                     logName: "update")
+            { _ in
                 Text(updater.updateTitle ?? "")
                     .foregroundStyle(Color.accentColor)
             }
@@ -639,7 +669,10 @@ struct OpenAtLoginRow: View {
                     .overlay(alignment: isOn ? .trailing : .leading) {
                         Capsule()
                             .fill(.white)
-                            .frame(width: Metrics.switchKnobWidth, height: Metrics.switchHeight - 2 * Metrics.switchKnobInset)
+                            .frame(
+                                width: Metrics.switchKnobWidth,
+                                height: Metrics.switchHeight - 2 * Metrics.switchKnobInset
+                            )
                             .padding(.horizontal, Metrics.switchKnobInset)
                     }
                     .animation(.easeOut(duration: 0.15), value: isOn)
@@ -693,7 +726,9 @@ private struct HoverRow<Content: View>: View {
     @State private var id = UUID()
 
     private var fillReason: String? {
-        if isHighlighted { return "highlighted" }
+        if isHighlighted {
+            return "highlighted"
+        }
         return isHovered ? "hovered" : nil
     }
 
@@ -728,6 +763,7 @@ private struct RowButtonStyle: ButtonStyle {
             .font(.system(size: Metrics.chevronSize))
             .frame(width: Metrics.rowButtonWidth, height: Metrics.iconSize)
             .contentShape(Rectangle())
-            .foregroundStyle(Color.primary.opacity(configuration.isPressed ? Metrics.rowButtonPressedOpacity : Metrics.rowButtonOpacity))
+            .foregroundStyle(Color.primary
+                .opacity(configuration.isPressed ? Metrics.rowButtonPressedOpacity : Metrics.rowButtonOpacity))
     }
 }

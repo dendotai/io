@@ -15,7 +15,9 @@ final class AppModel {
         /// nil when the row has no ⌄: not connected AirPods with noise cancellation, or the setting stopped answering.
         let listening: AirPodsListeningMode.State?
         let isFoldedOpen: Bool
-        var id: String { device.uid }
+        var id: String {
+            device.uid
+        }
     }
 
     private(set) var rows: [Direction: [Row]] = [:]
@@ -26,13 +28,18 @@ final class AppModel {
     private(set) var volume: Float?
     private(set) var isMuted = false
     var menuBarIcon: MenuBarIcon {
-        MenuBarIcon(outputUID: inUseOutputUID, symbol: .of(deviceSymbol: inUseSymbolName, volume: volume, isMuted: isMuted))
+        MenuBarIcon(
+            outputUID: inUseOutputUID,
+            symbol: .of(deviceSymbol: inUseSymbolName, volume: volume, isMuted: isMuted)
+        )
     }
+
     /// The Sound menu's slider goes to 0 at mute and back to the volume after.
     var sliderVolume: Float? {
         guard let volume else { return nil }
         return isMuted ? 0 : volume
     }
+
     /// The connected AirPods that "<name> Settings…" names, the pair in use first.
     private(set) var airPodsName: String?
     @ObservationIgnored private let switcher = Switcher(
@@ -132,8 +139,11 @@ final class AppModel {
             readListeningModes()
             let current = listeningModesByAddress[address]?.current
             // A pair that disconnected within the second has no mode to read back.
-            if current != mode && AirPodsListeningMode.isConnected(address: address) {
-                panelLog.notice("listening mode set to \(mode.rawValue) reads back \(current.map { "\($0.rawValue)" } ?? "nothing")")
+            if current != mode, AirPodsListeningMode.isConnected(address: address) {
+                panelLog
+                    .notice(
+                        "listening mode set to \(mode.rawValue) reads back \(current.map { "\($0.rawValue)" } ?? "nothing")"
+                    )
                 stopListeningModes()
             } else {
                 updateRows()
@@ -185,7 +195,7 @@ final class AppModel {
         }
         batteryLevelsByName = AirPodsBattery.levels()
         readListeningModes()
-        var symbols = self.symbols
+        var symbols = symbols
         for device in reported.values.joined() {
             symbols[device.device.uid] = device.symbolName
         }
@@ -227,8 +237,8 @@ final class AppModel {
     private func switchToChosenDevices() {
         for direction in Direction.allCases {
             guard let chosen = switcher.chosenDevice(direction),
-                let id = reported[direction]?.first(where: { $0.device.uid == chosen.uid })?.id,
-                id != AudioDevices.defaultDeviceID(direction)
+                  let id = reported[direction]?.first(where: { $0.device.uid == chosen.uid })?.id,
+                  id != AudioDevices.defaultDeviceID(direction)
             else { continue }
             AudioDevices.setDefaultDevice(id, direction)
         }
@@ -248,7 +258,8 @@ final class AppModel {
             rows[direction] = list.devices.map { device in
                 let isConnected = list.connectedUIDs.contains(device.uid)
                 let isConnectedOutput = isConnected && direction == .output
-                let listening = isConnectedOutput ? listeningModesByAddress[AirPodsListeningMode.address(of: device)] : nil
+                let listening = isConnectedOutput ? listeningModesByAddress[AirPodsListeningMode.address(of: device)] :
+                    nil
                 return Row(
                     device: device,
                     isConnected: isConnected,

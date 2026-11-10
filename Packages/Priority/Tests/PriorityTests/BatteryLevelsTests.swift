@@ -1,7 +1,9 @@
-import Testing
 import Priority
+import Testing
 
-func part(_ name: String, _ part: String, _ level: Int, group: String = "group-1", isPresent: Bool = true) -> [String: Any] {
+func part(_ name: String, _ part: String, _ level: Int, group: String = "group-1",
+          isPresent: Bool = true) -> [String: Any]
+{
     [
         "Type": "Accessory Source", "Name": name, "Part Identifier": part, "Group Identifier": group,
         "Current Capacity": level, "Max Capacity": 100, "Is Present": isPresent,
@@ -14,7 +16,7 @@ func combined(_ name: String, left: Int, right: Int, group: String = "group-1") 
     return entry
 }
 
-// Recorded on macOS 27: both buds out of the case, the case open; the Sound menu shows "78%, 62%".
+/// Recorded on macOS 27: both buds out of the case, the case open; the Sound menu shows "78%, 62%".
 @Test func aPairReportsItsBudsAndCaseUnderTheBudsName() {
     let levels = BatteryLevels.byName([
         part("AirPods Pro Case", "Case", 62),
@@ -36,7 +38,7 @@ func combined(_ name: String, left: Int, right: Int, group: String = "group-1") 
     #expect(levels == ["AirPods Pro": BatteryLevels(buds: 50)])
 }
 
-// Recorded on macOS 27: the right bud in the case; the Sound menu shows "74%, 71%, 62%".
+/// Recorded on macOS 27: the right bud in the case; the Sound menu shows "74%, 71%, 62%".
 @Test func budsReportedApartKeepTheirOwnLevels() {
     let levels = BatteryLevels.byName([
         part("AirPods Pro Case", "Case", 62),
@@ -46,7 +48,7 @@ func combined(_ name: String, left: Int, right: Int, group: String = "group-1") 
     #expect(levels == ["AirPods Pro": BatteryLevels(left: 74, right: 71, chargingCase: 62)])
 }
 
-// Recorded on macOS 27: AirPods Max in use; the Sound menu shows "86%" at the right of the row.
+/// Recorded on macOS 27: AirPods Max in use; the Sound menu shows "86%" at the right of the row.
 @Test func headphonesWithOneBatteryKeepTheLevelApartFromBuds() {
     let levels = BatteryLevels.byName([part("AirPods Max", "Single", 90, group: "group-2")])
     #expect(levels == ["AirPods Max": BatteryLevels(single: 90)])
@@ -65,7 +67,13 @@ func combined(_ name: String, left: Int, right: Int, group: String = "group-1") 
 
 @Test func theMacsOwnBatteryIsNotAnAccessory() {
     let levels = BatteryLevels.byName([
-        ["Type": "InternalBattery", "Name": "InternalBattery-0", "Current Capacity": 80, "Max Capacity": 100, "Is Present": true]
+        [
+            "Type": "InternalBattery",
+            "Name": "InternalBattery-0",
+            "Current Capacity": 80,
+            "Max Capacity": 100,
+            "Is Present": true,
+        ],
     ])
     #expect(levels.isEmpty)
 }

@@ -4,7 +4,9 @@
   "private": true,
   "packageManager": "bun@1.4.4",
   "scripts": {
-    "postinstall": "git config core.hooksPath .githooks"
+    "postinstall": "git config core.hooksPath .githooks",
+    "format": "maintenance/code-style/format-swift.sh",
+    "lint": "maintenance/code-style/lint-swift.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.4",

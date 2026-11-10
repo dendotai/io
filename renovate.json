@@ -33,6 +33,15 @@
       ],
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Each table in tools.toml is a tool downloaded from a GitHub release; maintenance/tools/install-tools.sh builds the download URL from repo and version, so the version is the release tag.",
+      "managerFilePatterns": ["/(^|/)tools\\.toml$/"],
+      "matchStrings": [
+        "repo\\s*=\\s*\"(?<depName>[^\"]+)\"\\s*\\nversion\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ]
 }

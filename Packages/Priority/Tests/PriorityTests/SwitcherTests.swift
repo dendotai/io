@@ -1,5 +1,5 @@
-import Testing
 import Priority
+import Testing
 
 let studioMicrophone = Device(uid: "studio-microphone", name: "Studio Display Microphone")
 
@@ -18,7 +18,7 @@ func startWearingAirPods(_ switcher: Switcher) {
     )
 }
 
-// Recorded on macOS 27: `audioaccessoryd` moves the output to AirPods Max a second time, 4.7 s after they connect.
+/// Recorded on macOS 27: `audioaccessoryd` moves the output to AirPods Max a second time, 4.7 s after they connect.
 @Test func aDefaultChangeByAnotherProcessLeavesTheSpeakersChosen() {
     let switcher = makeSwitcher()
     switcher.devicesChanged(
@@ -54,7 +54,7 @@ func startWearingAirPods(_ switcher: Switcher) {
     #expect(switcher.chosenDevice(.input) == airPodsMicrophone)
 }
 
-// Recorded on macOS 27: AirPods Max taken off to the neck disconnect, and put back on connect again.
+/// Recorded on macOS 27: AirPods Max taken off to the neck disconnect, and put back on connect again.
 @Test func airPodsTakenOffAndPutBackOnKeepTheMicrophone() {
     let switcher = makeSwitcher()
     startWearingAirPods(switcher)

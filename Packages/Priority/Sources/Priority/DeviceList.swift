@@ -42,7 +42,7 @@ public final class DeviceList {
     private let store: DeviceListStore
 
     public init(newDevices: NewDevicePlacement, store: DeviceListStore) {
-        self.newDevicePlacement = newDevices
+        newDevicePlacement = newDevices
         self.store = store
         devices = store.load()
     }

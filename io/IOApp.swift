@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         private var debugPick: DebugPick?
     #endif
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         #if DEBUG
             // `io -showUpdateVersion <version>` acts as if that update exists, in the rendered panel and in the running app.
             if let version = UserDefaults.standard.string(forKey: "showUpdateVersion") {
@@ -31,7 +31,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
         #endif
-        panelLog.notice("launch \(Bundle.main.bundlePath) version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown") on \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        panelLog
+            .notice(
+                "launch \(Bundle.main.bundlePath) version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown") on \(ProcessInfo.processInfo.operatingSystemVersionString)"
+            )
         LoginItem.registerOnFirstLaunch()
         model.start()
         #if DEBUG

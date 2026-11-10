@@ -31,10 +31,16 @@ enum MenuBarIconPieces {
     private static let palette: [NSColor] = [.red, .green, .blue]
 
     /// The symbol's pieces in drawing order: its base layer first, then its other layers, and a speaker's waves one by one from the body outwards, each at the opacity the symbol's own rendering gives it, as a dim wave at a lower volume or the tips of the AirPods Pro. `insets` are the image's alignment rect insets, which the status bar centres.
-    static func pieces(of symbol: MenuBarSymbol, scale: CGFloat) -> (pieces: [MenuBarIconPiece], size: CGSize, insets: NSEdgeInsets) {
+    static func pieces(of symbol: MenuBarSymbol,
+                       scale: CGFloat) -> (pieces: [MenuBarIconPiece], size: CGSize, insets: NSEdgeInsets)
+    {
         // The pieces come from the symbol with every wave active, so a dim wave is a piece at full alpha with a lower opacity, which a volume change can move.
         guard
-            let image = NSImage(systemSymbolName: symbol.name, variableValue: symbol.variableValue, accessibilityDescription: nil)?
+            let image = NSImage(
+                systemSymbolName: symbol.name,
+                variableValue: symbol.variableValue,
+                accessibilityDescription: nil
+            )?
                 .withSymbolConfiguration(configuration),
             let coloured = NSImage(systemSymbolName: symbol.name, variableValue: 1, accessibilityDescription: nil)?
                 .withSymbolConfiguration(configuration.applying(.init(paletteColors: palette)))
@@ -44,9 +50,10 @@ enum MenuBarIconPieces {
         let rep = render(coloured, size: size, scale: scale)
         var layers: [[Pixel]] = [[], [], []]
         var opacities: [[CGFloat]] = [[], [], []]
-        for y in 0..<rep.pixelsHigh {
-            for x in 0..<rep.pixelsWide {
-                guard let colour = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB), colour.alphaComponent > 0.01 else { continue }
+        for y in 0 ..< rep.pixelsHigh {
+            for x in 0 ..< rep.pixelsWide {
+                guard let colour = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                      colour.alphaComponent > 0.01 else { continue }
                 let shares = [colour.redComponent, colour.greenComponent, colour.blueComponent]
                 let total = shares.reduce(0, +)
                 guard total > 0 else { continue }
@@ -55,7 +62,9 @@ enum MenuBarIconPieces {
                     let alpha = colour.alphaComponent * share / total
                     layers[layer].append(Pixel(x: x, y: y, alpha: alpha))
                     // A pixel inside one layer tells that layer's opacity in the plain rendering.
-                    if share / total > 0.98, colour.alphaComponent > 0.98 { opacities[layer].append(plainAlpha) }
+                    if share / total > 0.98, colour.alphaComponent > 0.98 {
+                        opacities[layer].append(plainAlpha)
+                    }
                 }
             }
         }
@@ -68,13 +77,25 @@ enum MenuBarIconPieces {
         for (index, layer) in ordered.enumerated() {
             let pixels = layers[layer]
             let isWaves = symbol.name.hasPrefix("speaker.wave") && index == 1
-            let role: MenuBarIconPiece.Role = index == 0 ? .base : isWaves ? .wave : symbol.name.hasSuffix(".slash") || symbol.name.contains(".slash.") ? .slash : .other
+            let role: MenuBarIconPiece.Role = index == 0 ? .base : isWaves ? .wave : symbol.name
+                .hasSuffix(".slash") || symbol.name.contains(".slash.") ? .slash : .other
             for part in isWaves ? components(pixels) : [pixels] {
-                pieces.append(MenuBarIconPiece(image: templateImage(part, canvas: size, scale: scale), role: role, inkCentre: inkCentre(part, canvas: size, scale: scale), inkEnd: inkEnd(part, canvas: size, scale: scale), opacity: opacity(of: part, in: plain)))
+                pieces.append(MenuBarIconPiece(
+                    image: templateImage(part, canvas: size, scale: scale),
+                    role: role,
+                    inkCentre: inkCentre(part, canvas: size, scale: scale),
+                    inkEnd: inkEnd(part, canvas: size, scale: scale),
+                    opacity: opacity(of: part, in: plain)
+                ))
             }
         }
         let aligned = image.alignmentRect
-        let insets = NSEdgeInsets(top: size.height - aligned.maxY, left: aligned.minX, bottom: aligned.minY, right: size.width - aligned.maxX)
+        let insets = NSEdgeInsets(
+            top: size.height - aligned.maxY,
+            left: aligned.minX,
+            bottom: aligned.minY,
+            right: size.width - aligned.maxX
+        )
         return (pieces, size, insets)
     }
 
@@ -91,8 +112,20 @@ enum MenuBarIconPieces {
         let y: Int
         let alpha: CGFloat
     }
+
     private static func render(_ image: NSImage, size: CGSize, scale: CGFloat) -> NSBitmapImageRep {
-        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width * scale),
+            pixelsHigh: Int(size.height * scale),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
         rep.size = size
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
@@ -110,8 +143,8 @@ enum MenuBarIconPieces {
             var stack = [start]
             remaining.removeValue(forKey: start).map { part.append($0) }
             while let point = stack.popLast() {
-                for dx in -1...1 {
-                    for dy in -1...1 {
+                for dx in -1 ... 1 {
+                    for dy in -1 ... 1 {
                         let next = Point(x: point.x + dx, y: point.y + dy)
                         if let pixel = remaining.removeValue(forKey: next) {
                             part.append(pixel)
@@ -145,7 +178,18 @@ enum MenuBarIconPieces {
 
     /// A template image of the canvas size holding only these pixels, so the menu bar tints it as it tints the whole symbol.
     private static func templateImage(_ pixels: [Pixel], canvas: CGSize, scale: CGFloat) -> NSImage {
-        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(canvas.width * scale), pixelsHigh: Int(canvas.height * scale), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(canvas.width * scale),
+            pixelsHigh: Int(canvas.height * scale),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
         rep.size = canvas
         for pixel in pixels {
             rep.setColor(NSColor(deviceRed: 0, green: 0, blue: 0, alpha: pixel.alpha), atX: pixel.x, y: pixel.y)

@@ -14,7 +14,11 @@ public enum MacSymbol {
 
     /// `modelCode` is the `hw.model` value, such as "MacBookPro18,1". A model the system does not list has no known type, so it gets the generic laptop.
     public static func of(modelCode: String) -> String {
-        guard let model = UTType(tag: modelCode, tagClass: UTTagClass(rawValue: "com.apple.device-model-code"), conformingTo: nil) else {
+        guard let model = UTType(
+            tag: modelCode,
+            tagClass: UTTagClass(rawValue: "com.apple.device-model-code"),
+            conformingTo: nil
+        ) else {
             return "laptopcomputer"
         }
         let match = symbols.first { entry in

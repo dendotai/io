@@ -9,3 +9,4 @@ build/
 dist/
 node_modules/
 scripts/panel-log/pointer
+.tools/
