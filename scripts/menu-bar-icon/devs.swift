@@ -2,8 +2,8 @@ import AudioToolbox
 import CoreAudio
 import Foundation
 
-func addr(_ selector: AudioObjectPropertySelector,
-          _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress
+func propertyAddress(_ selector: AudioObjectPropertySelector,
+                     _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress
 {
     .init(
         mSelector: selector,
@@ -12,12 +12,19 @@ func addr(_ selector: AudioObjectPropertySelector,
     )
 }
 
-let sys = AudioObjectID(kAudioObjectSystemObject)
-var address = addr(kAudioHardwarePropertyDefaultOutputDevice); var def = AudioDeviceID(0); var size = UInt32(4)
-AudioObjectGetPropertyData(sys, &address, 0, nil, &size, &def)
-address = addr(kAudioHardwarePropertyDevices); AudioObjectGetPropertyDataSize(sys, &address, 0, nil, &size)
+let systemObject = AudioObjectID(kAudioObjectSystemObject)
+var address = propertyAddress(kAudioHardwarePropertyDefaultOutputDevice); var defaultOutputID =
+    AudioDeviceID(0); var size = UInt32(4)
+AudioObjectGetPropertyData(systemObject, &address, 0, nil, &size, &defaultOutputID)
+address = propertyAddress(kAudioHardwarePropertyDevices); AudioObjectGetPropertyDataSize(
+    systemObject,
+    &address,
+    0,
+    nil,
+    &size
+)
 var ids = [AudioDeviceID](repeating: 0, count: Int(size) / 4); AudioObjectGetPropertyData(
-    sys,
+    systemObject,
     &address,
     0,
     nil,
@@ -25,8 +32,8 @@ var ids = [AudioDeviceID](repeating: 0, count: Int(size) / 4); AudioObjectGetPro
     &ids
 )
 for id in ids {
-    var streamsAddress = addr(kAudioDevicePropertyStreams,
-                              kAudioObjectPropertyScopeOutput); var streamsSize =
+    var streamsAddress = propertyAddress(kAudioDevicePropertyStreams,
+                                         kAudioObjectPropertyScopeOutput); var streamsSize =
         UInt32(0); AudioObjectGetPropertyDataSize(
             id,
             &streamsAddress,
@@ -37,7 +44,8 @@ for id in ids {
     {
         continue
     }
-    var nameAddress = addr(kAudioObjectPropertyName); var deviceName: CFString = "" as CFString; var nameSize =
+    var nameAddress = propertyAddress(kAudioObjectPropertyName); var deviceName: CFString =
+        "" as CFString; var nameSize =
         UInt32(MemoryLayout<CFString>
             .size); AudioObjectGetPropertyData(
             id,
@@ -47,7 +55,8 @@ for id in ids {
             &nameSize,
             &deviceName
         )
-    var transportAddress = addr(kAudioDevicePropertyTransportType); var transportType = UInt32(0); var valueSize =
+    var transportAddress = propertyAddress(kAudioDevicePropertyTransportType); var transportType =
+        UInt32(0); var valueSize =
         UInt32(4); AudioObjectGetPropertyData(
             id,
             &transportAddress,
@@ -56,35 +65,36 @@ for id in ids {
             &valueSize,
             &transportType
         )
-    var runningAddress = addr(kAudioDevicePropertyDeviceIsRunningSomewhere); var run = UInt32(0); valueSize =
+    var runningAddress = propertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere); var isRunning =
+        UInt32(0); valueSize =
         4; AudioObjectGetPropertyData(
             id,
             &runningAddress,
             0,
             nil,
             &valueSize,
-            &run
+            &isRunning
         )
-    var volumeAddress = addr(
+    var volumeAddress = propertyAddress(
         kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
         kAudioObjectPropertyScopeOutput
     ); var volumeSettable: DarwinBoolean = false
     let hasVolume = AudioObjectHasProperty(id, &volumeAddress); if hasVolume {
         AudioObjectIsPropertySettable(id, &volumeAddress, &volumeSettable)
     }
-    var muteAddress = addr(kAudioDevicePropertyMute,
-                           kAudioObjectPropertyScopeOutput); var muteSettable: DarwinBoolean = false
+    var muteAddress = propertyAddress(kAudioDevicePropertyMute,
+                                      kAudioObjectPropertyScopeOutput); var muteSettable: DarwinBoolean = false
     let hasMute = AudioObjectHasProperty(id, &muteAddress); if hasMute {
         AudioObjectIsPropertySettable(id, &muteAddress, &muteSettable)
     }
     let transportCode = String(bytes: withUnsafeBytes(of: transportType.bigEndian, Array.init), encoding: .ascii) ?? "?"
     print(
-        id == def ? "*" : " ",
+        id == defaultOutputID ? "*" : " ",
         deviceName,
         "transport",
         transportCode,
         "running",
-        run,
+        isRunning,
         "vol",
         hasVolume,
         volumeSettable.boolValue,
