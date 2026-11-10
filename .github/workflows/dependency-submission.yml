@@ -34,7 +34,7 @@ jobs:
 
       - name: List every version pin with Renovate
         # The local platform reads this checkout and needs no token; extract mode looks up no new versions.
-        run: mkdir renovate-report && bunx renovate@44.224.1 --platform=local --dry-run=extract --report-type=file --report-path=renovate-report/report.json
+        run: mkdir renovate-report && bunx renovate@44.225.1 --platform=local --dry-run=extract --report-type=file --report-path=renovate-report/report.json
 
       - name: Check that Renovate found every version pin
         id: check
