@@ -11,37 +11,40 @@
       "description": "A closed PR skips the version its title names. The default major title names only the major (`to v5`), so closing it would skip every later v5 release.",
       "matchUpdateTypes": ["major"],
       "commitMessageExtra": "to {{{newVersion}}}"
+    },
+    {
+      "description": "renovate runs through bunx in dependency-submission.yml and as a Docker image in renovate.yml; one group moves both pins in one PR until issue 98 leaves one pin.",
+      "matchPackageNames": ["renovate", "ghcr.io/renovatebot/renovate"],
+      "groupName": "renovate"
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
-      "description": "semantic-release and its exec plugin run through bunx, outside package.json, so every line that names their versions is bumped here.",
+      "description": "semantic-release, its exec plugin, and renovate run through bunx, outside package.json, so every line that names their versions is bumped here.",
       "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
-      "matchStrings": ["(?<depName>@semantic-release/exec|semantic-release)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "matchStrings": [
+        "(?<depName>@semantic-release/exec|semantic-release|renovate)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
       "datasourceTemplate": "npm"
     },
     {
       "customType": "regex",
-      "description": "Renovate's Swift manager reads only Package.swift, and an Xcode project stores its resolved packages here. One match edits revision and version together.",
-      "managerFilePatterns": [
-        "/^io\\.xcodeproj/project\\.xcworkspace/xcshareddata/swiftpm/Package\\.resolved$/"
-      ],
+      "description": "Renovate's Swift manager reads only Package.swift, and an Xcode project stores its resolved packages here. One match edits revision and version together; the name comes from the URL, so any GitHub-hosted package matches.",
+      "managerFilePatterns": ["/(^|/)Package\\.resolved$/"],
       "matchStrings": [
-        "\"location\" : \"https://github\\.com/sparkle-project/Sparkle\",\\s*\"state\" : \\{\\s*\"revision\" : \"(?<currentDigest>[0-9a-f]{40})\",\\s*\"version\" : \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+        "\"location\"\\s*:\\s*\"https://github\\.com/(?<depName>[^\"]+?)(?:\\.git)?\",\\s*\"state\"\\s*:\\s*\\{\\s*\"revision\"\\s*:\\s*\"(?<currentDigest>[0-9a-f]{40})\",\\s*\"version\"\\s*:\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
-      "depNameTemplate": "sparkle-project/Sparkle",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
-      "description": "A move to Sparkle 3 fails `upToNextMajorVersion` unless minimumVersion moves with it. The same depName puts this edit in the same PR as Package.resolved.",
-      "managerFilePatterns": ["/^io\\.xcodeproj/project\\.pbxproj$/"],
+      "description": "A major move fails `upToNextMajorVersion` unless minimumVersion moves with it. The same depName as in Package.resolved puts both edits in one PR.",
+      "managerFilePatterns": ["/(^|/)project\\.pbxproj$/"],
       "matchStrings": [
-        "repositoryURL = \"https://github\\.com/sparkle-project/Sparkle\";\\s*requirement = \\{\\s*kind = upToNextMajorVersion;\\s*minimumVersion = (?<currentValue>\\d+\\.\\d+\\.\\d+);"
+        "repositoryURL = \"https://github\\.com/(?<depName>[^\"]+?)(?:\\.git)?\";\\s*requirement = \\{\\s*kind = upToNextMajorVersion;\\s*minimumVersion = (?<currentValue>\\d+\\.\\d+\\.\\d+);"
       ],
-      "depNameTemplate": "sparkle-project/Sparkle",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
     }
