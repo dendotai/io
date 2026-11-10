@@ -34,7 +34,9 @@ window.level = .statusBar
 window.ignoresMouseEvents = true
 window.isOpaque = true
 let button = NSStatusBarButton(frame: NSRect(x: 0, y: hostY, width: 32, height: hostHeight))
-need(window.contentView, "the window has no content view").addSubview(button)
+// `NSWindow(contentRect:styleMask:backing:defer:)` gives the window a content view, and nothing here replaces it.
+// swiftlint:disable:next force_unwrapping
+window.contentView!.addSubview(button)
 button.title = ""
 let view = MenuBarIconView(in: button)
 
@@ -82,9 +84,9 @@ final class Sink: NSObject, SCStreamOutput {
               let pixels = CMSampleBufferGetImageBuffer(buffer) else { return }
         complete += 1
         let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-        let first = first ?? time
-        self.first = first
-        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first)) * 1000).rounded())
+        let firstTime = first ?? time
+        first = firstTime
+        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(firstTime)) * 1000).rounded())
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixels, .readOnly) }
         let width = CVPixelBufferGetWidth(pixels), height = CVPixelBufferGetHeight(pixels),

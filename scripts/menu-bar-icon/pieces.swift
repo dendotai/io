@@ -1,9 +1,14 @@
 import AppKit
 
-/// pieces <symbol> [variable]: splits the symbol at 14 pt medium into its palette layers at 2x, and the waves layer of a speaker by variable value; prints each piece's box and alpha sum, and the sum against the whole symbol in monochrome; writes piece PNGs beside.
+// pieces <symbol> [variable]: splits the symbol at 14 pt medium into its palette layers at 2x, and the waves layer of a speaker by variable value; prints each piece's box and alpha sum, and the sum against the whole symbol in monochrome; writes piece PNGs beside.
+
 func need<T>(_ value: T?, _ what: @autoclosure () -> String) -> T {
     guard let value else { fatalError(what()) }
     return value
+}
+
+func colour(_ bitmap: NSBitmapImageRep, _ x: Int, _ y: Int) -> NSColor {
+    need(bitmap.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
 }
 
 let args = CommandLine.arguments
@@ -43,7 +48,7 @@ func alphaSum(_ bitmap: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in
         for x in 0 ..< bitmap
             .pixelsWide
         {
-            let color = need(bitmap.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render"); if color
+            let color = colour(bitmap, x, y); if color
                 .alphaComponent > 0.02,
                 keep(color)
             {
@@ -103,10 +108,10 @@ if name.hasPrefix("speaker.wave") {
         var newInk = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
         for y in 0 ..< bitmap.pixelsHigh {
             for x in 0 ..< bitmap.pixelsWide {
-                let addedAlpha = Double(need(bitmap.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+                let addedAlpha = Double(colour(bitmap, x, y)
                     .alphaComponent) -
                     Double(previous
-                        .map { need($0.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render").alphaComponent } ??
+                        .map { colour($0, x, y).alphaComponent } ??
                         0)
                 if addedAlpha > 0.02 {
                     newInk += addedAlpha; minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(
@@ -139,11 +144,11 @@ if name.hasPrefix("speaker.wave") {
         for x in 30 ..< dim
             .pixelsWide
         {
-            let fullAlpha = Double(need(full.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+            let fullAlpha = Double(colour(full, x, y)
                 .alphaComponent); if fullAlpha > 0.9
             {
                 ratios
-                    .append(Double(need(dim.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+                    .append(Double(colour(dim, x, y)
                             .alphaComponent) / fullAlpha)
             }
         }
@@ -157,7 +162,7 @@ do {
     var layersAlpha = [[Double]](repeating: [Double](repeating: 0, count: whole.pixelsWide), count: whole.pixelsHigh)
     for y in 0 ..< pal.pixelsHigh {
         for x in 0 ..< pal.pixelsWide {
-            let color = need(pal.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+            let color = colour(pal, x, y)
             let (isRed, isGreen, isBlue) = (
                 color.redComponent > 0.5,
                 color.greenComponent > 0.5,
@@ -174,7 +179,7 @@ do {
     var maxDiff = 0.0, lost = 0.0, maxDiffAt = (0, 0)
     for y in 0 ..< whole.pixelsHigh {
         for x in 0 ..< whole.pixelsWide {
-            let wholeAlpha = Double(need(whole.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+            let wholeAlpha = Double(colour(whole, x, y)
                 .alphaComponent)
             let alphaDiff = wholeAlpha - layersAlpha[y][x]
             if abs(alphaDiff) > maxDiff {

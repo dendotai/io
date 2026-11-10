@@ -2,7 +2,7 @@ import AppKit
 import CoreMedia
 import ScreenCaptureKit
 
-// record120 X Y W H SECONDS OUTDIR (region of the main display in points, top-left origin; compile with `swiftc -O`): records at the display's refresh rate, writes f<ms>.png per distinct frame (ms after the first frame) and frames.txt (one "<ms> <file>" line per frame), and prints the frame count, the mean gap, and the max gap.
+// recdisplay X Y W H SECONDS OUTDIR (region of the main display in points, top-left origin; compile with `swiftc -O`): records at the display's refresh rate, writes f<ms>.png per distinct frame (ms after the first frame) and frames.txt (one "<ms> <file>" line per frame), and prints the frame count, the mean gap, and the max gap.
 let args = CommandLine.arguments
 func need<T>(_ value: T?, _ what: @autoclosure () -> String) -> T {
     guard let value else { fatalError(what()) }
@@ -34,9 +34,9 @@ final class Sink: NSObject, SCStreamOutput {
               let pixels = CMSampleBufferGetImageBuffer(buffer)
         else { return }
         let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-        let first = first ?? time
-        self.first = first
-        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first)) * 1000).rounded())
+        let firstTime = first ?? time
+        first = firstTime
+        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(firstTime)) * 1000).rounded())
         // Copy the pixels out at once so the stream gets its buffer back; the PNGs are written after the recording, because encoding inside the callback stalls the stream.
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
         let data = Data(

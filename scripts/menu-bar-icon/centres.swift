@@ -16,7 +16,8 @@ else {
 
 let dir = args[1]
 for line in try String(contentsOfFile: dir + "/frames.txt", encoding: .utf8).split(separator: "\n") {
-    let fields = line.split(separator: " "); let elapsedMs = need(Int(fields[0]), "cannot read frames.txt line \(line)")
+    let fields = line.split(separator: " ")
+    guard fields.count > 1, let elapsedMs = Int(fields[0]) else { fatalError("cannot read frames.txt line \(line)") }
     guard elapsedMs >= from, elapsedMs <= until else { continue }
     let path = dir + "/" + fields[1]
     let frame = try need(NSBitmapImageRep(data: Data(contentsOf: URL(fileURLWithPath: path))), "cannot decode \(path)")
