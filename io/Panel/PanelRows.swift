@@ -74,7 +74,8 @@ struct OpenAtLoginRow: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, Metrics.contentInset)
+        .padding(.leading, Metrics.rightClickMenuTextInset)
+        .padding(.trailing, Metrics.contentInset)
         .frame(width: Metrics.rightClickMenuWidth, height: Metrics.menuRowHeight)
     }
 }

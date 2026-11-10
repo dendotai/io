@@ -63,6 +63,8 @@ enum Metrics {
     /// The Sound menu's ⌄ ink strengthens during a press (`docs/sound-menu.md`, Fold chevron, real pointer): grey 150 to 38; io's ink at 0.85 read 66, so the press takes the full primary colour.
     static let rowButtonPressedOpacity: CGFloat = 1
     static let rightClickMenuWidth: CGFloat = 190
+    /// AppKit starts a standard item's text here in the right-click menu: at `contentInset` the round left edge of "Open at Login" sat 2 pt left of the one of "Quit io" (macOS 27.2, 2x capture).
+    static let rightClickMenuTextInset: CGFloat = 16
     static let switchWidth: CGFloat = 35
     static let switchHeight: CGFloat = 15
     static let switchKnobWidth: CGFloat = 20
