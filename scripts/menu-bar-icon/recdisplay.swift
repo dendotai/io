@@ -2,10 +2,21 @@ import AppKit
 import CoreMedia
 import ScreenCaptureKit
 
-// record120 X Y W H SECONDS OUTDIR (region of the main display in points, top-left origin; compile with `swiftc -O`): records at the display's refresh rate, writes f<ms>.png per distinct frame (ms after the first frame) and frames.txt (one "<ms> <file>" line per frame), and prints the frame count, the mean gap, and the max gap.
+// recdisplay X Y W H SECONDS OUTDIR (region of the main display in points, top-left origin; compile with `swiftc -O`): records at the display's refresh rate, writes f<ms>.png per distinct frame (ms after the first frame) and frames.txt (one "<ms> <file>" line per frame), and prints the frame count, the mean gap, and the max gap.
 let args = CommandLine.arguments
-let rect = CGRect(x: Double(args[1])!, y: Double(args[2])!, width: Double(args[3])!, height: Double(args[4])!)
-let seconds = Double(args[5])!
+func need<T>(_ value: T?, _ what: @autoclosure () -> String) -> T {
+    guard let value else { fatalError(what()) }
+    return value
+}
+
+let numbers = args.dropFirst().prefix(5).compactMap(Double.init)
+guard args.count > 6, numbers.count == 5 else {
+    FileHandle.standardError.write(Data("usage: recdisplay X Y W H SECONDS OUTDIR\n".utf8))
+    exit(1)
+}
+
+let rect = CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3])
+let seconds = numbers[4]
 let out = URL(fileURLWithPath: args[6])
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
@@ -23,13 +34,15 @@ final class Sink: NSObject, SCStreamOutput {
               let pixels = CMSampleBufferGetImageBuffer(buffer)
         else { return }
         let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-        if first == nil {
-            first = time
-        }
-        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first!)) * 1000).rounded())
+        let firstTime = first ?? time
+        first = firstTime
+        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(firstTime)) * 1000).rounded())
         // Copy the pixels out at once so the stream gets its buffer back; the PNGs are written after the recording, because encoding inside the callback stalls the stream.
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
-        let data = Data(bytes: CVPixelBufferGetBaseAddress(pixels)!, count: CVPixelBufferGetDataSize(pixels))
+        let data = Data(
+            bytes: need(CVPixelBufferGetBaseAddress(pixels), "frame at \(elapsedMs) ms has no pixels"),
+            count: CVPixelBufferGetDataSize(pixels)
+        )
         let size = (CVPixelBufferGetWidth(pixels), CVPixelBufferGetHeight(pixels), CVPixelBufferGetBytesPerRow(pixels))
         CVPixelBufferUnlockBaseAddress(pixels, .readOnly)
         var hasher = Hasher(); hasher.combine(data); let hash = hasher.finalize()
@@ -44,13 +57,9 @@ final class Sink: NSObject, SCStreamOutput {
 let sink = Sink()
 Task {
     let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-    let display = content.displays
-        .first {
-            $0
-                .displayID ==
-                CGDirectDisplayID(ProcessInfo.processInfo.environment["DISPLAY_ID"]
-                    .flatMap(UInt32.init) ?? CGMainDisplayID())
-        }!
+    let displayID = CGDirectDisplayID(ProcessInfo.processInfo.environment["DISPLAY_ID"]
+        .flatMap(UInt32.init) ?? CGMainDisplayID())
+    let display = need(content.displays.first { $0.displayID == displayID }, "no display \(displayID)")
     let config = SCStreamConfiguration()
     config.sourceRect = rect
     config.width = Int(rect.width) * 2
@@ -76,23 +85,23 @@ Task {
     try await stream.stopCapture()
     var list = ""
     for frame in sink.frames {
-        let provider = CGDataProvider(data: frame.data as CFData)!
-        let image = CGImage(
+        let provider = need(CGDataProvider(data: frame.data as CFData), "cannot read frame at \(frame.elapsedMs) ms")
+        let image = need(CGImage(
             width: frame.width,
             height: frame.height,
             bitsPerComponent: 8,
             bitsPerPixel: 32,
             bytesPerRow: frame.bytesPerRow,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            space: need(CGColorSpace(name: CGColorSpace.sRGB), "no sRGB colour space"),
             bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo
                 .byteOrder32Little.rawValue),
             provider: provider,
             decode: nil,
             shouldInterpolate: false,
             intent: .defaultIntent
-        )!
+        ), "cannot make an image of frame at \(frame.elapsedMs) ms")
         let name = String(format: "f%05d.png", frame.elapsedMs)
-        try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
+        try need(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]), "cannot encode \(name)")
             .write(to: out.appendingPathComponent(name))
         list += "\(frame.elapsedMs) \(name)\n"
     }

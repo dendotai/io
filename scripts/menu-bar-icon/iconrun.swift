@@ -191,8 +191,11 @@ try recorder.run()
 sleep(2)
 let step: UInt32 = 2_000_000
 func defaults(_ arguments: String...) {
-    let process = try! Process.run(URL(fileURLWithPath: "/usr/bin/defaults"), arguments: arguments); process
-        .waitUntilExit()
+    do {
+        try Process.run(URL(fileURLWithPath: "/usr/bin/defaults"), arguments: arguments).waitUntilExit()
+    } catch {
+        fatalError("cannot run defaults \(arguments): \(error)")
+    }
 }
 
 func pick(_ name: String) {

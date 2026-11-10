@@ -43,11 +43,11 @@ enum MenuBarIconPieces {
             )?
                 .withSymbolConfiguration(configuration),
             let coloured = NSImage(systemSymbolName: symbol.name, variableValue: 1, accessibilityDescription: nil)?
-                .withSymbolConfiguration(configuration.applying(.init(paletteColors: palette)))
+                .withSymbolConfiguration(configuration.applying(.init(paletteColors: palette))),
+            let plain = render(image, size: image.size, scale: scale),
+            let rep = render(coloured, size: image.size, scale: scale)
         else { return ([], .zero, NSEdgeInsetsZero) }
         let size = image.size
-        let plain = render(image, size: size, scale: scale)
-        let rep = render(coloured, size: size, scale: scale)
         var layers: [[Pixel]] = [[], [], []]
         var opacities: [[CGFloat]] = [[], [], []]
         for y in 0 ..< rep.pixelsHigh {
@@ -80,8 +80,11 @@ enum MenuBarIconPieces {
             let role: MenuBarIconPiece.Role = index == 0 ? .base : isWaves ? .wave : symbol.name
                 .hasSuffix(".slash") || symbol.name.contains(".slash.") ? .slash : .other
             for part in isWaves ? components(pixels) : [pixels] {
+                guard let template = templateImage(part, canvas: size, scale: scale) else {
+                    return ([], .zero, NSEdgeInsetsZero)
+                }
                 pieces.append(MenuBarIconPiece(
-                    image: templateImage(part, canvas: size, scale: scale),
+                    image: template,
                     role: role,
                     inkCentre: inkCentre(part, canvas: size, scale: scale),
                     inkEnd: inkEnd(part, canvas: size, scale: scale),
@@ -113,7 +116,8 @@ enum MenuBarIconPieces {
         let alpha: CGFloat
     }
 
-    private static func render(_ image: NSImage, size: CGSize, scale: CGFloat) -> NSBitmapImageRep {
+    /// A clear bitmap of `size` points at `scale`; nil when AppKit cannot make one, as for a zero size.
+    private static func bitmap(size: CGSize, scale: CGFloat) -> NSBitmapImageRep? {
         let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: Int(size.width * scale),
@@ -125,8 +129,13 @@ enum MenuBarIconPieces {
             colorSpaceName: .deviceRGB,
             bytesPerRow: 0,
             bitsPerPixel: 0
-        )!
-        rep.size = size
+        )
+        rep?.size = size
+        return rep
+    }
+
+    private static func render(_ image: NSImage, size: CGSize, scale: CGFloat) -> NSBitmapImageRep? {
+        guard let rep = bitmap(size: size, scale: scale) else { return nil }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         image.draw(in: NSRect(origin: .zero, size: size))
@@ -155,6 +164,8 @@ enum MenuBarIconPieces {
             }
             parts.append(part)
         }
+        // Each part holds at least its start pixel.
+        // swiftlint:disable:next force_unwrapping
         return parts.sorted { $0.map(\.x).min()! < $1.map(\.x).min()! }
     }
 
@@ -172,25 +183,15 @@ enum MenuBarIconPieces {
     }
 
     private static func inkEnd(_ pixels: [Pixel], canvas: CGSize, scale: CGFloat) -> CGPoint {
+        // A piece is never empty: `pieces(of:scale:)` skips an empty layer, and each wave holds at least one pixel.
+        // swiftlint:disable:next force_unwrapping
         let x = pixels.map(\.x).max()!, y = pixels.map(\.y).max()!
         return CGPoint(x: (CGFloat(x) + 0.5) / scale, y: canvas.height - (CGFloat(y) + 0.5) / scale)
     }
 
     /// A template image of the canvas size holding only these pixels, so the menu bar tints it as it tints the whole symbol.
-    private static func templateImage(_ pixels: [Pixel], canvas: CGSize, scale: CGFloat) -> NSImage {
-        let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: Int(canvas.width * scale),
-            pixelsHigh: Int(canvas.height * scale),
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        )!
-        rep.size = canvas
+    private static func templateImage(_ pixels: [Pixel], canvas: CGSize, scale: CGFloat) -> NSImage? {
+        guard let rep = bitmap(size: canvas, scale: scale) else { return nil }
         for pixel in pixels {
             rep.setColor(NSColor(deviceRed: 0, green: 0, blue: 0, alpha: pixel.alpha), atX: pixel.x, y: pixel.y)
         }

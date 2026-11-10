@@ -5,14 +5,19 @@ public enum Direction: CaseIterable, Sendable {
 
 /// A hand pick comes only from the panel, so a default change by another process never changes the chosen device.
 public final class Switcher {
-    private let lists: [Direction: DeviceList]
+    private let output: DeviceList
+    private let input: DeviceList
 
     public init(output: DeviceList, input: DeviceList) {
-        lists = [.output: output, .input: input]
+        self.output = output
+        self.input = input
     }
 
     public func list(_ direction: Direction) -> DeviceList {
-        lists[direction]!
+        switch direction {
+        case .output: output
+        case .input: input
+        }
     }
 
     public func chosenDevice(_ direction: Direction) -> Device? {

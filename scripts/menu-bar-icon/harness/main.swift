@@ -5,11 +5,23 @@ import ScreenCaptureKit
 
 // harness <seconds> <steps…>: a 32×22 window at the screen's bottom-left corner holds the real MenuBarIconView; each step "<outputUID>:<symbol>[:<variable>]" is shown 1 s apart; frames are captured at 120 Hz from the window and summed as ink (brightness > 0.35 at 2x), with the ink box and the centre, one line per distinct frame.
 let args = CommandLine.arguments
+let usage = "usage: harness <seconds> <outputUID>:<symbol>[:<variable>]…\n"
+func need<T>(_ value: T?, _ what: @autoclosure () -> String) -> T {
+    guard let value else { fatalError(what()) }
+    return value
+}
+
+guard args.count > 1, let secondsPerStep = Double(args[1]) else {
+    FileHandle.standardError.write(Data(usage.utf8))
+    exit(1)
+}
+
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 let env = ProcessInfo.processInfo.environment
-let windowHeight = Double(env["WINDOW_H"] ?? "22")!, hostY = Double(env["HOST_Y"] ?? "0")!,
-    hostHeight = Double(env["HOST_H"] ?? "22")!
+let windowHeight = need(Double(env["WINDOW_H"] ?? "22"), "WINDOW_H is not a number"),
+    hostY = need(Double(env["HOST_Y"] ?? "0"), "HOST_Y is not a number"),
+    hostHeight = need(Double(env["HOST_H"] ?? "22"), "HOST_H is not a number")
 let window = NSWindow(
     contentRect: NSRect(x: 0, y: 0, width: 32, height: windowHeight),
     styleMask: .borderless,
@@ -22,6 +34,8 @@ window.level = .statusBar
 window.ignoresMouseEvents = true
 window.isOpaque = true
 let button = NSStatusBarButton(frame: NSRect(x: 0, y: hostY, width: 32, height: hostHeight))
+// `NSWindow(contentRect:styleMask:backing:defer:)` gives the window a content view, and nothing here replaces it.
+// swiftlint:disable:next force_unwrapping
 window.contentView!.addSubview(button)
 button.title = ""
 let view = MenuBarIconView(in: button)
@@ -42,10 +56,11 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { print(
 
 func icon(_ step: String) -> MenuBarIcon {
     let fields = step.split(separator: ":").map(String.init)
-    return MenuBarIcon(
-        outputUID: fields[0],
-        symbol: MenuBarSymbol(name: fields[1], variableValue: fields.count > 2 ? Double(fields[2])! : 1)
-    )
+    guard fields.count > 1, let variableValue = fields.count > 2 ? Double(fields[2]) : 1 else {
+        FileHandle.standardError.write(Data(usage.utf8))
+        exit(1)
+    }
+    return MenuBarIcon(outputUID: fields[0], symbol: MenuBarSymbol(name: fields[1], variableValue: variableValue))
 }
 
 struct Frame {
@@ -69,15 +84,15 @@ final class Sink: NSObject, SCStreamOutput {
               let pixels = CMSampleBufferGetImageBuffer(buffer) else { return }
         complete += 1
         let time = CMSampleBufferGetPresentationTimeStamp(buffer)
-        if first == nil {
-            first = time
-        }
-        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first!)) * 1000).rounded())
+        let firstTime = first ?? time
+        first = firstTime
+        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(firstTime)) * 1000).rounded())
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixels, .readOnly) }
         let width = CVPixelBufferGetWidth(pixels), height = CVPixelBufferGetHeight(pixels),
             row = CVPixelBufferGetBytesPerRow(pixels)
-        let base = CVPixelBufferGetBaseAddress(pixels)!.assumingMemoryBound(to: UInt8.self)
+        let base = need(CVPixelBufferGetBaseAddress(pixels), "frame at \(elapsedMs) ms has no pixels")
+            .assumingMemoryBound(to: UInt8.self)
         var hasher = Hasher(); hasher.combine(Data(bytes: base, count: row * height)); let hash = hasher.finalize()
         if hash == lastHash {
             return
@@ -102,21 +117,24 @@ final class Sink: NSObject, SCStreamOutput {
         let box = maxX < 0 ? "none" : "\(maxX - minX + 1)x\(maxY - minY + 1) y\(minY)"
         var png: Data?
         if ProcessInfo.processInfo.environment["DUMP"] != nil {
-            let provider = CGDataProvider(data: Data(bytes: base, count: row * height) as CFData)!
-            let image = CGImage(
+            let provider = need(
+                CGDataProvider(data: Data(bytes: base, count: row * height) as CFData),
+                "cannot read frame at \(elapsedMs) ms"
+            )
+            let image = need(CGImage(
                 width: width,
                 height: height,
                 bitsPerComponent: 8,
                 bitsPerPixel: 32,
                 bytesPerRow: row,
-                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                space: need(CGColorSpace(name: CGColorSpace.sRGB), "no sRGB colour space"),
                 bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo
                     .byteOrder32Little.rawValue),
                 provider: provider,
                 decode: nil,
                 shouldInterpolate: false,
                 intent: .defaultIntent
-            )!
+            ), "cannot make an image of frame at \(elapsedMs) ms")
             png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
         }
         frames.append(Frame(
@@ -135,8 +153,11 @@ var stream: SCStream?
 let ownWindowID = CGWindowID(window.windowNumber)
 Task {
     try await Task.sleep(for: .milliseconds(300))
-    let content = try! await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-    let display = content.displays.first { $0.displayID == CGMainDisplayID() }!
+    let content: SCShareableContent
+    do { content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true) } catch {
+        print("capture failed", error); exit(1)
+    }
+    let display = need(content.displays.first { $0.displayID == CGMainDisplayID() }, "no main display to capture")
     let config = SCStreamConfiguration()
     // The window sits at the main display's bottom-left corner; the region is in points with a top-left origin.
     config.sourceRect = CGRect(x: 0, y: Double(display.height) - windowHeight, width: 32, height: windowHeight)
@@ -145,30 +166,32 @@ Task {
     config.minimumFrameInterval = .zero
     config.showsCursor = false
     config.queueDepth = 8
-    stream = SCStream(
+    let captureStream = SCStream(
         filter: SCContentFilter(display: display, excludingWindows: []),
         configuration: config,
         delegate: nil
     )
-    try stream!.addStreamOutput(
+    stream = captureStream
+    try captureStream.addStreamOutput(
         sink,
         type: .screen,
         sampleHandlerQueue: DispatchQueue(label: "frames", qos: .userInteractive)
     )
-    do { try await stream!.startCapture(); print("capturing", display.width, display.height) } catch { print(
+    do { try await captureStream.startCapture(); print("capturing", display.width, display.height) } catch { print(
         "capture failed",
         error
     ); exit(1) }
 }
 
 let steps = Array(args.dropFirst(2))
+let icons = steps.map(icon)
 for (i, step) in steps.enumerated() {
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + Double(i) * Double(args[1])!) {
-        print("step \(step) at \(Int(Date().timeIntervalSince(start) * 1000))"); view.show(icon(step))
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + Double(i) * secondsPerStep) {
+        print("step \(step) at \(Int(Date().timeIntervalSince(start) * 1000))"); view.show(icons[i])
     }
 }
 
-DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + Double(steps.count) * Double(args[1])! + 0.5) {
+DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + Double(steps.count) * secondsPerStep + 0.5) {
     print("calls", sink.calls, "complete", sink.complete, "distinct", frames.count)
     if let dir = ProcessInfo.processInfo.environment["DUMP"] {
         try? FileManager.default.createDirectory(
