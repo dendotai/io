@@ -121,9 +121,9 @@ private func describe(_ event: NSEvent) -> String {
         .otherMouseDragged,
         .scrollWheel,
     ]
-    let cg = isMouse.contains(event.type) ? event.cgEvent : nil
-    let source = cg.map { "\($0.getIntegerValueField(.eventSourceUnixProcessID))" } ?? "-"
-    let delta = cg
+    let cgEvent = isMouse.contains(event.type) ? event.cgEvent : nil
+    let source = cgEvent.map { "\($0.getIntegerValueField(.eventSourceUnixProcessID))" } ?? "-"
+    let delta = cgEvent
         .map { "(\(Int($0.getDoubleValueField(.mouseEventDeltaX))),\(Int($0.getDoubleValueField(.mouseEventDeltaY))))"
         } ?? "-"
     let tracking = isTracking ?

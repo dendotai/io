@@ -3,17 +3,17 @@ import CoreMedia
 import ScreenCaptureKit
 
 // record120 X Y W H SECONDS OUTDIR (region of the main display in points, top-left origin; compile with `swiftc -O`): records at the display's refresh rate, writes f<ms>.png per distinct frame (ms after the first frame) and frames.txt (one "<ms> <file>" line per frame), and prints the frame count, the mean gap, and the max gap.
-let a = CommandLine.arguments
-let rect = CGRect(x: Double(a[1])!, y: Double(a[2])!, width: Double(a[3])!, height: Double(a[4])!)
-let seconds = Double(a[5])!
-let out = URL(fileURLWithPath: a[6])
+let args = CommandLine.arguments
+let rect = CGRect(x: Double(args[1])!, y: Double(args[2])!, width: Double(args[3])!, height: Double(args[4])!)
+let seconds = Double(args[5])!
+let out = URL(fileURLWithPath: args[6])
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
 final class Sink: NSObject, SCStreamOutput {
     var first: CMTime?
     var lastHash: Int?
     var duplicates = 0
-    var frames: [(ms: Int, width: Int, height: Int, bytesPerRow: Int, data: Data)] = []
+    var frames: [(elapsedMs: Int, width: Int, height: Int, bytesPerRow: Int, data: Data)] = []
     func stream(_: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, let attachments = CMSampleBufferGetSampleAttachmentsArray(
                   buffer,
@@ -26,7 +26,7 @@ final class Sink: NSObject, SCStreamOutput {
         if first == nil {
             first = time
         }
-        let ms = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first!)) * 1000).rounded())
+        let elapsedMs = Int(((CMTimeGetSeconds(time) - CMTimeGetSeconds(first!)) * 1000).rounded())
         // Copy the pixels out at once so the stream gets its buffer back; the PNGs are written after the recording, because encoding inside the callback stalls the stream.
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
         let data = Data(bytes: CVPixelBufferGetBaseAddress(pixels)!, count: CVPixelBufferGetDataSize(pixels))
@@ -37,7 +37,7 @@ final class Sink: NSObject, SCStreamOutput {
             duplicates += 1; return
         }
         lastHash = hash
-        frames.append((ms, size.0, size.1, size.2, data))
+        frames.append((elapsedMs, size.0, size.1, size.2, data))
     }
 }
 
@@ -91,13 +91,13 @@ Task {
             shouldInterpolate: false,
             intent: .defaultIntent
         )!
-        let name = String(format: "f%05d.png", frame.ms)
+        let name = String(format: "f%05d.png", frame.elapsedMs)
         try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
             .write(to: out.appendingPathComponent(name))
-        list += "\(frame.ms) \(name)\n"
+        list += "\(frame.elapsedMs) \(name)\n"
     }
     try list.write(to: out.appendingPathComponent("frames.txt"), atomically: true, encoding: .utf8)
-    let times = sink.frames.map(\.ms)
+    let times = sink.frames.map(\.elapsedMs)
     let gaps = zip(times.dropFirst(), times).map { $0 - $1 }
     let span = (times.last ?? 0) - (times.first ?? 0)
     print(String(

@@ -7,42 +7,44 @@ import CoreAudio
 let args = CommandLine.arguments
 let dry = args.count > 3 && args[3] == "dry"
 
-func attr<T>(_ e: AXUIElement, _ name: String) -> T? {
-    var v: CFTypeRef?
-    return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v as? T : nil
+func attr<T>(_ uiElement: AXUIElement, _ name: String) -> T? {
+    var attributeValue: CFTypeRef?
+    return AXUIElementCopyAttributeValue(uiElement, name as CFString, &attributeValue) == .success ?
+        attributeValue as? T : nil
 }
 
-func children(_ e: AXUIElement) -> [AXUIElement] {
-    attr(e, kAXChildrenAttribute) ?? []
+func children(_ uiElement: AXUIElement) -> [AXUIElement] {
+    attr(uiElement, kAXChildrenAttribute) ?? []
 }
 
-func label(_ e: AXUIElement) -> String {
+func label(_ uiElement: AXUIElement) -> String {
     [
-        attr(e, kAXTitleAttribute) as String?,
-        attr(e, kAXDescriptionAttribute) as String?,
-        attr(e, kAXValueAttribute) as String?,
+        attr(uiElement, kAXTitleAttribute) as String?,
+        attr(uiElement, kAXDescriptionAttribute) as String?,
+        attr(uiElement, kAXValueAttribute) as String?,
     ]
     .compactMap(\.self).filter { !$0.isEmpty }.joined(separator: " | ")
 }
 
-func text(_ e: AXUIElement, depth: Int = 0) -> String {
-    depth > 8 ? "" : ([label(e)] + children(e).map { text($0, depth: depth + 1) }).filter { !$0.isEmpty }
+func text(_ uiElement: AXUIElement, depth: Int = 0) -> String {
+    depth > 8 ? "" : ([label(uiElement)] + children(uiElement).map { text($0, depth: depth + 1) })
+        .filter { !$0.isEmpty }
         .joined(separator: " | ")
 }
 
-func buttons(_ e: AXUIElement, depth: Int = 0) -> [AXUIElement] {
+func buttons(_ uiElement: AXUIElement, depth: Int = 0) -> [AXUIElement] {
     guard depth < 30 else { return [] }
-    let own: [AXUIElement] = (attr(e, kAXRoleAttribute) as String?) == kAXButtonRole ? [e] : []
-    return own + children(e).flatMap { buttons($0, depth: depth + 1) }
+    let own: [AXUIElement] = (attr(uiElement, kAXRoleAttribute) as String?) == kAXButtonRole ? [uiElement] : []
+    return own + children(uiElement).flatMap { buttons($0, depth: depth + 1) }
 }
 
-func identifier(_ e: AXUIElement) -> String {
-    attr(e, kAXIdentifierAttribute) ?? ""
+func identifier(_ uiElement: AXUIElement) -> String {
+    attr(uiElement, kAXIdentifierAttribute) ?? ""
 }
 
-func find(_ e: AXUIElement, depth: Int = 0, _ match: (AXUIElement) -> Bool) -> [AXUIElement] {
+func find(_ uiElement: AXUIElement, depth: Int = 0, _ match: (AXUIElement) -> Bool) -> [AXUIElement] {
     guard depth < 30 else { return [] }
-    return (match(e) ? [e] : []) + children(e).flatMap { find($0, depth: depth + 1, match) }
+    return (match(uiElement) ? [uiElement] : []) + children(uiElement).flatMap { find($0, depth: depth + 1, match) }
 }
 
 func element(_ bundle: String) -> AXUIElement {
@@ -86,71 +88,81 @@ func closePanel() {
 }
 
 /// Core Audio: the default output's main volume and mute.
-func address(_ s: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
     .init(
-        mSelector: s,
+        mSelector: selector,
         mScope: kAudioObjectPropertyScopeOutput,
         mElement: kAudioObjectPropertyElementMain
     )
 }
 
 func output() -> AudioObjectID {
-    var a = AudioObjectPropertyAddress(
+    var defaultOutputAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwarePropertyDefaultOutputDevice,
         mScope: kAudioObjectPropertyScopeGlobal,
         mElement: kAudioObjectPropertyElementMain
     )
     var id = AudioObjectID(); var size = UInt32(4)
-    AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil, &size, &id); return id
+    AudioObjectGetPropertyData(
+        AudioObjectID(kAudioObjectSystemObject),
+        &defaultOutputAddress,
+        0,
+        nil,
+        &size,
+        &id
+    ); return id
 }
 
 func volume()
     -> Float32
 {
-    var a = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume); var v = Float32(0); var s =
+    var volumeAddress = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume); var mainVolume =
+        Float32(0); var size =
         UInt32(4); AudioObjectGetPropertyData(
             output(),
-            &a,
+            &volumeAddress,
             0,
             nil,
-            &s,
-            &v
-        ); return v
+            &size,
+            &mainVolume
+        ); return mainVolume
 }
 
-func setVolume(_ v: Float32) {
-    var a = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume); var v = v; AudioObjectSetPropertyData(
-        output(),
-        &a,
-        0,
-        nil,
-        4,
-        &v
-    ); print("volume \(v)"); fflush(stdout)
+func setVolume(_ newVolume: Float32) {
+    var volumeAddress = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume); var newVolume =
+        newVolume; AudioObjectSetPropertyData(
+            output(),
+            &volumeAddress,
+            0,
+            nil,
+            4,
+            &newVolume
+        ); print("volume \(newVolume)"); fflush(stdout)
 }
 
 func muted()
     -> UInt32
 {
-    var a = address(kAudioDevicePropertyMute); var v = UInt32(0); var s = UInt32(4); AudioObjectGetPropertyData(
-        output(),
-        &a,
-        0,
-        nil,
-        &s,
-        &v
-    ); return v
+    var muteAddress = address(kAudioDevicePropertyMute); var mute = UInt32(0); var size =
+        UInt32(4); AudioObjectGetPropertyData(
+            output(),
+            &muteAddress,
+            0,
+            nil,
+            &size,
+            &mute
+        ); return mute
 }
 
-func setMuted(_ m: UInt32) {
-    var a = address(kAudioDevicePropertyMute); var m = m; AudioObjectSetPropertyData(
+func setMuted(_ mute: UInt32) {
+    var muteAddress = address(kAudioDevicePropertyMute); var mute = mute; AudioObjectSetPropertyData(
         output(),
-        &a,
+        &muteAddress,
         0,
         nil,
         4,
-        &m
-    ); print("mute \(m)"); fflush(stdout)
+        &mute
+    ); print("mute \(mute)"); fflush(stdout)
 }
 
 openPanel()
@@ -162,8 +174,8 @@ if dry {
     recorder.environment = ["DISPLAY_ID": "2"]
     try recorder.run()
     recorder.waitUntilExit()
-    for r in rows() {
-        print(identifier(r), (attr(r, kAXDescriptionAttribute) as String?) ?? "")
+    for row in rows() {
+        print(identifier(row), (attr(row, kAXDescriptionAttribute) as String?) ?? "")
     }
     closePanel()
     exit(0)
@@ -178,8 +190,9 @@ try recorder.run()
 
 sleep(2)
 let step: UInt32 = 2_000_000
-func defaults(_ a: String...) {
-    let p = try! Process.run(URL(fileURLWithPath: "/usr/bin/defaults"), arguments: a); p.waitUntilExit()
+func defaults(_ arguments: String...) {
+    let process = try! Process.run(URL(fileURLWithPath: "/usr/bin/defaults"), arguments: arguments); process
+        .waitUntilExit()
 }
 
 func pick(_ name: String) {
@@ -188,8 +201,8 @@ func pick(_ name: String) {
 
 pick("MacBook Pro Speakers"); usleep(step)
 let speakersVolume = volume()
-for v: Float32 in [0.2, 0.8, speakersVolume] {
-    setVolume(v); usleep(step)
+for targetVolume: Float32 in [0.2, 0.8, speakersVolume] {
+    setVolume(targetVolume); usleep(step)
 }
 
 setMuted(1); usleep(step); setMuted(0); usleep(step)

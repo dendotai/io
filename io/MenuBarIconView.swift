@@ -233,8 +233,8 @@ final class MenuBarIconView: NSView {
     }
 
     /// `headphones` and `headphones.slash`: the symbol only gains or loses its slash, which the system's magic replace animates alone.
-    private static func isSlashPair(_ a: String, _ b: String) -> Bool {
-        a == b + ".slash" || b == a + ".slash"
+    private static func isSlashPair(_ name: String, _ otherName: String) -> Bool {
+        name == otherName + ".slash" || otherName == name + ".slash"
     }
 
     /// Clicks belong to the status item.
@@ -274,10 +274,10 @@ private final class PieceView: NSImageView {
     }
 
     private func transform(_ factor: CGFloat, about point: CGPoint) -> CATransform3D {
-        let f = max(factor, 0.001)
-        var t = CATransform3DMakeTranslation(point.x, point.y, 0)
-        t = CATransform3DScale(t, f, f, 1)
-        return CATransform3DTranslate(t, -point.x, -point.y, 0)
+        let clampedFactor = max(factor, 0.001)
+        var matrix = CATransform3DMakeTranslation(point.x, point.y, 0)
+        matrix = CATransform3DScale(matrix, clampedFactor, clampedFactor, 1)
+        return CATransform3DTranslate(matrix, -point.x, -point.y, 0)
     }
 
     /// Scales from the size on screen down to `scale` about the point, then hides, so the layer stays at full size until its turn.

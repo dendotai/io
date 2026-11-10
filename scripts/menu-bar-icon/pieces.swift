@@ -25,18 +25,18 @@ func render(_ image: NSImage) -> NSBitmapImageRep {
     return rep
 }
 
-func alphaSum(_ r: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in true }) -> (Double, String) {
-    var s = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
-    for y in 0 ..< r
+func alphaSum(_ bitmap: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in true }) -> (Double, String) {
+    var alphaTotal = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
+    for y in 0 ..< bitmap
         .pixelsHigh
     {
-        for x in 0 ..< r
+        for x in 0 ..< bitmap
             .pixelsWide
         {
-            let c = r.colorAt(x: x, y: y)!; if c.alphaComponent > 0.02,
-                                               keep(c)
+            let color = bitmap.colorAt(x: x, y: y)!; if color.alphaComponent > 0.02,
+                                                        keep(color)
             {
-                s += Double(c.alphaComponent); minX = min(
+                alphaTotal += Double(color.alphaComponent); minX = min(
                     minX,
                     x
                 ); maxX = max(maxX, x); minY = min(minY, y); maxY = max(
@@ -46,7 +46,7 @@ func alphaSum(_ r: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in true
             }
         }
     }
-    return (s, maxX < 0 ? "-" : "\(maxX - minX + 1)x\(maxY - minY + 1)@\(minX),\(minY)")
+    return (alphaTotal, maxX < 0 ? "-" : "\(maxX - minX + 1)x\(maxY - minY + 1)@\(minX),\(minY)")
 }
 
 let base = NSImage(systemSymbolName: name, variableValue: variable, accessibilityDescription: nil)!
@@ -56,13 +56,20 @@ print("whole", base.size, alphaSum(mono))
 let palette: [NSColor] = [.red, .green, .blue, .magenta, .cyan, .yellow]
 let pal = render(base.withSymbolConfiguration(size14.applying(.init(paletteColors: palette)))!)
 print("palette render", pal.pixelsWide, pal.pixelsHigh)
-for k in 0 ..< 6 {
-    let (s, box) = alphaSum(pal) { c in
-        let (r, g, b) = (c.redComponent > 0.5, c.greenComponent > 0.5, c.blueComponent > 0.5)
-        return [r && !g && !b, g && !r && !b, b && !r && !g, r && b && !g, g && b && !r, r && g && !b][k]
+for layer in 0 ..< 6 {
+    let (alphaTotal, box) = alphaSum(pal) { color in
+        let (isRed, isGreen, isBlue) = (color.redComponent > 0.5, color.greenComponent > 0.5, color.blueComponent > 0.5)
+        return [
+            isRed && !isGreen && !isBlue,
+            isGreen && !isRed && !isBlue,
+            isBlue && !isRed && !isGreen,
+            isRed && isBlue && !isGreen,
+            isGreen && isBlue && !isRed,
+            isRed && isGreen && !isBlue,
+        ][layer]
     }
-    if s > 0 {
-        print("layer \(k)", box, Int(s))
+    if alphaTotal > 0 {
+        print("layer \(layer)", box, Int(alphaTotal))
     }
 }
 
@@ -70,21 +77,30 @@ for k in 0 ..< 6 {
 if name.hasPrefix("speaker.wave") {
     let draw = size14.applying(.init(variableValueMode: .draw))
     var previous: NSBitmapImageRep?
-    for v in [0.0, 0.34, 0.67, 1.0] {
-        let r = render(NSImage(systemSymbolName: name, variableValue: v, accessibilityDescription: nil)!
+    for variableValue in [0.0, 0.34, 0.67, 1.0] {
+        let bitmap = render(NSImage(
+            systemSymbolName: name,
+            variableValue: variableValue,
+            accessibilityDescription: nil
+        )!
             .withSymbolConfiguration(draw)!)
-        var s = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
-        for y in 0 ..< r.pixelsHigh {
-            for x in 0 ..< r.pixelsWide {
-                let a = Double(r.colorAt(x: x, y: y)!.alphaComponent) -
+        var newInk = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
+        for y in 0 ..< bitmap.pixelsHigh {
+            for x in 0 ..< bitmap.pixelsWide {
+                let addedAlpha = Double(bitmap.colorAt(x: x, y: y)!.alphaComponent) -
                     Double(previous?.colorAt(x: x, y: y)!.alphaComponent ?? 0)
-                if a > 0.02 {
-                    s += a; minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+                if addedAlpha > 0.02 {
+                    newInk += addedAlpha; minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(
+                        maxY,
+                        y
+                    )
                 }
             }
         }
-        print("draw v=\(v) new ink \(Int(s)) box \(maxX - minX + 1)x\(maxY - minY + 1)@\(minX),\(minY)")
-        previous = r
+        print(
+            "draw v=\(variableValue) new ink \(Int(newInk)) box \(maxX - minX + 1)x\(maxY - minY + 1)@\(minX),\(minY)"
+        )
+        previous = bitmap
     }
     // The dim opacity of an inactive wave in colour mode at v=0 against draw mode v=1.
     let dim = render(NSImage(systemSymbolName: name, variableValue: 0, accessibilityDescription: nil)!
@@ -98,11 +114,11 @@ if name.hasPrefix("speaker.wave") {
         for x in 30 ..< dim
             .pixelsWide
         {
-            let a = Double(full.colorAt(x: x, y: y)!.alphaComponent); if a > 0.9 {
+            let fullAlpha = Double(full.colorAt(x: x, y: y)!.alphaComponent); if fullAlpha > 0.9 {
                 ratios.append(Double(dim.colorAt(
                     x: x,
                     y: y
-                )!.alphaComponent) / a)
+                )!.alphaComponent) / fullAlpha)
             }
         }
     }
@@ -115,31 +131,36 @@ do {
     var layersAlpha = [[Double]](repeating: [Double](repeating: 0, count: whole.pixelsWide), count: whole.pixelsHigh)
     for y in 0 ..< pal.pixelsHigh {
         for x in 0 ..< pal.pixelsWide {
-            let c = pal.colorAt(x: x, y: y)!
-            let (r, g, b) = (c.redComponent > 0.5, c.greenComponent > 0.5, c.blueComponent > 0.5)
-            let known = (r && !g && !b) || (g && !r && !b) || (b && !r && !g) || (r && b && !g) || (g && b && !r) ||
-                (r && g && !b)
-            if c.alphaComponent > 0.01, known {
-                layersAlpha[y][x] = Double(c.alphaComponent)
+            let color = pal.colorAt(x: x, y: y)!
+            let (isRed, isGreen, isBlue) = (
+                color.redComponent > 0.5,
+                color.greenComponent > 0.5,
+                color.blueComponent > 0.5
+            )
+            let known = (isRed && !isGreen && !isBlue) || (isGreen && !isRed && !isBlue) ||
+                (isBlue && !isRed && !isGreen) || (isRed && isBlue && !isGreen) || (isGreen && isBlue && !isRed) ||
+                (isRed && isGreen && !isBlue)
+            if color.alphaComponent > 0.01, known {
+                layersAlpha[y][x] = Double(color.alphaComponent)
             }
         }
     }
-    var maxDiff = 0.0, lost = 0.0, at = (0, 0)
+    var maxDiff = 0.0, lost = 0.0, maxDiffAt = (0, 0)
     for y in 0 ..< whole.pixelsHigh {
         for x in 0 ..< whole.pixelsWide {
-            let w = Double(whole.colorAt(x: x, y: y)!.alphaComponent)
-            let d = w - layersAlpha[y][x]
-            if abs(d) > maxDiff {
-                maxDiff = abs(d); at = (x, y)
+            let wholeAlpha = Double(whole.colorAt(x: x, y: y)!.alphaComponent)
+            let alphaDiff = wholeAlpha - layersAlpha[y][x]
+            if abs(alphaDiff) > maxDiff {
+                maxDiff = abs(alphaDiff); maxDiffAt = (x, y)
             }
-            lost += max(d, 0)
+            lost += max(alphaDiff, 0)
         }
     }
     print(
         "pieces vs whole: max alpha diff",
         String(format: "%.2f", maxDiff),
         "at",
-        at,
+        maxDiffAt,
         "alpha lost in total",
         String(format: "%.1f", lost)
     )

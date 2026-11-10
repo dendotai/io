@@ -69,9 +69,9 @@ enum MenuBarIconPieces {
             }
         }
         // The base shape leads a symbol's layers: the body of a speaker, the headphones under a slash.
-        let ordered = layers.indices.filter { !layers[$0].isEmpty }.sorted { a, b in
-            let inkA = layers[a].reduce(0) { $0 + $1.alpha }, inkB = layers[b].reduce(0) { $0 + $1.alpha }
-            return inkA == inkB ? a < b : inkA > inkB
+        let ordered = layers.indices.filter { !layers[$0].isEmpty }.sorted { indexA, indexB in
+            let inkA = layers[indexA].reduce(0) { $0 + $1.alpha }, inkB = layers[indexB].reduce(0) { $0 + $1.alpha }
+            return inkA == inkB ? indexA < indexB : inkA > inkB
         }
         var pieces: [MenuBarIconPiece] = []
         for (index, layer) in ordered.enumerated() {
@@ -143,9 +143,9 @@ enum MenuBarIconPieces {
             var stack = [start]
             remaining.removeValue(forKey: start).map { part.append($0) }
             while let point = stack.popLast() {
-                for dx in -1 ... 1 {
-                    for dy in -1 ... 1 {
-                        let next = Point(x: point.x + dx, y: point.y + dy)
+                for xOffset in -1 ... 1 {
+                    for yOffset in -1 ... 1 {
+                        let next = Point(x: point.x + xOffset, y: point.y + yOffset)
                         if let pixel = remaining.removeValue(forKey: next) {
                             part.append(pixel)
                             stack.append(next)
