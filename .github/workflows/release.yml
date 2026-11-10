@@ -28,11 +28,11 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - run: bun install --frozen-lockfile --cwd ci
+      - run: bun install --frozen-lockfile --cwd .github
 
       # Its prepare step runs scripts/build-release.sh before the tag, so a failed build publishes nothing. RELEASING.md has the flow.
       - name: Release
-        run: ci/node_modules/.bin/semantic-release
+        run: .github/node_modules/.bin/semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEVELOPER_ID_APPLICATION_CERTIFICATE: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE }}

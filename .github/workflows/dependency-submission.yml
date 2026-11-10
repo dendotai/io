@@ -32,11 +32,11 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - run: bun install --frozen-lockfile --cwd ci
+      - run: bun install --frozen-lockfile --cwd .github
 
       - name: List every version pin with Renovate
         # The local platform reads this checkout and needs no token; extract mode looks up no new versions.
-        run: mkdir renovate-report && ci/node_modules/.bin/renovate --platform=local --dry-run=extract --report-type=file --report-path=renovate-report/report.json
+        run: mkdir renovate-report && .github/node_modules/.bin/renovate --platform=local --dry-run=extract --report-type=file --report-path=renovate-report/report.json
 
       - name: Check that Renovate found every version pin
         id: check
