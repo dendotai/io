@@ -76,20 +76,20 @@ enum AirPodsListeningMode {
 enum ListeningModeIcon {
     /// Drawn in black; the row draws them as templates in its grey.
     static let images: [ListeningMode: NSImage] = {
-        var images: [ListeningMode: NSImage] = [:]
+        var loaded: [ListeningMode: NSImage] = [:]
         let bundle = Bundle(path: "/System/Library/PrivateFrameworks/HeadphoneCommonUIKit.framework")
         for (mode, name) in [
             (ListeningMode.off, "Off"),
             (.transparency, "Transparency"),
             (.noiseCancellation, "Noise Cancellation"),
         ] {
-            images[mode] = bundle?.image(forResource: name)
+            loaded[mode] = bundle?.image(forResource: name)
         }
         let privateSymbol = NSSelectorFromString("imageWithPrivateSystemSymbolName:")
         if NSImage.responds(to: privateSymbol) {
-            images[.adaptive] = NSImage.perform(privateSymbol, with: "person.and.sparkles.fill")?
+            loaded[.adaptive] = NSImage.perform(privateSymbol, with: "person.and.sparkles.fill")?
                 .takeUnretainedValue() as? NSImage
         }
-        return images
+        return loaded
     }()
 }

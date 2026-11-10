@@ -50,7 +50,7 @@ final class FoldAnimation {
         let fromHeight = height, fromOpacity = group.alphaValue
         // Counted from the first tick, so the time the menu takes to swap its items is not skipped.
         var start: Date?
-        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] timer in
+        let foldTimer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] timer in
             guard let self else { return timer.invalidate() }
             let begun = start ?? .now
             start = begun
@@ -67,8 +67,8 @@ final class FoldAnimation {
                 completion()
             }
         }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        RunLoop.main.add(foldTimer, forMode: .common)
+        timer = foldTimer
     }
 
     /// Runs once a starting fold has replaced the real rows: shown beside them, the stand-in makes the menu taller for a frame.

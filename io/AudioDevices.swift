@@ -69,8 +69,8 @@ enum AudioDevices {
 
     static func setVolume(_ volume: Float, _ id: AudioDeviceID) {
         var address = volumeAddress
-        var volume = Float32(volume)
-        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &volume)
+        var value = Float32(volume)
+        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &value)
     }
 
     /// False for an output with no mute control.

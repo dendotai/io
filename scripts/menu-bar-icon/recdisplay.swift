@@ -55,7 +55,7 @@ final class Sink: NSObject, SCStreamOutput {
 }
 
 let sink = Sink()
-Task {
+func record() async throws {
     let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
     let displayID = CGDirectDisplayID(ProcessInfo.processInfo.environment["DISPLAY_ID"]
         .flatMap(UInt32.init) ?? CGMainDisplayID())
@@ -119,6 +119,15 @@ Task {
         gaps.max() ?? 0
     ))
     exit(0)
+}
+
+Task {
+    do {
+        try await record()
+    } catch {
+        FileHandle.standardError.write(Data("recording failed: \(error)\n".utf8))
+        exit(1)
+    }
 }
 
 RunLoop.main.run()

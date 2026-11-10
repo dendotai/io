@@ -17,32 +17,11 @@ func children(_ uiElement: AXUIElement) -> [AXUIElement] {
     attr(uiElement, kAXChildrenAttribute) ?? []
 }
 
-func label(_ uiElement: AXUIElement) -> String {
-    [
-        attr(uiElement, kAXTitleAttribute) as String?,
-        attr(uiElement, kAXDescriptionAttribute) as String?,
-        attr(uiElement, kAXValueAttribute) as String?,
-    ]
-    .compactMap(\.self).filter { !$0.isEmpty }.joined(separator: " | ")
-}
-
-func text(_ uiElement: AXUIElement, depth: Int = 0) -> String {
-    depth > 8 ? "" : ([label(uiElement)] + children(uiElement).map { text($0, depth: depth + 1) })
-        .filter { !$0.isEmpty }
-        .joined(separator: " | ")
-}
-
-func buttons(_ uiElement: AXUIElement, depth: Int = 0) -> [AXUIElement] {
-    guard depth < 30 else { return [] }
-    let own: [AXUIElement] = (attr(uiElement, kAXRoleAttribute) as String?) == kAXButtonRole ? [uiElement] : []
-    return own + children(uiElement).flatMap { buttons($0, depth: depth + 1) }
-}
-
 func identifier(_ uiElement: AXUIElement) -> String {
     attr(uiElement, kAXIdentifierAttribute) ?? ""
 }
 
-func find(_ uiElement: AXUIElement, depth: Int = 0, _ match: (AXUIElement) -> Bool) -> [AXUIElement] {
+func find(_ uiElement: AXUIElement, depth: Int, _ match: (AXUIElement) -> Bool) -> [AXUIElement] {
     guard depth < 30 else { return [] }
     return (match(uiElement) ? [uiElement] : []) + children(uiElement).flatMap { find($0, depth: depth + 1, match) }
 }
@@ -55,11 +34,11 @@ func element(_ bundle: String) -> AXUIElement {
 
 /// The Sound item's open menu shows the menu bar over a full-screen app; io's panel does not.
 let agent = element("com.apple.MenuBarAgent")
-guard let soundItem = find(agent, { identifier($0) == "com.apple.menuextra.sound" }).last
+guard let soundItem = find(agent, depth: 0, { identifier($0) == "com.apple.menuextra.sound" }).last
 else { fatalError("no Sound item") }
 let controlCenter = element("com.apple.controlcenter")
 func rows() -> [AXUIElement] {
-    find(controlCenter) { identifier($0).hasPrefix("sound-device-") }
+    find(controlCenter, depth: 0) { identifier($0).hasPrefix("sound-device-") }
 }
 
 func openPanel() {

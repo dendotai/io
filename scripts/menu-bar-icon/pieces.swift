@@ -40,7 +40,7 @@ func render(_ image: NSImage) -> NSBitmapImageRep {
     return rep
 }
 
-func alphaSum(_ bitmap: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in true }) -> (Double, String) {
+func alphaSum(_ bitmap: NSBitmapImageRep, where keep: (NSColor) -> Bool) -> (Double, String) {
     var alphaTotal = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
     for y in 0 ..< bitmap
         .pixelsHigh
@@ -71,7 +71,7 @@ let base = need(
     "no symbol \(name)"
 )
 let mono = render(base)
-print("whole", base.size, alphaSum(mono))
+print("whole", base.size, alphaSum(mono) { _ in true })
 let palette: [NSColor] = [.red, .green, .blue, .magenta, .cyan, .yellow]
 let pal = render(need(
     base.withSymbolConfiguration(size14.applying(.init(paletteColors: palette))),
