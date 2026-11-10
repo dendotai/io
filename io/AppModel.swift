@@ -169,6 +169,8 @@ final class AppModel {
     }
 
     private func openSettings(_ extensionID: String) {
+        // Both callers pass a constant bundle ID of letters, digits, dots and dashes, which a URL always takes.
+        // swiftlint:disable:next force_unwrapping
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:\(extensionID)")!)
     }
 
