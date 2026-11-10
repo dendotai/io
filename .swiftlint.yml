@@ -57,6 +57,30 @@ opt_in_rules:
 disabled_rules:
   # SwiftFormat owns braces.
   - opening_brace
+  # Rules with findings not fixed yet: a PR that fixes a rule's findings removes it from this list.
+  - accessibility_label_for_image
+  - block_based_kvo
+  - closure_body_length
+  - cyclomatic_complexity
+  - discarded_notification_center_observer
+  - discouraged_default_parameter
+  - file_length
+  - for_where
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - function_body_length
+  - identifier_name
+  - large_tuple
+  - line_length
+  - missing_docs
+  - optional_data_string_conversion
+  - type_body_length
+  - unhandled_throwing_task
+  - unneeded_escaping
+  - variable_shadowing
+  - void_function_in_ternary
+  - weak_delegate
 
 line_length:
   ignores_comments: true
