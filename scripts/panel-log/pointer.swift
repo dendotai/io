@@ -3,7 +3,18 @@ import Foundation
 
 // pointer move X Y | click X Y | rightclick X Y | drag X Y1 Y2 | draghold X Y1 Y2 | pausedrag X Y1 Y2 | slowdrag X Y1 Y2 | fastdrag X Y1 Y2, in global points.
 let args = CommandLine.arguments.dropFirst().map(\.self)
-let x = Double(args[1])!, y = Double(args[2])!
+func number(_ index: Int) -> Double {
+    guard index < args.count, let value = Double(args[index]) else {
+        FileHandle.standardError.write(Data(
+            "usage: pointer move X Y | click X Y | rightclick X Y | drag X Y1 Y2 | draghold X Y1 Y2 | pausedrag X Y1 Y2 | slowdrag X Y1 Y2 | fastdrag X Y1 Y2\n"
+                .utf8
+        ))
+        exit(1)
+    }
+    return value
+}
+
+let x = number(1), y = number(2)
 
 func post(_ type: CGEventType, _ pointX: Double, _ pointY: Double) {
     let event = CGEvent(
@@ -26,7 +37,7 @@ case "click":
     usleep(150_000)
     post(.leftMouseUp, x, y)
 case "drag":
-    let targetY = Double(args[3])!
+    let targetY = number(3)
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
@@ -44,7 +55,7 @@ case "rightclick":
     usleep(150_000)
     post(.rightMouseUp, x, y)
 case "draghold":
-    let targetY = Double(args[3])!
+    let targetY = number(3)
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
@@ -56,7 +67,7 @@ case "draghold":
     sleep(3)
     post(.leftMouseUp, x, targetY)
 case "pausedrag":
-    let targetY = Double(args[3])!
+    let targetY = number(3)
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
@@ -70,7 +81,7 @@ case "pausedrag":
     usleep(150_000)
     post(.leftMouseUp, x, targetY)
 case "slowdrag":
-    let targetY = Double(args[3])!
+    let targetY = number(3)
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)
@@ -85,7 +96,7 @@ case "slowdrag":
     usleep(150_000)
     post(.leftMouseUp, x, targetY)
 case "fastdrag":
-    let targetY = Double(args[3])!
+    let targetY = number(3)
     post(.mouseMoved, x, y)
     usleep(100_000)
     post(.leftMouseDown, x, y)

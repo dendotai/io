@@ -27,5 +27,8 @@ func walk(_ element: AXUIElement, _ depth: Int = 0) {
     }
 }
 
-let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first!
+guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first else {
+    fatalError("MenuBarAgent is not running")
+}
+
 walk(AXUIElementCreateApplication(app.processIdentifier))

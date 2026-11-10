@@ -1,12 +1,22 @@
 import AppKit
 
-// pieces <symbol> [variable]: splits the symbol at 14 pt medium into its palette layers at 2x, and the waves layer of a speaker by variable value; prints each piece's box and alpha sum, and the sum against the whole symbol in monochrome; writes piece PNGs beside.
-let name = CommandLine.arguments[1]
-let variable = CommandLine.arguments.count > 2 ? Double(CommandLine.arguments[2])! : 1
+/// pieces <symbol> [variable]: splits the symbol at 14 pt medium into its palette layers at 2x, and the waves layer of a speaker by variable value; prints each piece's box and alpha sum, and the sum against the whole symbol in monochrome; writes piece PNGs beside.
+func need<T>(_ value: T?, _ what: @autoclosure () -> String) -> T {
+    guard let value else { fatalError(what()) }
+    return value
+}
+
+let args = CommandLine.arguments
+guard args.count > 1, let variable = args.count > 2 ? Double(args[2]) : 1 else {
+    FileHandle.standardError.write(Data("usage: pieces <symbol> [variable]\n".utf8))
+    exit(1)
+}
+
+let name = args[1]
 let size14 = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
 func render(_ image: NSImage) -> NSBitmapImageRep {
     let size = image.size
-    let rep = NSBitmapImageRep(
+    let rep = need(NSBitmapImageRep(
         bitmapDataPlanes: nil,
         pixelsWide: Int(size.width * 2),
         pixelsHigh: Int(size.height * 2),
@@ -17,7 +27,7 @@ func render(_ image: NSImage) -> NSBitmapImageRep {
         colorSpaceName: .deviceRGB,
         bytesPerRow: 0,
         bitsPerPixel: 0
-    )!
+    ), "cannot make a bitmap for \(size)")
     rep.size = size
     NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     image.draw(in: NSRect(origin: .zero, size: size))
@@ -33,8 +43,9 @@ func alphaSum(_ bitmap: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in
         for x in 0 ..< bitmap
             .pixelsWide
         {
-            let color = bitmap.colorAt(x: x, y: y)!; if color.alphaComponent > 0.02,
-                                                        keep(color)
+            let color = need(bitmap.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render"); if color
+                .alphaComponent > 0.02,
+                keep(color)
             {
                 alphaTotal += Double(color.alphaComponent); minX = min(
                     minX,
@@ -49,12 +60,18 @@ func alphaSum(_ bitmap: NSBitmapImageRep, where keep: (NSColor) -> Bool = { _ in
     return (alphaTotal, maxX < 0 ? "-" : "\(maxX - minX + 1)x\(maxY - minY + 1)@\(minX),\(minY)")
 }
 
-let base = NSImage(systemSymbolName: name, variableValue: variable, accessibilityDescription: nil)!
-    .withSymbolConfiguration(size14)!
+let base = need(
+    NSImage(systemSymbolName: name, variableValue: variable, accessibilityDescription: nil)?
+        .withSymbolConfiguration(size14),
+    "no symbol \(name)"
+)
 let mono = render(base)
 print("whole", base.size, alphaSum(mono))
 let palette: [NSColor] = [.red, .green, .blue, .magenta, .cyan, .yellow]
-let pal = render(base.withSymbolConfiguration(size14.applying(.init(paletteColors: palette)))!)
+let pal = render(need(
+    base.withSymbolConfiguration(size14.applying(.init(paletteColors: palette))),
+    "cannot apply the palette to \(name)"
+))
 print("palette render", pal.pixelsWide, pal.pixelsHigh)
 for layer in 0 ..< 6 {
     let (alphaTotal, box) = alphaSum(pal) { color in
@@ -78,17 +95,19 @@ if name.hasPrefix("speaker.wave") {
     let draw = size14.applying(.init(variableValueMode: .draw))
     var previous: NSBitmapImageRep?
     for variableValue in [0.0, 0.34, 0.67, 1.0] {
-        let bitmap = render(NSImage(
-            systemSymbolName: name,
-            variableValue: variableValue,
-            accessibilityDescription: nil
-        )!
-            .withSymbolConfiguration(draw)!)
+        let bitmap = render(need(
+            NSImage(systemSymbolName: name, variableValue: variableValue, accessibilityDescription: nil)?
+                .withSymbolConfiguration(draw),
+            "cannot draw \(name) at \(variableValue)"
+        ))
         var newInk = 0.0, minX = 9999, maxX = -1, minY = 9999, maxY = -1
         for y in 0 ..< bitmap.pixelsHigh {
             for x in 0 ..< bitmap.pixelsWide {
-                let addedAlpha = Double(bitmap.colorAt(x: x, y: y)!.alphaComponent) -
-                    Double(previous?.colorAt(x: x, y: y)!.alphaComponent ?? 0)
+                let addedAlpha = Double(need(bitmap.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+                    .alphaComponent) -
+                    Double(previous
+                        .map { need($0.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render").alphaComponent } ??
+                        0)
                 if addedAlpha > 0.02 {
                     newInk += addedAlpha; minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(
                         maxY,
@@ -103,10 +122,16 @@ if name.hasPrefix("speaker.wave") {
         previous = bitmap
     }
     // The dim opacity of an inactive wave in colour mode at v=0 against draw mode v=1.
-    let dim = render(NSImage(systemSymbolName: name, variableValue: 0, accessibilityDescription: nil)!
-        .withSymbolConfiguration(size14)!)
-    let full = render(NSImage(systemSymbolName: name, variableValue: 1, accessibilityDescription: nil)!
-        .withSymbolConfiguration(size14)!)
+    let dim = render(need(
+        NSImage(systemSymbolName: name, variableValue: 0, accessibilityDescription: nil)?
+            .withSymbolConfiguration(size14),
+        "cannot draw \(name) at 0"
+    ))
+    let full = render(need(
+        NSImage(systemSymbolName: name, variableValue: 1, accessibilityDescription: nil)?
+            .withSymbolConfiguration(size14),
+        "cannot draw \(name) at 1"
+    ))
     var ratios: [Double] = []
     for y in 0 ..< dim
         .pixelsHigh
@@ -114,11 +139,12 @@ if name.hasPrefix("speaker.wave") {
         for x in 30 ..< dim
             .pixelsWide
         {
-            let fullAlpha = Double(full.colorAt(x: x, y: y)!.alphaComponent); if fullAlpha > 0.9 {
-                ratios.append(Double(dim.colorAt(
-                    x: x,
-                    y: y
-                )!.alphaComponent) / fullAlpha)
+            let fullAlpha = Double(need(full.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+                .alphaComponent); if fullAlpha > 0.9
+            {
+                ratios
+                    .append(Double(need(dim.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+                            .alphaComponent) / fullAlpha)
             }
         }
     }
@@ -131,7 +157,7 @@ do {
     var layersAlpha = [[Double]](repeating: [Double](repeating: 0, count: whole.pixelsWide), count: whole.pixelsHigh)
     for y in 0 ..< pal.pixelsHigh {
         for x in 0 ..< pal.pixelsWide {
-            let color = pal.colorAt(x: x, y: y)!
+            let color = need(pal.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
             let (isRed, isGreen, isBlue) = (
                 color.redComponent > 0.5,
                 color.greenComponent > 0.5,
@@ -148,7 +174,8 @@ do {
     var maxDiff = 0.0, lost = 0.0, maxDiffAt = (0, 0)
     for y in 0 ..< whole.pixelsHigh {
         for x in 0 ..< whole.pixelsWide {
-            let wholeAlpha = Double(whole.colorAt(x: x, y: y)!.alphaComponent)
+            let wholeAlpha = Double(need(whole.colorAt(x: x, y: y), "pixel \(x),\(y) is outside the render")
+                .alphaComponent)
             let alphaDiff = wholeAlpha - layersAlpha[y][x]
             if abs(alphaDiff) > maxDiff {
                 maxDiff = abs(alphaDiff); maxDiffAt = (x, y)

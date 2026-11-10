@@ -2,10 +2,23 @@ import AppKit
 
 // glyph <png> <firstColumn> <lastColumn>: ink box at half the brightest ink, the row through the box's middle as #/+/., the brightest colour, and the total ink.
 let args = CommandLine.arguments
-let bitmap = NSBitmapImageRep(data: try! Data(contentsOf: URL(fileURLWithPath: args[1])))!
-let firstColumn = Int(args[2])!, lastColumn = Int(args[3])!
+func need<T>(_ value: T?, _ what: @autoclosure () -> String) -> T {
+    guard let value else { fatalError(what()) }
+    return value
+}
+
+guard args.count > 3, let firstColumn = Int(args[2]), let lastColumn = Int(args[3]) else {
+    FileHandle.standardError.write(Data("usage: glyph <png> <firstColumn> <lastColumn>\n".utf8))
+    exit(1)
+}
+
+let bitmap = try need(
+    NSBitmapImageRep(data: Data(contentsOf: URL(fileURLWithPath: args[1]))),
+    "cannot decode \(args[1])"
+)
 func brightnessAt(_ x: Int, _ y: Int) -> Double {
-    bitmap.colorAt(x: x, y: y)!.usingColorSpace(.sRGB)!.brightnessComponent
+    let color = need(bitmap.colorAt(x: x, y: y), "pixel \(x),\(y) is outside \(args[1])")
+    return need(color.usingColorSpace(.sRGB), "pixel \(x),\(y) has no sRGB colour").brightnessComponent
 }
 
 var top = 0.0; var sum = 0.0
