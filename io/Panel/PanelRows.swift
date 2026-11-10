@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PanelSeparator: View {
     let inset: CGFloat
+    var width = Metrics.width
 
     var body: some View {
         Rectangle()
@@ -11,7 +12,7 @@ struct PanelSeparator: View {
             .padding(.horizontal, inset)
             .padding(.top, 5)
             .padding(.bottom, 4)
-            .frame(width: Metrics.width)
+            .frame(width: width)
     }
 }
 

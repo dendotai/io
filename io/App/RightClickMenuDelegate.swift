@@ -17,13 +17,18 @@ final class RightClickMenuDelegate: NSObject, NSMenuDelegate {
         if let updateTitle = updater.updateTitle {
             menu.addItem(item(updateTitle, #selector(installUpdate)))
         }
-        menu.addItem(.separator())
-        let openAtLogin = NSMenuItem()
-        let row = NSHostingView(rootView: OpenAtLoginRow())
-        row.setFrameSize(row.fittingSize)
-        openAtLogin.view = row
-        menu.addItem(openAtLogin)
+        // The panel's line above the settings rows, in place of AppKit's shorter separator.
+        menu.addItem(viewItem(PanelSeparator(inset: Metrics.edgeInset, width: Metrics.rightClickMenuWidth)))
+        menu.addItem(viewItem(OpenAtLoginRow()))
         menu.addItem(item("Quit io", #selector(quit)))
+    }
+
+    private func viewItem(_ view: some View) -> NSMenuItem {
+        let hosting = NSHostingView(rootView: view)
+        hosting.setFrameSize(hosting.fittingSize)
+        let item = NSMenuItem()
+        item.view = hosting
+        return item
     }
 
     func menuDidClose(_: NSMenu) {
