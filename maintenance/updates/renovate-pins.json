@@ -1,9 +1,4 @@
 [
-  { "file": ".github/workflows/dependency-submission.yml", "depName": "renovate" },
-  { "file": ".github/workflows/release.yml", "depName": "semantic-release" },
-  { "file": ".github/workflows/release.yml", "depName": "@semantic-release/exec" },
-  { "file": ".github/workflows/test.yml", "depName": "semantic-release" },
-  { "file": ".github/workflows/test.yml", "depName": "@semantic-release/exec" },
   {
     "file": "io.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     "depName": "sparkle-project/Sparkle"

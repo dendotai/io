@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "dependencies": {
+    "@semantic-release/exec": "7.1.0",
+    "renovate": "44.224.1",
+    "semantic-release": "25.0.9"
+  }
+}
