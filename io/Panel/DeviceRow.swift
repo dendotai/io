@@ -61,6 +61,7 @@ struct DeviceRowLabel: View {
     var hide: (() -> Void)?
     /// nil in the drag layer, where the ⌄ only shows.
     var toggleListeningModes: (() -> Void)?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HoverRow(
@@ -94,8 +95,12 @@ struct DeviceRowLabel: View {
     private var identity: some View {
         HStack(spacing: 8) {
             Image(systemName: row.symbolName)
-                .font(.system(size: Metrics.glyphSize))
-                .foregroundStyle(row.isInUse ? Color.white : Color.primary.opacity(0.5))
+                .font(.system(size: Metrics.glyphSize, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(row.isInUse ? Color.white : Color(
+                    white: colorScheme == .dark ? Metrics.notInUseGlyphGreyDark : Metrics.notInUseGlyphGreyLight
+                ))
+                .blendMode(row.isInUse ? .normal : colorScheme == .dark ? .plusLighter : .plusDarker)
                 .frame(width: Metrics.iconSize, height: Metrics.iconSize)
                 .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
                 .accessibilityHidden(true)

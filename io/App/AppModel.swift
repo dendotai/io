@@ -185,8 +185,11 @@ final class AppModel {
         batteryLevelsByName = AirPodsBattery.levels()
         readListeningModes()
         var symbols = symbols
-        for device in reported.values.joined() {
-            symbols[device.device.uid] = device.symbolName
+        for (direction, devices) in reported {
+            for device in devices {
+                symbols[DeviceSymbolStore.key(uid: device.device.uid, direction)] = device.symbolName
+                symbols[device.device.uid] = nil
+            }
         }
         if symbols != self.symbols {
             self.symbols = symbols
@@ -266,7 +269,8 @@ final class AppModel {
                     isConnected: isConnected,
                     isInUse: device.uid == inUse?.device.uid,
                     canHide: list.canHide(device),
-                    symbolName: symbols[device.uid] ?? DeviceSymbol.fallback(direction),
+                    symbolName: DeviceSymbolStore.symbol(in: symbols, uid: device.uid, direction)
+                        ?? DeviceSymbol.fallback(direction),
                     batteryLevels: isConnectedOutput ? batteryLevelsByName[device.name] : nil,
                     listening: listening,
                     isFoldedOpen: listening != nil && foldedOpenUIDs.contains(device.uid)

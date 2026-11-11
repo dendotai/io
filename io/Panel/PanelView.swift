@@ -12,6 +12,9 @@ enum Metrics {
     static let menuRowHeight: CGFloat = 22
     static let iconSize: CGFloat = 26
     static let glyphSize: CGFloat = 13
+    // The "Icon glyph, a row not in use" in `docs/sound-menu.md`: the Sound menu adds 76 to its circle in each channel in Dark Mode (plus lighter) and takes 102 off in Light Mode (plus darker), over any background.
+    static let notInUseGlyphGreyDark: CGFloat = 76 / 255
+    static let notInUseGlyphGreyLight: CGFloat = 153 / 255
     static let trackHeight: CGFloat = 6
     static let knobWidth: CGFloat = 20
     static let knobHeight: CGFloat = 16
