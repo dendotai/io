@@ -1,4 +1,3 @@
-import Foundation
 import IOKit.ps
 import notify
 import Priority

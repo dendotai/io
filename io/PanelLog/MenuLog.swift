@@ -207,7 +207,6 @@ private final class SystemEventTap {
     /// On while the panel shows; the callback switches the tap on again only then, because the switch-off at close reports as a disable too.
     nonisolated(unsafe) static var isWanted = false
     private var thread: Thread?
-    private var isReported = false
 
     func enable() {
         Self.isWanted = true

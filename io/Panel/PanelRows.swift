@@ -1,4 +1,3 @@
-import Priority
 import SwiftUI
 
 struct PanelSeparator: View {

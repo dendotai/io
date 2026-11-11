@@ -54,6 +54,13 @@ opt_in_rules:
   - force_unwrapping
   - closure_body_length
 
+# `swiftlint analyze` runs only these, over a build log (maintenance/code-style/analyze-swift.sh).
+analyzer_rules:
+  - capture_variable
+  - typesafe_array_init
+  - unused_declaration
+  - unused_import
+
 disabled_rules:
   # SwiftFormat owns braces.
   - opening_brace

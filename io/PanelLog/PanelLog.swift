@@ -1,6 +1,5 @@
 import AppKit
-import OSLog
-import SwiftUI
+import os
 
 /// Diagnosis for rows that stay grey (https://github.com/dendotai/io/issues/25). Each line also goes to `~/Library/Logs/io/panel.log` (20 to 40 MB kept, with `panel.1.log`), because the system log holds notices for less than a day on this Mac. A bad open (`BAD-OPEN`) is copied whole, with a state dump, to `cases.log`, which never rotates. Search for `BAD-OPEN`, `MISSED-EXIT`, and `GREY-WITHOUT-POINTER`. `scripts/panel-log/` reads the files.
 nonisolated let panelLog = PanelLogger()

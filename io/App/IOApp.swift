@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct IOApp: App {
+    // SwiftUI reads it through `@NSApplicationDelegateAdaptor`, which no code here names.
+    // swiftlint:disable:next unused_declaration
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     var body: some Scene {
