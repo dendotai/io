@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let updater = AppUpdater()
     private var statusItem: StatusItemController?
     #if DEBUG
-        private var debugPick: DebugPick?
+        private var debugActions: DebugActions?
     #endif
 
     func applicationDidFinishLaunching(_: Notification) {
@@ -38,10 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelLog.notice("launch \(Bundle.main.bundlePath) version \(version) on \(system)")
         LoginItem.registerOnFirstLaunch()
         model.start()
-        #if DEBUG
-            debugPick = DebugPick(model: model)
-        #endif
         updater.start()
         statusItem = StatusItemController(model: model, updater: updater)
+        #if DEBUG
+            debugActions = DebugActions(model: model) { [weak self] in self?.statusItem?.openPanel() }
+        #endif
     }
 }
