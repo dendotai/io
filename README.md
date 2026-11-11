@@ -20,7 +20,7 @@ Out of scope:
 
 - The format label and the playing app's icon from the Sound menu's header, because macOS gives no public or reliable way to read them.
 - Changing the device outside io while io runs, such as in the Sound menu or from another app: io moves it back to the device it chose. macOS also moves the output on its own, and it gives no public or reliable way to tell those moves from a click.
-- AirPlay speakers, because macOS gives no public or reliable way to list them or send system sound to them.
+- AirPlay speakers, because macOS gives no public way to send system sound to them, and the only working route, a click on the Sound menu through Accessibility, is not reliable; the routes tested are in [`docs/airplay.md`](docs/airplay.md).
 
 ## Install
 
