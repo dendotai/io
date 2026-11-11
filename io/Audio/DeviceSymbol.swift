@@ -13,23 +13,23 @@ enum DeviceSymbol {
     }
 
     /// Core Audio reports a Bluetooth device's model UID as "<product ID> <vendor ID>" in hex, such as "2027 4c".
-    /// The headphone jack's devices report the built-in transport too, so `isBuiltIn` tells the Mac's own speakers and microphone apart from them.
-    static func name(direction: Direction, transportType: UInt32, isBuiltIn: Bool, name: String,
-                     modelUID: String?) -> String
-    {
+    /// The headphone jack's devices report the built-in transport too, so `device.isBuiltIn` tells the Mac's own speakers and microphone apart from them.
+    static func name(direction: Direction, transportType: UInt32, device: Device, modelUID: String?) -> String {
         switch transportType {
         case kAudioDeviceTransportTypeBuiltIn:
             // The Sound menu shows a laptop for "External Microphone"; io shows the `headphones` of its "External Headphones" instead.
-            return isBuiltIn ? builtInDevice : "headphones"
+            return device.isBuiltIn ? builtInDevice : "headphones"
         case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort:
             return "display"
         case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeThunderbolt:
             // Studio Display reports USB, and only its name tells it from other USB audio.
-            return name.localizedCaseInsensitiveContains("Display") ? "display" : fallback(direction)
+            return device.name.localizedCaseInsensitiveContains("Display") ? "display" : fallback(direction)
         case kAudioDeviceTransportTypeAirPlay:
+            // The Sound menu shows one row per AirPlay receiver with its own symbol; Core Audio gives io no receiver, so io's one AirPlay row shows the generic symbol.
             return "airplay.audio"
         case kAudioDeviceTransportTypeContinuityCaptureWired, kAudioDeviceTransportTypeContinuityCaptureWireless:
-            return "iphone"
+            // The Sound menu shows `mic.fill` for an iPhone's microphone; io shows the iPhone's own generation instead, so two iPhones look apart.
+            return ContinuityCameras.modelCode(ofMicrophone: device.uid).map(IPhoneSymbol.of(modelCode:)) ?? "iphone"
         case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
             let parts = modelUID?.split(separator: " ") ?? []
             guard parts.count == 2, parts[1].lowercased() == "4c", let productID = Int(parts[0], radix: 16) else {
@@ -91,13 +91,23 @@ enum DeviceSymbol {
 
 /// Each device's symbol by UID, because macOS stops reporting a device's transport type and model once it disconnects.
 struct DeviceSymbolStore {
-    private let key = "deviceSymbols"
+    private let defaultsKey = "deviceSymbols"
+
+    /// One device can have both an output and an input, such as a USB sound card, and its symbol differs between them.
+    static func key(uid: String, _ direction: Direction) -> String {
+        "\(direction):\(uid)"
+    }
+
+    /// A key with no direction, the UID alone, is what earlier versions saved, so a device not reported since then still has its symbol.
+    static func symbol(in symbols: [String: String], uid: String, _ direction: Direction) -> String? {
+        symbols[key(uid: uid, direction)] ?? symbols[uid]
+    }
 
     func load() -> [String: String] {
-        UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+        UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: String] ?? [:]
     }
 
     func save(_ symbols: [String: String]) {
-        UserDefaults.standard.set(symbols, forKey: key)
+        UserDefaults.standard.set(symbols, forKey: defaultsKey)
     }
 }

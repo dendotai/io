@@ -44,11 +44,11 @@ enum AudioDevices {
         let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
         let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource
             .map(builtInDataSources.contains) == true
+        let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
         let symbolName = DeviceSymbol.name(
-            direction: direction, transportType: transport, isBuiltIn: isBuiltIn, name: name,
+            direction: direction, transportType: transport, device: device,
             modelUID: string(id, kAudioDevicePropertyModelUID)
         )
-        let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
         return Reported(
             id: id, device: device, symbolName: symbolName,
             isAggregateOrVirtual: aggregateOrVirtualTransports.contains(transport)
