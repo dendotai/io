@@ -29,8 +29,21 @@ A route that makes an AirPlay device the system output, the way a pick in the So
 - **MediaRemote:** `MRAVOutputContextGetSharedSystemAudioContext` returns nil; `MRAVRoutingDiscoverySession` lists 0 devices, with `Missing entitlement com.apple.mediaremote.remote-control-discovery`; `MRMediaRemoteFindAndPickRoute` fails with `ClientNotEntitled` (code 130).
 - **Control Center's entitlements on an ad hoc signed probe:** `com.apple.avfoundation.allow-system-wide-context`, `com.apple.avfoundation.allows-access-to-device-list`, `com.apple.avfoundation.allows-set-output-device` and `com.apple.mediaremote.send-commands` are each restricted. AMFI kills the probe at launch: `The file is adhoc signed but contains restricted entitlements`. A Developer ID build cannot hold them without a profile from Apple.
 
+## How other apps do it
+
+- **SoundSource 6** (Rogue Amoeba, macOS 15 and later) sends all system sound to an "output group" of AirPlay devices set as its System Output. Rogue Amoeba does not say how; its manual asks for the Accessibility and Local Network permissions.
+- **Keyboard Maestro** ("Set Sound Output" macro) and AppleScripts on Stack Overflow click Control Center through Accessibility, as in the route that works above; one such script broke on macOS 26.
+- **Raycast** `audio-device` clicked the Sound settings pane through Accessibility; it broke on macOS 13 and the setting was removed in 2025.
+- **eqMac** processes sound that already goes to AirPlay; you pick AirPlay in the Sound menu.
+- **BetterTouchTool** picks Core Audio devices only, so AirPlay works only after a pick in the Sound menu; its forum scripts reach the Music app's AirPlay devices only.
+
+## Apple's documentation
+
+- No public API, Shortcuts action, or entitlement sets the system output to AirPlay.
+- `AVRoutePickerView` and `AVPlayer.audioOutputDeviceUniqueID` route only the app's own player. `AVAudioSession` and `MPVolumeView` do not exist on macOS. `AVRouting`, `AVRouteDetector`, and `MPRemoteCommandCenter` do not choose an output.
+- On the developer forums, Apple staff asked a poster to file a feedback request (thread 698988).
+
 ## Not tested
 
+- The Shortcuts "Set Playback Destination" action on macOS.
 - A spoofed entitlement answer through `DYLD_INSERT_LIBRARIES`, as in lingyired/status-trio, which only reads the route. A notarized io with the hardened runtime cannot load such a library.
-- SoundSource, eqMac, BetterTouchTool, Raycast extensions, and the Shortcuts "Set Playback Destination" action.
-- Apple's documentation and developer forums.
