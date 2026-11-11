@@ -85,6 +85,12 @@ final class StatusItemController {
         #endif
     }
 
+    #if DEBUG
+        func openPanel() {
+            statusItem.button?.performClick(nil)
+        }
+    #endif
+
     /// The panel stays set as `statusItem.menu`, so a hover from another menu bar menu opens it (ADR 0001); a right-click swaps the menu just before the native click opens it. AppKit reports a Control-click here as a `rightMouseDown` too. If a later macOS stops this event, a right-click opens the panel (https://developer.apple.com/forums/thread/832823).
     private func watchRightClicks() {
         NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in

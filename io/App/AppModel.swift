@@ -65,11 +65,6 @@ final class AppModel {
             readDevices()
             updateRows()
         }
-
-        func pickOutput(named name: String) {
-            guard let row = rows[.output]?.first(where: { $0.isConnected && $0.device.name == name }) else { return }
-            use(row.device, in: .output)
-        }
     #endif
 
     func use(_ device: Device, in direction: Direction) {

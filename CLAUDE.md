@@ -10,6 +10,8 @@ A value copied from the Sound menu comes from `docs/sound-menu.md` (ADR 0002); a
 
 A comparison of a Debug build's icon with the Sound icon first hides the Debug mark with `defaults write ai.den.io hideDebugMark -bool true`; `defaults delete ai.den.io hideDebugMark` shows it again.
 
+A check that opens the panel, picks, or hides a device in a Debug build uses the `defaults` keys in `io/Debug/DebugActions.swift`, because on macOS 27 the menu bar icon has no window and no Accessibility element while the panel is closed.
+
 ## Version pins
 
 A change that adds, moves, renames or reshapes a line a `customManagers` rule in `renovate.json` reads updates `renovate.json` and `maintenance/updates/renovate-pins.json` in the same commit, because Renovate skips a version pin it cannot find and reports no error. The `dependency-submission` workflow, on each push to `dev`, opens a `needs-human` issue when Renovate missed one. What counts as a version pin, and the ones with no update rule, are in `maintenance/updates/README.md`.
