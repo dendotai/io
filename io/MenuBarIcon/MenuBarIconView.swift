@@ -52,6 +52,11 @@ final class MenuBarIconView: NSView {
         case .output, .symbol:
             replace(with: icon.symbol, magic: Self.isSlashPair(shown.symbol.name, icon.symbol.name))
         }
+        // The menu bar of a screen not in use shows a copy that AppKit draws from the button after the button redraws, with no animation; a change made only in Core Animation never redraws the button. The second redraw comes after the menu bar's block on io's commits after an output change.
+        superview?.needsDisplay = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.superview?.needsDisplay = true
+        }
     }
 
     /// The lengths, in seconds, and scales of the system's replace by layer, each from the replace paragraph of Size, spacing, and animations in `docs/sound-menu.md`: the old symbol's accents wipe or shrink while its base scales down to about 0.4, where, after an empty frame, the new base takes over and grows out; a slash line shrinks slowly towards its lower end; the headphones' slash springs in and out while the headphones stay.
