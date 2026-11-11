@@ -26,6 +26,8 @@ enum DeviceSymbol {
         case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeThunderbolt:
             // Studio Display reports USB, and only its name tells it from other USB audio.
             return name.localizedCaseInsensitiveContains("Display") ? "display" : fallback(direction)
+        case kAudioDeviceTransportTypeAirPlay:
+            return "airplay.audio"
         case kAudioDeviceTransportTypeContinuityCaptureWired, kAudioDeviceTransportTypeContinuityCaptureWireless:
             return "iphone"
         case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:

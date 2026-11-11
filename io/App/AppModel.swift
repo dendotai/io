@@ -5,21 +5,6 @@ import Priority
 
 @Observable
 final class AppModel {
-    struct Row: Identifiable {
-        let device: Device
-        let isConnected: Bool
-        let isInUse: Bool
-        let canHide: Bool
-        let symbolName: String
-        let batteryLevels: BatteryLevels?
-        /// nil when the row has no ⌄: not connected AirPods with noise cancellation, or the setting stopped answering.
-        let listening: AirPodsListeningMode.State?
-        let isFoldedOpen: Bool
-        var id: String {
-            device.uid
-        }
-    }
-
     private(set) var rows: [Direction: [Row]] = [:]
     private(set) var canEndHandPick: [Direction: Bool] = [:]
     private(set) var inUseSymbolName = DeviceSymbol.speaker
@@ -47,6 +32,7 @@ final class AppModel {
         input: DeviceList(newDevices: .bottom, store: UserDefaultsStore(key: "inputList"))
     )
     @ObservationIgnored private var reported: [Direction: [AudioDevices.Reported]] = [:]
+    @ObservationIgnored private var airPlayOutput: AudioDevices.Reported?
     /// Read when a device or a power source changes, so opening the panel reads nothing.
     @ObservationIgnored private var batteryLevelsByName: [String: BatteryLevels] = [:]
     @ObservationIgnored private var listeningModesByAddress: [String: AirPodsListeningMode.State] = [:]
@@ -98,8 +84,10 @@ final class AppModel {
         updateRows()
     }
 
+    /// `index` is a place among the rows, so the rows above the device list, such as the AirPlay row, are left out of it.
     func reorder(_ device: Device, to index: Int, in direction: Direction) {
-        switcher.reorder(device, to: index, in: direction)
+        let rowsAboveList = rows[direction]?.prefix { !$0.canReorder }.count ?? 0
+        switcher.reorder(device, to: index - rowsAboveList, in: direction)
         switchToChosenDevices()
         updateRows()
     }
@@ -193,6 +181,7 @@ final class AppModel {
         for direction in Direction.allCases {
             reported[direction] = AudioDevices.devices(direction)
         }
+        airPlayOutput = AudioDevices.airPlayOutput()
         batteryLevelsByName = AirPodsBattery.levels()
         readListeningModes()
         var symbols = symbols
@@ -205,7 +194,9 @@ final class AppModel {
         }
         switcher.devicesChanged(
             connected: reported.mapValues { $0.map(\.device) },
-            inUse: inUse()
+            inUse: inUse(),
+            placedAtBottom: reported.mapValues { Set($0.filter(\.isAggregateOrVirtual).map(\.device.uid)) },
+            airPlayOutput: airPlayOutput?.device
         )
     }
 
@@ -234,10 +225,17 @@ final class AppModel {
         return inUse
     }
 
+    /// The reported devices and the AirPlay output, which `AudioDevices.devices` leaves out because it is never a remembered device.
+    private func reportedWithAirPlay(_ direction: Direction) -> [AudioDevices.Reported] {
+        let devices = reported[direction] ?? []
+        guard direction == .output, let airPlayOutput else { return devices }
+        return devices + [airPlayOutput]
+    }
+
     private func switchToChosenDevices() {
         for direction in Direction.allCases {
             guard let chosen = switcher.chosenDevice(direction),
-                  let id = reported[direction]?.first(where: { $0.device.uid == chosen.uid })?.id,
+                  let id = reportedWithAirPlay(direction).first(where: { $0.device.uid == chosen.uid })?.id,
                   id != AudioDevices.defaultDeviceID(direction)
             else { continue }
             AudioDevices.setDefaultDevice(id, direction)
@@ -249,13 +247,16 @@ final class AppModel {
             let list = switcher.list(direction)
             canEndHandPick[direction] = list.canEndHandPick
             let defaultID = AudioDevices.defaultDeviceID(direction)
-            let inUse = reported[direction]?.first { $0.id == defaultID }
+            let inUse = reportedWithAirPlay(direction).first { $0.id == defaultID }
             if direction == .output {
                 inUseSymbolName = inUse?.symbolName ?? DeviceSymbol.speaker
                 inUseOutputUID = inUse?.device.uid
                 observeVolume(of: inUse?.id)
             }
-            rows[direction] = list.devices.map { device in
+            let airPlayRows = list.airPlayPick.map {
+                [Row.airPlay($0, symbolName: airPlayOutput?.symbolName ?? DeviceSymbol.speaker)]
+            } ?? []
+            rows[direction] = airPlayRows + list.devices.map { device in
                 let isConnected = list.connectedUIDs.contains(device.uid)
                 let isConnectedOutput = isConnected && direction == .output
                 let listening = isConnectedOutput ? listeningModesByAddress[AirPodsListeningMode.address(of: device)] :

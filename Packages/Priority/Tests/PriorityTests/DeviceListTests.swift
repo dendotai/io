@@ -16,6 +16,7 @@ final class MemoryStore: DeviceListStore {
 let speakers = Device(uid: "speakers", name: "MacBook Pro Speakers")
 let airPods = Device(uid: "airpods-1", name: "AirPods Pro")
 let display = Device(uid: "display", name: "Studio Display")
+let full = Device(uid: "~:AMS2_StackedOutput:0", name: "Full")
 
 @Test func newOutputGoesToTheTop() {
     let list = DeviceList(newDevices: .top, store: MemoryStore())
@@ -380,4 +381,20 @@ let builtInSpeakers = Device(uid: "built-in-speakers", name: "MacBook Pro Speake
     list.pick(speakers)
     list.reorder(speakers, to: 0)
     #expect(!list.canEndHandPick)
+}
+
+@Test func newDevicePlacedAtBottomGoesToTheBottomOfATopList() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, full], placedAtBottom: [full.uid])
+    #expect(list.devices == [speakers, full])
+    #expect(list.chosenDevice == speakers)
+}
+
+@Test func aDevicePlacedAtBottomKeepsAPlaceItWasMovedTo() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers, full], placedAtBottom: [full.uid])
+    list.reorder(full, to: 0)
+    list.update(connected: [speakers, full], placedAtBottom: [full.uid])
+    #expect(list.devices == [full, speakers])
 }

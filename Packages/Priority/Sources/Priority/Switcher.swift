@@ -3,7 +3,7 @@ public enum Direction: CaseIterable, Sendable {
     case input
 }
 
-/// A hand pick comes only from the panel, so a default change by another process never changes the chosen device.
+/// A hand pick comes only from the panel, so a default change by another process never changes the chosen device, except an AirPlay pick.
 public final class Switcher {
     private let output: DeviceList
     private let input: DeviceList
@@ -27,10 +27,20 @@ public final class Switcher {
         list(direction).chosenDevice
     }
 
-    /// Takes every device macOS reports as connected now, and the defaults in use.
-    public func devicesChanged(connected: [Direction: [Device]], inUse: [Direction: Device]) {
+    /// Takes every device macOS reports as connected now, the defaults in use, the UIDs that go to the bottom when new, and the AirPlay output in use.
+    public func devicesChanged(
+        connected: [Direction: [Device]],
+        inUse: [Direction: Device],
+        placedAtBottom: [Direction: Set<String>] = [:],
+        airPlayOutput: Device? = nil
+    ) {
         for direction in Direction.allCases {
-            list(direction).update(connected: connected[direction] ?? [], inUse: inUse[direction])
+            list(direction).update(
+                connected: connected[direction] ?? [],
+                inUse: inUse[direction],
+                placedAtBottom: placedAtBottom[direction] ?? [],
+                airPlay: direction == .output ? airPlayOutput : nil
+            )
         }
     }
 

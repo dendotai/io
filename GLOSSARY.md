@@ -40,7 +40,10 @@ A click on a device in the panel. The device stays in use until it disconnects, 
 _Avoid_: override, manual mode
 
 **Back to Auto**:
-The clickable text in the header of a device list's section, shown while the device in use is not the highest connected device there. A click ends the hand pick, so the highest connected device is in use again.
+The clickable text in the header of a device list's section, shown while the device in use is not the highest connected device there. A click ends the hand pick or the AirPlay pick, so the highest connected device is in use again.
+
+**AirPlay pick**:
+A pick of an AirPlay device in the Sound menu or Control Center, which io leaves in use.
 
 **Hide**:
 Removing a disconnected remembered device from its list.

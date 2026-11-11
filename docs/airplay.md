@@ -5,9 +5,10 @@ A route that makes an AirPlay device the system output, the way a pick in the So
 ## What a pick in the Sound menu does
 
 - ControlCenter sends the pick, and `audiomxd` sets the output: `SetData:kAudioHardwarePropertyDefaultOutputDevice transient to <context UUID>-<n>-Audio`, then `Core audio route changed to [AirPlay, …]`.
-- Core Audio lists the AirPlay device only from that moment. Its UID ends in `-Audio`, the number changes on each pick, and the device is gone once the output moves away.
+- Core Audio lists the AirPlay device only from that moment: transport type `airp` (`kAudioDeviceTransportTypeAirPlay`), name "AirPlay", not hidden. Its UID ends in `-Audio`, the number changes on each pick, and the device is gone once the output moves away. Core Audio gives no receiver name.
+- A pick of a second AirPlay device replaces the first. Between the two, the output is MacBook Pro Speakers for 0.2 to 0.4 s.
 - A pick of several outputs sets an aggregate device, `~:AMS2_StackedOutput:0`, named "Full".
-- io moves the output back 2 to 55 ms after each pick, because it leaves out the AirPlay transport type.
+- io leaves an output with the transport type `airp` in use, as an AirPlay pick (`GLOSSARY.md`).
 
 ## Route that works
 
