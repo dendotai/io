@@ -8,6 +8,7 @@ enum AudioDevices {
         let id: AudioDeviceID
         let device: Device
         let symbolName: String
+        let isAggregateOrVirtual: Bool
     }
 
     private static let system = AudioObjectID(kAudioObjectSystemObject)
@@ -21,20 +22,37 @@ enum AudioDevices {
 
         return ids.compactMap { id in
             let transport = transportType(id)
-            guard hasStreams(id, direction), !isHidden(id), !excludedTransports.contains(transport),
-                  let uid = string(id, kAudioDevicePropertyDeviceUID),
-                  let name = string(id, kAudioObjectPropertyName)
-            else { return nil }
-            let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
-            let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource
-                .map(builtInDataSources.contains) == true
-            let symbolName = DeviceSymbol.name(
-                direction: direction, transportType: transport, isBuiltIn: isBuiltIn, name: name,
-                modelUID: string(id, kAudioDevicePropertyModelUID)
-            )
-            let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
-            return Reported(id: id, device: device, symbolName: symbolName)
+            guard hasStreams(id, direction), !isHidden(id), transport != kAudioDeviceTransportTypeAirPlay else {
+                return nil
+            }
+            return reported(id, transport: transport, direction)
         }
+    }
+
+    /// The output in use when it is an AirPlay device. macOS lists such a device only while it is the output, after a pick in the Sound menu or Control Center.
+    static func airPlayOutput() -> Reported? {
+        guard let id = defaultDeviceID(.output), transportType(id) == kAudioDeviceTransportTypeAirPlay else {
+            return nil
+        }
+        return reported(id, transport: kAudioDeviceTransportTypeAirPlay, .output)
+    }
+
+    private static func reported(_ id: AudioDeviceID, transport: UInt32, _ direction: Direction) -> Reported? {
+        guard let uid = string(id, kAudioDevicePropertyDeviceUID),
+              let name = string(id, kAudioObjectPropertyName)
+        else { return nil }
+        let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
+        let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource
+            .map(builtInDataSources.contains) == true
+        let symbolName = DeviceSymbol.name(
+            direction: direction, transportType: transport, isBuiltIn: isBuiltIn, name: name,
+            modelUID: string(id, kAudioDevicePropertyModelUID)
+        )
+        let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
+        return Reported(
+            id: id, device: device, symbolName: symbolName,
+            isAggregateOrVirtual: aggregateOrVirtualTransports.contains(transport)
+        )
     }
 
     static func defaultDeviceID(_ direction: Direction) -> AudioDeviceID? {
@@ -128,11 +146,10 @@ enum AudioDevices {
         }
     }
 
-    private static let excludedTransports: Set<UInt32> = [
+    private static let aggregateOrVirtualTransports: Set<UInt32> = [
         kAudioDeviceTransportTypeVirtual,
         kAudioDeviceTransportTypeAggregate,
         kAudioDeviceTransportTypeAutoAggregate,
-        kAudioDeviceTransportTypeAirPlay,
     ]
 
     /// The headphone jack's devices also report the built-in transport type; only the speakers and the microphone are always there.

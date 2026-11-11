@@ -38,7 +38,11 @@ struct DeviceRow: View {
 
     private func reorderOrUse(_ row: AppModel.Row) -> some Gesture {
         DragGesture(minimumDistance: Metrics.dragThreshold, coordinateSpace: .global)
-            .onChanged { dragActions?.changed(device, direction, $0.translation.height) }
+            .onChanged {
+                if row.canReorder {
+                    dragActions?.changed(device, direction, $0.translation.height)
+                }
+            }
             .exclusively(before: TapGesture().onEnded { use(row) })
     }
 
@@ -224,7 +228,12 @@ private struct SingleBatteryLevel: View {
     func targetIndex(in rows: [AppModel.Row]) -> Int? {
         guard let from = rows.firstIndex(where: { $0.id == uid }) else { return nil }
         let shift = Int((translation / Metrics.deviceRowHeight).rounded())
-        return min(max(from + shift, 0), rows.count - 1)
+        return min(max(from + shift, Self.topIndex(in: rows)), rows.count - 1)
+    }
+
+    /// The highest place a dragged row can reach: under the rows that cannot be reordered, such as the AirPlay row.
+    static func topIndex(in rows: [AppModel.Row]) -> Int {
+        rows.firstIndex(where: \.canReorder) ?? 0
     }
 
     func drop(into model: AppModel) {
@@ -260,7 +269,7 @@ struct DragLayer: View {
         guard let from = rows.firstIndex(where: { $0.id == drag.uid }),
               let target = drag.targetIndex(in: rows) else { return 0 }
         if index == from {
-            let upLimit = -CGFloat(from) * Metrics.deviceRowHeight
+            let upLimit = -CGFloat(from - RowDrag.topIndex(in: rows)) * Metrics.deviceRowHeight
             let downLimit = CGFloat(rows.count - 1 - from) * Metrics.deviceRowHeight
             return min(max(drag.translation, upLimit), downLimit)
         }
