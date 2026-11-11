@@ -2,7 +2,7 @@ import AppKit
 import Priority
 import QuartzCore
 
-/// The menu bar icon: one template image view per symbol layer inside the status item's button, animated by Core Animation. The system's symbol effects commit a frame from io's process for each step, and the menu bar blocks those commits for about 700 ms after an output change while its own Sound icon changes, so they stall; the render server plays a Core Animation animation on its own (`scripts/menu-bar-icon/README.md`).
+/// The menu bar icon: one template image view per symbol layer inside the status item's button, animated by Core Animation. The system's symbol effects commit a frame from io's process for each step, and the menu bar blocks those commits for about 700 ms after an output change while its own Sound icon changes, so they stall; the render server plays a Core Animation animation on its own.
 final class MenuBarIconView: NSView {
     private var shown: MenuBarIcon?
     /// The shown symbol's pieces, in `MenuBarIconPieces` order.
