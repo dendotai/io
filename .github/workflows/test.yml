@@ -26,8 +26,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ hashFiles('tools.toml') }}
+
+      - run: maintenance/tools/install-tools.sh
+
       # This build is never uploaded, so it needs no real version.
       - run: scripts/build-app.sh 0.0.0 "$RUNNER_TEMP/build-output"
+
+      # The analyzer rules need a full build log, so they run here on this build's log instead of in a job of their own.
+      - run: maintenance/code-style/analyze-swift.sh "$RUNNER_TEMP/build-output/xcodebuild.log"
 
   # `format-swift` and `lint-swift` run the same scripts as `bun run format` and `bun run lint`, with the tool versions in tools.toml, never the runner's preinstalled SwiftFormat.
   format-swift:

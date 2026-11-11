@@ -6,8 +6,10 @@ import Sparkle
 @Observable
 final class AppUpdater: NSObject, SPUUserDriver {
     private var pendingUpdate: (version: String, reply: (SPUUserUpdateChoice) -> Void)?
-    /// Held only to keep Sparkle running.
-    @ObservationIgnored private var updater: SPUUpdater?
+    #if PUBLISHED_RELEASE
+        /// Held only to keep Sparkle running.
+        @ObservationIgnored private var updater: SPUUpdater?
+    #endif
 
     var availableVersion: String? {
         pendingUpdate?.version
