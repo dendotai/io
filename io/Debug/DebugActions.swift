@@ -23,7 +23,8 @@
             ]
             observations = paths.map {
                 UserDefaults.standard.observe($0, options: [.initial]) { @Sendable [weak self] _, _ in
-                    Task { @MainActor in self?.run() }
+                    // Not a main-actor `Task`: the panel opened here tracks inside the job that opened it, and the main queue runs no other job until it closes. Common modes include the panel's tracking mode.
+                    RunLoop.main.perform(inModes: [.common]) { MainActor.assumeIsolated { self?.run() } }
                 }
             }
         }
