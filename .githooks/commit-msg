@@ -1,0 +1,3 @@
+#!/bin/sh
+# Rejects what the `commitlint` job in .github/workflows/test.yml would reject, because a fix after the push needs a history rewrite.
+exec bunx commitlint --edit "$1"

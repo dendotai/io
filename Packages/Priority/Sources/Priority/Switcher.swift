@@ -1,70 +1,65 @@
-import Foundation
-
 public enum Direction: CaseIterable, Sendable {
     case output
     case input
 }
 
-/// The Output list and the Input list, and which default changes are the user's picks.
-/// macOS can make a device the default as it connects, and takes the AirPods microphone as the input when the output moves to the AirPods.
-/// Neither is the user's choice, so a default change right after a connect or disconnect, or an input change right after an output change, is not a pick.
-/// Any later default change is a pick in the system Sound menu and becomes the hand pick.
+/// A hand pick comes only from the panel, so a default change by another process never changes the chosen device, except an AirPlay pick.
 public final class Switcher {
-    /// How long after a connect, a disconnect, or an output change a default change still counts as macOS's own switch.
-    public static let macOSSwitchWindow: TimeInterval = 2
+    private let output: DeviceList
+    private let input: DeviceList
 
-    private let lists: [Direction: DeviceList]
-    private var devicesChangedAt = Date.distantPast
-    private var outputChangedAt = Date.distantPast
-    private var outputInUse: Device?
-
+    /// Two separate lists, so a hand pick in one leaves the other alone.
     public init(output: DeviceList, input: DeviceList) {
-        lists = [.output: output, .input: input]
+        self.output = output
+        self.input = input
     }
 
+    /// The Output list or the Input list.
     public func list(_ direction: Direction) -> DeviceList {
-        lists[direction]!
+        switch direction {
+        case .output: output
+        case .input: input
+        }
     }
 
+    /// The device io makes the macOS default for `direction`: the hand pick while it holds, else the highest connected device.
     public func chosenDevice(_ direction: Direction) -> Device? {
         list(direction).chosenDevice
     }
 
-    /// Takes every device macOS reports as connected now, and the defaults in use.
-    public func devicesChanged(connected: [Direction: [Device]], inUse: [Direction: Device], at now: Date) {
+    /// Takes every device macOS reports as connected now, the defaults in use, the UIDs that go to the bottom when new, and the AirPlay output in use.
+    public func devicesChanged(
+        connected: [Direction: [Device]],
+        inUse: [Direction: Device],
+        placedAtBottom: [Direction: Set<String>] = [:],
+        airPlayOutput: Device? = nil
+    ) {
         for direction in Direction.allCases {
-            if list(direction).update(connected: connected[direction] ?? [], inUse: inUse[direction]) {
-                devicesChangedAt = now
-            }
-        }
-        if outputInUse == nil {
-            outputInUse = inUse[.output]
+            list(direction).update(
+                connected: connected[direction] ?? [],
+                inUse: inUse[direction],
+                placedAtBottom: placedAtBottom[direction] ?? [],
+                airPlay: direction == .output ? airPlayOutput : nil
+            )
         }
     }
 
-    /// Takes the defaults in use after macOS reported a change to one of them.
-    public func defaultsChanged(inUse: [Direction: Device], at now: Date) {
-        if inUse[.output] != outputInUse {
-            outputInUse = inUse[.output]
-            outputChangedAt = now
-        }
-        for direction in Direction.allCases {
-            guard let device = inUse[direction], device.uid != chosenDevice(direction)?.uid else { continue }
-            let switchedAt = direction == .input ? max(devicesChangedAt, outputChangedAt) : devicesChangedAt
-            if now.timeIntervalSince(switchedAt) >= Self.macOSSwitchWindow {
-                list(direction).pick(device)
-            }
-        }
-    }
-
+    /// `DeviceList.pick(_:)` in the device list of `direction`.
     public func pick(_ device: Device, in direction: Direction) {
         list(direction).pick(device)
     }
 
+    /// `DeviceList.endHandPick()` in the device list of `direction`.
+    public func endHandPick(in direction: Direction) {
+        list(direction).endHandPick()
+    }
+
+    /// `DeviceList.reorder(_:to:)` in the device list of `direction`.
     public func reorder(_ device: Device, to index: Int, in direction: Direction) {
         list(direction).reorder(device, to: index)
     }
 
+    /// `DeviceList.hide(_:)` in the device list of `direction`.
     public func hide(_ device: Device, in direction: Direction) {
         list(direction).hide(device)
     }

@@ -1,50 +1,32 @@
 #!/usr/bin/env bun
-// Fail when Renovate's last run missed a version pin it is meant to update.
+// Fail when Renovate missed a version pin it is meant to update.
 //
-//   bun maintenance/updates/check-renovate.mjs <report.json>
+//   bun maintenance/updates/check-renovate.mjs <report.json> <unlisted-pins.json>
 //
-// <report.json> is the file Renovate writes with `reportType: file` (https://docs.renovatebot.com/self-hosted-configuration/#reporttype). Renovate skips a line its regex rule cannot match, and a file its ignore presets cover, and reports no error; what this compares is in maintenance/updates/README.md, "The check after each run".
+// <report.json> is the file Renovate writes with `reportType: file` (https://docs.renovatebot.com/self-hosted-configuration/#reporttype). <unlisted-pins.json> receives each pin Renovate found that maintenance/updates/renovate-pins.json lacks, for open-pins-pr.mjs; such a pin fails nothing. Renovate skips a line its regex rule cannot match, and a file its ignore presets cover, and reports no error; what this compares is in maintenance/updates/README.md, "The check on each push".
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { fail, PINS_LIST, pinPlace, readPackageFiles } from "./renovate-report.mjs";
 
-const reportPath = process.argv[2];
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
-
-let report;
-try {
-  report = JSON.parse(readFileSync(reportPath, "utf8"));
-} catch (err) {
-  fail(`Cannot read the Renovate report at ${reportPath}: ${err.message}`);
-}
-// An empty object when the report shape changes (`reportType` is experimental), so every expected place reads as missing.
-const packageFiles = Object.values(report.repositories ?? {})[0]?.packageFiles ?? {};
+const packageFiles = readPackageFiles(process.argv[2]);
 const filesOf = (manager) => new Set((packageFiles[manager] ?? []).map((f) => f.packageFile));
 
 const problems = [];
 
-const place = ({ file, depName }) => `${depName} in ${file}`;
 const listed = new Set(
-  JSON.parse(readFileSync("maintenance/updates/renovate-pins.json", "utf8")).map(place),
+  JSON.parse(readFileSync(PINS_LIST, "utf8")).map(pinPlace),
 );
-const found = new Set(
-  (packageFiles.regex ?? []).flatMap((f) =>
-    f.deps.map((d) => place({ file: f.packageFile, depName: d.depName })),
-  ),
+const foundPins = (packageFiles.regex ?? []).flatMap((f) =>
+  f.deps.map((d) => ({ file: f.packageFile, depName: d.depName })),
 );
+const found = new Set(foundPins.map(pinPlace));
 for (const p of listed)
   if (!found.has(p))
     problems.push(
       `Renovate did not find ${p}: its regex rule in renovate.json no longer matches the line.`,
     );
-for (const p of found)
-  if (!listed.has(p))
-    problems.push(
-      `Renovate found ${p}, which maintenance/updates/renovate-pins.json does not list.`,
-    );
+writeFileSync(process.argv[3], JSON.stringify(foundPins.filter((p) => !listed.has(pinPlace(p)))));
 
 const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean);
 // Renovate leaves a file with nothing to update out of its report, so such a file is not expected there.

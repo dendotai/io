@@ -1,9 +1,18 @@
 [
-  { "file": ".github/workflows/release.yml", "depName": "semantic-release" },
-  { "file": ".github/workflows/test.yml", "depName": "semantic-release" },
   {
     "file": "io.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     "depName": "sparkle-project/Sparkle"
   },
-  { "file": "io.xcodeproj/project.pbxproj", "depName": "sparkle-project/Sparkle" }
+  {
+    "file": "io.xcodeproj/project.pbxproj",
+    "depName": "sparkle-project/Sparkle"
+  },
+  {
+    "file": "tools.toml",
+    "depName": "nicklockwood/SwiftFormat"
+  },
+  {
+    "file": "tools.toml",
+    "depName": "realm/SwiftLint"
+  }
 ]

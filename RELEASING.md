@@ -51,7 +51,7 @@ The `prod` GitHub environment holds them, and only `main` can read it.
 | `ASC_ISSUER_ID`                        | the issuer ID of that key                     |
 | `SPARKLE_EDDSA_PRIVATE_KEY`            | the private key that signs updates            |
 
-The public half of the EdDSA key is `SUPublicEDKey` in `io-Info.plist`. A new key pair locks out every installed app, because an installed app accepts only updates signed with the key it shipped with.
+The public half of the EdDSA key is `SUPublicEDKey` in `io/Info.plist`. A new key pair locks out every installed app, because an installed app accepts only updates signed with the key it shipped with.
 
 ## A local run
 

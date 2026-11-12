@@ -6,25 +6,30 @@ import Priority
 enum DeviceSymbol {
     static let speaker = "speaker.wave.2.fill"
     static let microphone = "mic.fill"
+    private static let builtInDevice = MacSymbol.of(modelCode: modelCode())
 
     static func fallback(_ direction: Direction) -> String {
         direction == .output ? speaker : microphone
     }
 
     /// Core Audio reports a Bluetooth device's model UID as "<product ID> <vendor ID>" in hex, such as "2027 4c".
-    /// The headphone jack's devices report the built-in transport too, so `isBuiltIn` tells the Mac's own speakers and microphone apart from them.
-    static func name(direction: Direction, transportType: UInt32, isBuiltIn: Bool, name: String, modelUID: String?) -> String {
+    /// The headphone jack's devices report the built-in transport too, so `device.isBuiltIn` tells the Mac's own speakers and microphone apart from them.
+    static func name(direction: Direction, transportType: UInt32, device: Device, modelUID: String?) -> String {
         switch transportType {
         case kAudioDeviceTransportTypeBuiltIn:
             // The Sound menu shows a laptop for "External Microphone"; io shows the `headphones` of its "External Headphones" instead.
-            return isBuiltIn ? "laptopcomputer" : "headphones"
+            return device.isBuiltIn ? builtInDevice : "headphones"
         case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort:
             return "display"
         case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeThunderbolt:
             // Studio Display reports USB, and only its name tells it from other USB audio.
-            return name.localizedCaseInsensitiveContains("Display") ? "display" : fallback(direction)
+            return device.name.localizedCaseInsensitiveContains("Display") ? "display" : fallback(direction)
+        case kAudioDeviceTransportTypeAirPlay:
+            // The Sound menu shows one row per AirPlay receiver with its own symbol; Core Audio gives io no receiver, so io's one AirPlay row shows the generic symbol.
+            return "airplay.audio"
         case kAudioDeviceTransportTypeContinuityCaptureWired, kAudioDeviceTransportTypeContinuityCaptureWireless:
-            return "iphone"
+            // The Sound menu shows `mic.fill` for an iPhone's microphone; io shows the iPhone's own generation instead, so two iPhones look apart.
+            return ContinuityCameras.modelCode(ofMicrophone: device.uid).map(IPhoneSymbol.of(modelCode:)) ?? "iphone"
         case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
             let parts = modelUID?.split(separator: " ") ?? []
             guard parts.count == 2, parts[1].lowercased() == "4c", let productID = Int(parts[0], radix: 16) else {
@@ -36,14 +41,21 @@ enum DeviceSymbol {
         }
     }
 
-    /// The Sound menu bar icon shows the headphones in use, and a speaker for every other output (the Mac, a display).
-    static func menuBarName(_ symbolName: String) -> String {
-        ["headphones", "airpods", "beats"].contains { symbolName.hasPrefix($0) } ? symbolName : speaker
+    private static func modelCode() -> String {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        var model = [UInt8](repeating: 0, count: size)
+        sysctlbyname("hw.model", &model, &size, nil, 0)
+        // `hw.model` is ASCII; an empty code gets the generic laptop, as an unknown model does.
+        return String(bytes: model.dropLast(), encoding: .utf8) ?? ""
     }
 
     /// AirPods cases are named "<buds>.chargingcase.wireless.fill" and Beats cases "<buds>.chargingcase.fill"; buds with no case symbol of their own get the AirPods one.
     static func chargingCase(of symbolName: String) -> String {
-        firstExisting(["\(symbolName).chargingcase.wireless.fill", "\(symbolName).chargingcase.fill"]) ?? "airpods.chargingcase.wireless.fill"
+        firstExisting([
+            "\(symbolName).chargingcase.wireless.fill",
+            "\(symbolName).chargingcase.fill",
+        ]) ?? "airpods.chargingcase.wireless.fill"
     }
 
     /// One bud of a pair, such as "airpods.pro.gen3.left"; AirPods 3 name theirs in the singular, "airpod.gen3.left", and a pair with no bud symbols of its own gets the generic bud.
@@ -79,13 +91,23 @@ enum DeviceSymbol {
 
 /// Each device's symbol by UID, because macOS stops reporting a device's transport type and model once it disconnects.
 struct DeviceSymbolStore {
-    private let key = "deviceSymbols"
+    private let defaultsKey = "deviceSymbols"
+
+    /// One device can have both an output and an input, such as a USB sound card, and its symbol differs between them.
+    static func key(uid: String, _ direction: Direction) -> String {
+        "\(direction):\(uid)"
+    }
+
+    /// A key with no direction, the UID alone, is what earlier versions saved, so a device not reported since then still has its symbol.
+    static func symbol(in symbols: [String: String], uid: String, _ direction: Direction) -> String? {
+        symbols[key(uid: uid, direction)] ?? symbols[uid]
+    }
 
     func load() -> [String: String] {
-        UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+        UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: String] ?? [:]
     }
 
     func save(_ symbols: [String: String]) {
-        UserDefaults.standard.set(symbols, forKey: key)
+        UserDefaults.standard.set(symbols, forKey: defaultsKey)
     }
 }

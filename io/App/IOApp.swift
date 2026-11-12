@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct IOApp: App {
+    // SwiftUI reads it through `@NSApplicationDelegateAdaptor`, which no code here names.
+    // swiftlint:disable:next unused_declaration
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     var body: some Scene {
@@ -13,8 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = AppModel()
     private let updater = AppUpdater()
     private var statusItem: StatusItemController?
+    #if DEBUG
+        private var debugActions: DebugActions?
+    #endif
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         #if DEBUG
             // `io -showUpdateVersion <version>` acts as if that update exists, in the rendered panel and in the running app.
             if let version = UserDefaults.standard.string(forKey: "showUpdateVersion") {
@@ -28,10 +33,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
         #endif
-        panelLog.notice("launch \(Bundle.main.bundlePath) version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown") on \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "unknown"
+        let system = ProcessInfo.processInfo.operatingSystemVersionString
+        panelLog.notice("launch \(Bundle.main.bundlePath) version \(version) on \(system)")
         LoginItem.registerOnFirstLaunch()
         model.start()
         updater.start()
         statusItem = StatusItemController(model: model, updater: updater)
+        #if DEBUG
+            debugActions = DebugActions(model: model) { [weak self] in self?.statusItem?.openPanel() }
+        #endif
     }
 }

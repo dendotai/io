@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - run: swift test --package-path Packages/Priority
 
@@ -24,10 +24,53 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ hashFiles('tools.toml') }}
+
+      - run: maintenance/tools/install-tools.sh
 
       # This build is never uploaded, so it needs no real version.
       - run: scripts/build-app.sh 0.0.0 "$RUNNER_TEMP/build-output"
+
+      # The analyzer rules need a full build log, so they run here on this build's log instead of in a job of their own.
+      - run: maintenance/code-style/analyze-swift.sh "$RUNNER_TEMP/build-output/xcodebuild.log"
+
+  # `format-swift` and `lint-swift` run the same scripts as `bun run format` and `bun run lint`, with the tool versions in tools.toml, never the runner's preinstalled SwiftFormat.
+  format-swift:
+    runs-on: xcode-27
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ hashFiles('tools.toml') }}
+
+      - run: maintenance/tools/install-tools.sh
+
+      - run: maintenance/code-style/format-swift.sh --check
+
+  lint-swift:
+    runs-on: xcode-27
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools
+          key: tools-${{ runner.os }}-${{ hashFiles('tools.toml') }}
+
+      - run: maintenance/tools/install-tools.sh
+
+      - run: maintenance/code-style/lint-swift.sh
 
   commitlint:
     if: github.base_ref == 'dev'
@@ -35,7 +78,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # commitlint walks the PR's commit range
 
@@ -53,22 +96,22 @@ jobs:
     permissions:
       contents: write # the dry run still checks it may push (`git push --dry-run`); it pushes nothing
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0 # semantic-release reads every tag and commit since the last release
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22.23.3
+          node-version: 26.13.0
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --cwd .github
 
       # On a pull_request run, semantic-release reads the branch from GitHub's variables as `refs/pull/<n>/merge`, a branch no config lists, and exits before it checks anything. With GITHUB_ACTIONS unset it reads the branch from git instead: the PR head, checked out as a local branch of the same name, which `--branches` makes the release branch for this run.
       - run: |
           git checkout -B "$GITHUB_HEAD_REF"
-          env -u GITHUB_ACTIONS bunx semantic-release@25.0.9 --dry-run --branches "$GITHUB_HEAD_REF"
+          env -u GITHUB_ACTIONS .github/node_modules/.bin/semantic-release --dry-run --branches "$GITHUB_HEAD_REF"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

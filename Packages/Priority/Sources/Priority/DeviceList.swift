@@ -22,8 +22,11 @@ public struct Device: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+/// Keeps a device list across launches.
 public protocol DeviceListStore {
+    /// The saved devices in priority order, or none when no saved list can be read.
     func load() -> [Device]
+    /// Runs after each `update`, `reorder` and `hide`.
     func save(_ devices: [Device])
 }
 
@@ -35,42 +38,66 @@ public enum NewDevicePlacement: Sendable {
 
 /// The remembered devices of the Output list or the Input list in priority order, and the device the app uses.
 public final class DeviceList {
+    /// Every remembered device, connected or not, in priority order.
     public private(set) var devices: [Device]
+    /// The devices macOS reported as connected at the last `update`.
     public private(set) var connectedUIDs: Set<String> = []
     private var handPickUID: String?
+    /// The AirPlay device in use after a pick in the Sound menu or Control Center. It is never a remembered device, because macOS gives it a new UID on each pick.
+    public private(set) var airPlayPick: Device?
     private let newDevicePlacement: NewDevicePlacement
     private let store: DeviceListStore
 
+    /// Loads the remembered devices from `store`.
     public init(newDevices: NewDevicePlacement, store: DeviceListStore) {
-        self.newDevicePlacement = newDevices
+        newDevicePlacement = newDevices
         self.store = store
         devices = store.load()
     }
 
-    /// The hand pick while it holds, else the highest connected device.
+    /// The AirPlay pick while it holds, else the hand pick while it holds, else the highest connected device.
     public var chosenDevice: Device? {
+        if let airPlayPick {
+            return airPlayPick
+        }
         if let handPickUID, let device = devices.first(where: { $0.uid == handPickUID }) {
             return device
         }
-        return devices.first { connectedUIDs.contains($0.uid) }
+        return highestConnectedDevice
+    }
+
+    /// False for a hand pick of the highest connected device, which behaves as no hand pick.
+    public var canEndHandPick: Bool {
+        chosenDevice?.uid != highestConnectedDevice?.uid
+    }
+
+    private var highestConnectedDevice: Device? {
+        devices.first { connectedUIDs.contains($0.uid) }
     }
 
     /// Takes every device macOS reports as connected now. The hand pick ends when the picked device disconnects or a device above it connects.
-    /// Returns true when a device connected or disconnected.
     /// When the list is empty, `inUse` goes first, so the first launch keeps the device macOS uses now.
-    @discardableResult
-    public func update(connected: [Device], inUse: Device? = nil) -> Bool {
+    /// A new device in `placedAtBottom` goes to the bottom whatever the list's placement, so a device an app installs never takes over.
+    /// `airPlay` is the AirPlay device in use now, if any; it holds as the AirPlay pick until it stops, a panel pick, or Back to Auto.
+    public func update(
+        connected: [Device],
+        inUse: Device? = nil,
+        placedAtBottom: Set<String> = [],
+        airPlay: Device? = nil
+    ) {
         let wasEmpty = devices.isEmpty
         let uids = Set(connected.map(\.uid))
-        let changed = uids != connectedUIDs
         let newlyConnectedUIDs = uids.subtracting(connectedUIDs)
         connectedUIDs = uids
 
         var newDevices: [Device] = []
+        var newDevicesAtBottom: [Device] = []
         for device in connected {
             if let index = devices.firstIndex(where: { $0.uid == device.uid }) {
                 devices[index].name = device.name
                 devices[index].isBuiltIn = device.isBuiltIn
+            } else if placedAtBottom.contains(device.uid) {
+                newDevicesAtBottom.append(device)
             } else {
                 newDevices.append(device)
             }
@@ -79,6 +106,8 @@ public final class DeviceList {
         case .top: devices.insert(contentsOf: newDevices, at: 0)
         case .bottom: devices.append(contentsOf: newDevices)
         }
+        devices.append(contentsOf: newDevicesAtBottom)
+        airPlayPick = airPlay
         if wasEmpty, let inUse, let index = devices.firstIndex(where: { $0.uid == inUse.uid }) {
             devices.insert(devices.remove(at: index), at: 0)
         }
@@ -86,7 +115,6 @@ public final class DeviceList {
             self.handPickUID = nil
         }
         store.save(devices)
-        return changed
     }
 
     /// Places the device at `index` among every remembered device, connected or not.
@@ -102,6 +130,7 @@ public final class DeviceList {
         store.save(devices)
     }
 
+    /// Only a disconnected device that is not built in can be hidden.
     public func canHide(_ device: Device) -> Bool {
         guard let remembered = devices.first(where: { $0.uid == device.uid }) else { return false }
         return !remembered.isBuiltIn && !connectedUIDs.contains(device.uid)
@@ -119,9 +148,17 @@ public final class DeviceList {
         return devices.prefix { $0.uid != uid }.contains { newlyConnectedUIDs.contains($0.uid) }
     }
 
+    /// Starts a hand pick of a connected device and ends the AirPlay pick; a disconnected device is ignored.
     public func pick(_ device: Device) {
         guard connectedUIDs.contains(device.uid) else { return }
         handPickUID = device.uid
+        airPlayPick = nil
+    }
+
+    /// Ends the hand pick and the AirPlay pick, so the highest connected device is in use again (Back to Auto).
+    public func endHandPick() {
+        handPickUID = nil
+        airPlayPick = nil
     }
 }
 

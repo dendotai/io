@@ -11,6 +11,10 @@ public enum ListeningMode: UInt8, Sendable {
     /// The modes in the Sound menu's order; empty for a pair with no noise cancellation, which the Sound menu shows no listening mode for.
     public static func supported(productID: UInt16, isANCSupported: Bool) -> [ListeningMode] {
         guard isANCSupported else { return [] }
-        return adaptiveProductIDs.contains(productID) ? [.off, .transparency, .adaptive, .noiseCancellation] : [.off, .transparency, .noiseCancellation]
+        return adaptiveProductIDs.contains(productID) ? [.off, .transparency, .adaptive, .noiseCancellation] : [
+            .off,
+            .transparency,
+            .noiseCancellation,
+        ]
     }
 }

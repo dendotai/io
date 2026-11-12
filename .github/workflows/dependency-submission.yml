@@ -1,0 +1,119 @@
+name: dependency-submission
+
+on:
+  push:
+    branches: [dev]
+  schedule:
+    - cron: "37 3 * * 1" # Mondays, 03:37 UTC
+  workflow_dispatch:
+
+concurrency:
+  # A push cancels an older push run, never the Monday run, which alone reads the advisory lists.
+  group: dependency-submission-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  # Every step of a job holds the job's token, so Renovate's packages run here, with a read-only token, and the writes run in `submit`.
+  extract:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      check: ${{ steps.check.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Renovate exits with an error on a Node version its `engines` field leaves out.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - run: bun install --frozen-lockfile --cwd .github
+
+      - name: List every version pin with Renovate
+        # The local platform reads this checkout and needs no token; extract mode looks up no new versions.
+        run: mkdir renovate-report && .github/node_modules/.bin/renovate --platform=local --dry-run=extract --report-type=file --report-path=renovate-report/report.json
+
+      - name: Check that Renovate found every version pin
+        id: check
+        # `submit` opens the issue, because this job's token cannot write.
+        continue-on-error: true
+        # An explicit `shell: bash` runs with pipefail, so a failing check fails the step through `tee`.
+        shell: bash
+        run: bun maintenance/updates/check-renovate.mjs renovate-report/report.json renovate-report/unlisted-pins.json 2>&1 | tee renovate-report/check-renovate.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: renovate-report
+          path: renovate-report/
+          retention-days: 7
+
+  submit:
+    needs: extract
+    runs-on: ubuntu-24.04
+    permissions:
+      # The dependency submission API takes a snapshot only from a token that can write contents.
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: renovate-report
+          path: renovate-report/
+
+      - name: Send the version pins to the dependency graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          bun maintenance/updates/build-dependency-snapshot.mjs renovate-report/report.json > "$RUNNER_TEMP/snapshot.json"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/dependency-graph/snapshots" --input "$RUNNER_TEMP/snapshot.json"
+
+      - name: Open an issue for each advisory list entry that covers a pinned version
+        if: github.event_name != 'push' && (success() || failure())
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun maintenance/updates/check-advisory-lists.mjs renovate-report/report.json
+
+      - name: Create the app token
+        id: app-token
+        if: hashFiles('renovate-report/unlisted-pins.json') != '' && (success() || failure())
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RENOVATE_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
+
+      - name: Open a PR that lists each version pin the list lacks
+        id: add-missing-pins
+        if: hashFiles('renovate-report/unlisted-pins.json') != '' && (success() || failure())
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: bun maintenance/updates/open-pins-pr.mjs renovate-report/unlisted-pins.json
+
+      - name: Report a missed version pin
+        if: (needs.extract.outputs.check == 'failure' || steps.add-missing-pins.outcome == 'failure') && (success() || failure())
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Renovate missed an expected version pin
+          PR_OUTCOME: ${{ steps.add-missing-pins.outcome }}
+        run: |
+          if [ "$PR_OUTCOME" = failure ]; then
+            echo "Opening the PR for the pins the list lacks failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> renovate-report/check-renovate.txt
+          fi
+          issue=$(gh issue list --state open --label needs-human --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body-file renovate-report/check-renovate.txt
+          else
+            gh issue create --title "$TITLE" --label needs-human --body-file renovate-report/check-renovate.txt
+          fi
+          exit 1

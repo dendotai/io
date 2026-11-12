@@ -6,6 +6,9 @@
     "helpers:pinGitHubActionDigests",
     "group:allNonMajor"
   ],
+  "dependencyDashboard": false,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
   "packageRules": [
     {
       "description": "A closed PR skips the version its title names. The default major title names only the major (`to v5`), so closing it would skip every later v5 release.",
@@ -16,35 +19,32 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "semantic-release runs through bunx, outside package.json, so every line that names its version is bumped here.",
-      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
-      "matchStrings": ["\\bsemantic-release@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
-      "depNameTemplate": "semantic-release",
-      "datasourceTemplate": "npm"
-    },
-    {
-      "customType": "regex",
-      "description": "Renovate's Swift manager reads only Package.swift, and an Xcode project stores its resolved packages here. One match edits revision and version together.",
-      "managerFilePatterns": [
-        "/^io\\.xcodeproj/project\\.xcworkspace/xcshareddata/swiftpm/Package\\.resolved$/"
-      ],
+      "description": "Renovate's Swift manager reads only Package.swift, and an Xcode project stores its resolved packages here. One match edits revision and version together; the name comes from the URL, so any GitHub-hosted package matches.",
+      "managerFilePatterns": ["/(^|/)Package\\.resolved$/"],
       "matchStrings": [
-        "\"location\" : \"https://github\\.com/sparkle-project/Sparkle\",\\s*\"state\" : \\{\\s*\"revision\" : \"(?<currentDigest>[0-9a-f]{40})\",\\s*\"version\" : \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+        "\"location\"\\s*:\\s*\"https://github\\.com/(?<depName>[^\"]+?)(?:\\.git)?\",\\s*\"state\"\\s*:\\s*\\{\\s*\"revision\"\\s*:\\s*\"(?<currentDigest>[0-9a-f]{40})\",\\s*\"version\"\\s*:\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
-      "depNameTemplate": "sparkle-project/Sparkle",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
-      "description": "A move to Sparkle 3 fails `upToNextMajorVersion` unless minimumVersion moves with it. The same depName puts this edit in the same PR as Package.resolved.",
-      "managerFilePatterns": ["/^io\\.xcodeproj/project\\.pbxproj$/"],
+      "description": "A major move fails `upToNextMajorVersion` unless minimumVersion moves with it. The same depName as in Package.resolved puts both edits in one PR.",
+      "managerFilePatterns": ["/(^|/)project\\.pbxproj$/"],
       "matchStrings": [
-        "repositoryURL = \"https://github\\.com/sparkle-project/Sparkle\";\\s*requirement = \\{\\s*kind = upToNextMajorVersion;\\s*minimumVersion = (?<currentValue>\\d+\\.\\d+\\.\\d+);"
+        "repositoryURL = \"https://github\\.com/(?<depName>[^\"]+?)(?:\\.git)?\";\\s*requirement = \\{\\s*kind = upToNextMajorVersion;\\s*minimumVersion = (?<currentValue>\\d+\\.\\d+\\.\\d+);"
       ],
-      "depNameTemplate": "sparkle-project/Sparkle",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Each table in tools.toml is a tool downloaded from a GitHub release; maintenance/tools/install-tools.sh builds the download URL from repo and version, so the version is the release tag.",
+      "managerFilePatterns": ["/(^|/)tools\\.toml$/"],
+      "matchStrings": [
+        "repo\\s*=\\s*\"(?<depName>[^\"]+)\"\\s*\\nversion\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ]
 }

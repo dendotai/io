@@ -1,16 +1,22 @@
 import Foundation
-import Testing
 import Priority
+import Testing
 
 final class MemoryStore: DeviceListStore {
     var saved: [Device] = []
-    func load() -> [Device] { saved }
-    func save(_ devices: [Device]) { saved = devices }
+    func load() -> [Device] {
+        saved
+    }
+
+    func save(_ devices: [Device]) {
+        saved = devices
+    }
 }
 
 let speakers = Device(uid: "speakers", name: "MacBook Pro Speakers")
 let airPods = Device(uid: "airpods-1", name: "AirPods Pro")
 let display = Device(uid: "display", name: "Studio Display")
+let full = Device(uid: "~:AMS2_StackedOutput:0", name: "Full")
 
 @Test func newOutputGoesToTheTop() {
     let list = DeviceList(newDevices: .top, store: MemoryStore())
@@ -49,7 +55,7 @@ let display = Device(uid: "display", name: "Studio Display")
     list.update(connected: [speakers, airPods])
     list.pick(speakers)
     #expect(list.chosenDevice == speakers)
-    #expect(list.update(connected: [speakers, airPods]) == false)
+    list.update(connected: [speakers, airPods])
     #expect(list.chosenDevice == speakers)
 }
 
@@ -318,4 +324,77 @@ let builtInSpeakers = Device(uid: "built-in-speakers", name: "MacBook Pro Speake
 @Test func listSavedWithoutBuiltInStillLoads() throws {
     let data = Data(#"[{"uid":"airpods-1","name":"AirPods Pro"}]"#.utf8)
     #expect(try JSONDecoder().decode([Device].self, from: data) == [airPods])
+}
+
+@Test func endingAHandPickUsesTheHighestConnectedDevice() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    #expect(list.canEndHandPick)
+    list.endHandPick()
+    #expect(list.chosenDevice == airPods)
+    #expect(!list.canEndHandPick)
+}
+
+@Test func endingAHandPickNeverMovesADevice() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    list.endHandPick()
+    #expect(list.devices == [airPods, speakers])
+}
+
+@Test func noHandPickCannotEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    #expect(!list.canEndHandPick)
+}
+
+@Test func pickingTheHighestConnectedDeviceCannotEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    list.pick(airPods)
+    #expect(!list.canEndHandPick)
+}
+
+@Test func aDeviceKeptByAReorderCanEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.reorder(speakers, to: 0)
+    #expect(list.chosenDevice == airPods)
+    #expect(list.canEndHandPick)
+    list.endHandPick()
+    #expect(list.chosenDevice == speakers)
+    #expect(list.devices == [speakers, airPods])
+}
+
+@Test func aReorderThatPutsTheHandPickFirstCannotEnd() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, airPods])
+    list.pick(speakers)
+    list.reorder(speakers, to: 0)
+    #expect(!list.canEndHandPick)
+}
+
+@Test func newDevicePlacedAtBottomGoesToTheBottomOfATopList() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers])
+    list.update(connected: [speakers, full], placedAtBottom: [full.uid])
+    #expect(list.devices == [speakers, full])
+    #expect(list.chosenDevice == speakers)
+}
+
+@Test func aDevicePlacedAtBottomKeepsAPlaceItWasMovedTo() {
+    let list = DeviceList(newDevices: .top, store: MemoryStore())
+    list.update(connected: [speakers, full], placedAtBottom: [full.uid])
+    list.reorder(full, to: 0)
+    list.update(connected: [speakers, full], placedAtBottom: [full.uid])
+    #expect(list.devices == [full, speakers])
 }

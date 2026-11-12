@@ -36,8 +36,14 @@ Dragging a row in the panel to change its priority. It never switches the device
 _Avoid_: sort, rearrange
 
 **Hand pick**:
-A click on a device in the panel or in the system Sound menu. The device stays in use until it disconnects or a device above it connects.
+A click on a device in the panel. The device stays in use until it disconnects, a device above it connects, or Back to Auto is clicked.
 _Avoid_: override, manual mode
+
+**Back to Auto**:
+The clickable text in the header of a device list's section, shown while the device in use is not the highest connected device there. A click ends the hand pick or the AirPlay pick, so the highest connected device is in use again.
+
+**AirPlay pick**:
+A pick of an AirPlay device in the Sound menu or Control Center, which io leaves in use.
 
 **Hide**:
 Removing a disconnected remembered device from its list.
@@ -52,16 +58,22 @@ A click on the ⌄ of a connected AirPods row, which shows its listening mode in
 _Avoid_: unfold, expand
 
 **Battery levels**:
-The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu.
+The charge of a connected pair's buds and of its case, in percent, shown under the pair's name as in the Sound menu. Headphones with one battery, such as AirPods Max, have one level, shown at the right of the row.
 _Avoid_: battery status, charge
 
 **Update**:
 A newer released version of the app, which the app installs in one click.
 _Avoid_: upgrade
 
+**Menu bar icon**:
+io's icon in the menu bar. It shows the same symbol as the Sound icon for the output in use, at every volume and at mute.
+
 **Panel**:
 What opens when you left-click the app's menu bar icon.
 _Avoid_: popup, popover, menu
 
 **Right-click menu**:
-What opens when you right-click the app's menu bar icon. It holds the app's own items, "Open at Login" and "Quit io".
+What opens when you right-click the app's menu bar icon. It holds the app's own items: the version line, "Open at Login" and "Quit io".
+
+**Debug mark**:
+A small mark on the menu bar icon of a Debug build, so it can be told from the installed app. It can be switched off without a rebuild, and a Release build never shows it.

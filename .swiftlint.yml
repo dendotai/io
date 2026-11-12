@@ -1,0 +1,79 @@
+# The default rules, the opt-in rules of kind `lint`, and the opt-in rules below; maintenance/code-style/README.md says why each choice is made.
+
+included:
+  - io
+  - Packages
+  - scripts
+excluded:
+  - Packages/Priority/.build
+  - Packages/Priority/.swiftpm
+
+opt_in_rules:
+  # Opt-in rules of kind `lint`, minus `required_deinit` and the analyzer rules, which `swiftlint lint` never runs.
+  - accessibility_label_for_image
+  - accessibility_trait_for_button
+  - array_init
+  - async_without_await
+  - balanced_xctest_lifecycle
+  - discarded_notification_center_observer
+  - discouraged_default_parameter
+  - empty_xctest_method
+  - expiring_todo
+  - ibinspectable_in_extension
+  - identical_operands
+  - incompatible_concurrency_annotation
+  - local_doc_comment
+  - lower_acl_than_parent
+  - missing_docs
+  - nslocalizedstring_key
+  - nslocalizedstring_require_bundle
+  - overridden_super_call
+  - override_in_extension
+  - private_action
+  - private_outlet
+  - private_subject
+  - private_swiftui_state
+  - prohibited_interface_builder
+  - prohibited_super_call
+  - quick_discouraged_call
+  - quick_discouraged_focused_test
+  - quick_discouraged_pending_test
+  - raw_value_for_camel_cased_codable_enum
+  - required_enum_case
+  - strong_iboutlet
+  - test_case_accessibility
+  - unhandled_throwing_task
+  - unneeded_escaping
+  - unneeded_throws_rethrows
+  - unowned_variable_capture
+  - unused_parameter
+  - variable_shadowing
+  - weak_delegate
+  - yoda_condition
+  # Crash paths and oversize closures.
+  - force_unwrapping
+  - closure_body_length
+
+# `swiftlint analyze` runs only these, over a build log (maintenance/code-style/analyze-swift.sh).
+analyzer_rules:
+  - capture_variable
+  - typesafe_array_init
+  - unused_declaration
+  - unused_import
+
+disabled_rules:
+  # SwiftFormat owns braces.
+  - opening_brace
+
+line_length:
+  ignores_comments: true
+
+trailing_comma:
+  mandatory_comma: true
+
+identifier_name:
+  excluded:
+    - x
+    - y
+    - i
+    - id

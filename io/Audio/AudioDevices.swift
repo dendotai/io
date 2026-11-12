@@ -8,6 +8,7 @@ enum AudioDevices {
         let id: AudioDeviceID
         let device: Device
         let symbolName: String
+        let isAggregateOrVirtual: Bool
     }
 
     private static let system = AudioObjectID(kAudioObjectSystemObject)
@@ -21,25 +22,46 @@ enum AudioDevices {
 
         return ids.compactMap { id in
             let transport = transportType(id)
-            guard hasStreams(id, direction), !isHidden(id), !excludedTransports.contains(transport),
-                let uid = string(id, kAudioDevicePropertyDeviceUID),
-                let name = string(id, kAudioObjectPropertyName)
-            else { return nil }
-            let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
-            let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource.map(builtInDataSources.contains) == true
-            let symbolName = DeviceSymbol.name(
-                direction: direction, transportType: transport, isBuiltIn: isBuiltIn, name: name,
-                modelUID: string(id, kAudioDevicePropertyModelUID))
-            let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
-            return Reported(id: id, device: device, symbolName: symbolName)
+            guard hasStreams(id, direction), !isHidden(id), transport != kAudioDeviceTransportTypeAirPlay else {
+                return nil
+            }
+            return reported(id, transport: transport, direction)
         }
+    }
+
+    /// The output in use when it is an AirPlay device. macOS lists such a device only while it is the output, after a pick in the Sound menu or Control Center.
+    static func airPlayOutput() -> Reported? {
+        guard let id = defaultDeviceID(.output), transportType(id) == kAudioDeviceTransportTypeAirPlay else {
+            return nil
+        }
+        return reported(id, transport: kAudioDeviceTransportTypeAirPlay, .output)
+    }
+
+    private static func reported(_ id: AudioDeviceID, transport: UInt32, _ direction: Direction) -> Reported? {
+        guard let uid = string(id, kAudioDevicePropertyDeviceUID),
+              let name = string(id, kAudioObjectPropertyName)
+        else { return nil }
+        let dataSource = uint32(id, kAudioDevicePropertyDataSource, scope: direction.streamScope)
+        let isBuiltIn = transport == kAudioDeviceTransportTypeBuiltIn && dataSource
+            .map(builtInDataSources.contains) == true
+        let device = Device(uid: uid, name: name, isBuiltIn: isBuiltIn)
+        let symbolName = DeviceSymbol.name(
+            direction: direction, transportType: transport, device: device,
+            modelUID: string(id, kAudioDevicePropertyModelUID)
+        )
+        return Reported(
+            id: id, device: device, symbolName: symbolName,
+            isAggregateOrVirtual: aggregateOrVirtualTransports.contains(transport)
+        )
     }
 
     static func defaultDeviceID(_ direction: Direction) -> AudioDeviceID? {
         var address = address(direction.defaultDeviceSelector)
         var id = AudioDeviceID(0)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &id) == noErr, id != kAudioObjectUnknown else {
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &id) == noErr,
+              id != kAudioObjectUnknown
+        else {
             return nil
         }
         return id
@@ -65,27 +87,53 @@ enum AudioDevices {
 
     static func setVolume(_ volume: Float, _ id: AudioDeviceID) {
         var address = volumeAddress
-        var volume = Float32(volume)
-        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &volume)
+        var value = Float32(volume)
+        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<Float32>.size), &value)
     }
 
-    /// Returns the call that stops the observation, because the volume belongs to one device and the output in use changes.
-    static func observeVolume(_ id: AudioDeviceID, onChange: @escaping @MainActor () -> Void) -> () -> Void {
-        var address = volumeAddress
+    /// False for an output with no mute control.
+    static func isMuted(_ id: AudioDeviceID) -> Bool {
+        var address = muteAddress
+        guard AudioObjectHasProperty(id, &address) else { return false }
+        var isMuted: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &isMuted) == noErr else { return false }
+        return isMuted != 0
+    }
+
+    static func setMuted(_ isMuted: Bool, _ id: AudioDeviceID) {
+        var address = muteAddress
+        var value: UInt32 = isMuted ? 1 : 0
+        AudioObjectSetPropertyData(id, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
+    }
+
+    /// Returns the call that stops the observation, because the volume and the mute belong to one device and the output in use changes.
+    static func observeVolumeAndMute(_ id: AudioDeviceID, onChange: @escaping @MainActor () -> Void) -> () -> Void {
         let listener: AudioObjectPropertyListenerBlock = { _, _ in
             MainActor.assumeIsolated { onChange() }
         }
-        AudioObjectAddPropertyListenerBlock(id, &address, .main, listener)
+        let addresses = [volumeAddress, muteAddress]
+        for var address in addresses {
+            AudioObjectAddPropertyListenerBlock(id, &address, .main, listener)
+        }
         return {
-            var address = volumeAddress
-            AudioObjectRemovePropertyListenerBlock(id, &address, .main, listener)
+            for var address in addresses {
+                AudioObjectRemovePropertyListenerBlock(id, &address, .main, listener)
+            }
         }
     }
 
     /// The replacement for the `AudioHardwareService` volume calls, which the SDK marks as no longer supported.
-    private static let volumeAddress = address(kAudioHardwareServiceDeviceProperty_VirtualMainVolume, scope: kAudioObjectPropertyScopeOutput)
+    private static let volumeAddress = address(
+        kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+        scope: kAudioObjectPropertyScopeOutput
+    )
+    private static let muteAddress = address(kAudioDevicePropertyMute, scope: kAudioObjectPropertyScopeOutput)
 
-    static func observe(onDevicesChange: @escaping @MainActor () -> Void, onDefaultChange: @escaping @MainActor () -> Void) {
+    static func observe(
+        onDevicesChange: @escaping @MainActor () -> Void,
+        onDefaultChange: @escaping @MainActor () -> Void
+    ) {
         var devices = address(kAudioHardwarePropertyDevices)
         AudioObjectAddPropertyListenerBlock(system, &devices, .main) { _, _ in
             MainActor.assumeIsolated { onDevicesChange() }
@@ -98,11 +146,10 @@ enum AudioDevices {
         }
     }
 
-    private static let excludedTransports: Set<UInt32> = [
+    private static let aggregateOrVirtualTransports: Set<UInt32> = [
         kAudioDeviceTransportTypeVirtual,
         kAudioDeviceTransportTypeAggregate,
         kAudioDeviceTransportTypeAutoAggregate,
-        kAudioDeviceTransportTypeAirPlay,
     ]
 
     /// The headphone jack's devices also report the built-in transport type; only the speakers and the microphone are always there.
@@ -153,12 +200,12 @@ enum AudioDevices {
     }
 }
 
-extension Direction {
-    fileprivate var streamScope: AudioObjectPropertyScope {
+private extension Direction {
+    var streamScope: AudioObjectPropertyScope {
         self == .output ? kAudioObjectPropertyScopeOutput : kAudioObjectPropertyScopeInput
     }
 
-    fileprivate var defaultDeviceSelector: AudioObjectPropertySelector {
+    var defaultDeviceSelector: AudioObjectPropertySelector {
         self == .output ? kAudioHardwarePropertyDefaultOutputDevice : kAudioHardwarePropertyDefaultInputDevice
     }
 }
