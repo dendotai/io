@@ -181,6 +181,7 @@
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_DEBUG_DYLIB = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = io/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "io reads and sets the listening mode of your AirPods.";
@@ -208,6 +209,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = io/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "io reads and sets the listening mode of your AirPods.";

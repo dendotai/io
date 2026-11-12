@@ -1,0 +1,103 @@
+{
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.15000,0.15000,0.17000,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "jack.png",
+          "name": "jack",
+          "position": {
+            "scale": 0.5,
+            "translation-in-points": [
+              -312,
+              -296
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      }
+    },
+    {
+      "layers": [
+        {
+          "image-name": "cable.png",
+          "name": "cable",
+          "position": {
+            "scale": 0.5,
+            "translation-in-points": [
+              -312,
+              -296
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      }
+    },
+    {
+      "layers": [
+        {
+          "hidden": false,
+          "image-name": "apm.png",
+          "name": "airpods",
+          "position": {
+            "scale": 0.37,
+            "translation-in-points": [
+              84,
+              -18
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      }
+    },
+    {
+      "layers": [
+        {
+          "image-name": "circle.svg",
+          "name": "circle",
+          "position": {
+            "scale": 1.23,
+            "translation-in-points": [
+              -106.5,
+              -10
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}
