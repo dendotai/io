@@ -106,7 +106,7 @@ struct DeviceRowLabel: View {
                     if row.isInUse {
                         Circle().fill(Color.accentColor)
                     } else {
-                        LineGreyFill(shape: Circle())
+                        SoundMenuGreyFill(shape: Circle())
                     }
                 }
                 .accessibilityHidden(true)
