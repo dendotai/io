@@ -82,7 +82,7 @@ struct DeviceRowLabel: View {
         .background {
             if isLifted {
                 RoundedRectangle(cornerRadius: Metrics.deviceHighlightRadius)
-                    .fill(.background)
+                    .fill(.regularMaterial)
                     .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
             }
         }

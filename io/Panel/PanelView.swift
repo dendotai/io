@@ -15,9 +15,6 @@ enum Metrics {
     // The "Icon glyph, a row not in use" in `docs/sound-menu.md`: the Sound menu adds 76 to its circle in each channel in Dark Mode (plus lighter) and takes 102 off in Light Mode (plus darker), over any background.
     static let notInUseGlyphGreyDark: CGFloat = 76 / 255
     static let notInUseGlyphGreyLight: CGFloat = 153 / 255
-    static let trackHeight: CGFloat = 6
-    static let knobWidth: CGFloat = 20
-    static let knobHeight: CGFloat = 16
     /// Half the menu row height: the Sound menu's highlight on "Sound Settings…" is a capsule.
     static let highlightRadius: CGFloat = 11
     /// The Sound menu's radius on a 32 pt device row: the Hover highlight in `docs/sound-menu.md`.
@@ -112,7 +109,7 @@ struct PanelView: View {
 }
 
 /// "Sound" and the slider for the volume of the output in use, at the top of the panel.
-/// Drawn by hand, because a system `Slider` in a menu draws in its inactive grey, where the Sound menu's fill is the accent colour.
+/// A system `Slider`, because macOS draws the Sound menu's glass knob only inside one. In a menu it draws inactive, with a grey fill, unless told it is in the key window.
 struct VolumeSlider: View {
     let model: AppModel
 
@@ -123,7 +120,9 @@ struct VolumeSlider: View {
                 .padding(.leading, Metrics.contentInset)
             HStack(spacing: 3.5) {
                 Image(systemName: "speaker.fill").accessibilityHidden(true)
-                Track(value: model.sliderVolume ?? 0, set: model.setVolume)
+                Slider(value: Binding(get: { Double(model.sliderVolume ?? 0) }, set: { model.setVolume(Float($0)) }))
+                    .tint(.accentColor)
+                    .environment(\.controlActiveState, .key)
                 Image(systemName: "speaker.wave.3.fill").accessibilityHidden(true)
             }
             .font(.system(size: 16))
@@ -136,61 +135,6 @@ struct VolumeSlider: View {
         .padding(.top, Metrics.topInset + 3)
         .padding(.bottom, 5)
         .frame(width: Metrics.width, alignment: .leading)
-    }
-
-    private struct Track: View {
-        let value: Float
-        let set: (Float) -> Void
-        @Environment(\.isEnabled) private var isEnabled
-
-        var body: some View {
-            GeometryReader { geometry in
-                let travel = geometry.size.width - Metrics.knobWidth
-                let knobX = travel * CGFloat(value)
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.08))
-                        .frame(height: Metrics.trackHeight)
-                    Capsule().fill(Color.accentColor)
-                        .frame(width: knobX + Metrics.knobWidth / 2, height: Metrics.trackHeight)
-                    Knob().fill(.white)
-                        .shadow(color: .black.opacity(0.16), radius: 1.5, y: 2)
-                        .frame(width: Metrics.knobWidth, height: Metrics.knobHeight)
-                        .offset(x: knobX)
-                }
-                .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { drag in
-                            guard isEnabled, travel > 0 else { return }
-                            let fraction = (drag.location.x - Metrics.knobWidth / 2) / travel
-                            set(Float(min(max(fraction, 0), 1)))
-                        }
-                )
-            }
-            .frame(height: Metrics.knobHeight)
-        }
-    }
-
-    /// A superellipse: the Sound menu's knob is fuller than an ellipse and rounder than a rounded rectangle, and an exponent of 2.3 fits its outline row by row at 2x.
-    private nonisolated struct Knob: Shape {
-        func path(in rect: CGRect) -> Path {
-            let exponent = 2.3
-            var path = Path()
-            for step in 0 ... 120 {
-                let angle = Double(step) / 120 * 2 * .pi
-                let x = pow(abs(cos(angle)), 2 / exponent) * (cos(angle) < 0 ? -1 : 1)
-                let y = pow(abs(sin(angle)), 2 / exponent) * (sin(angle) < 0 ? -1 : 1)
-                let point = CGPoint(x: rect.midX + x * rect.width / 2, y: rect.midY + y * rect.height / 2)
-                if step == 0 {
-                    path.move(to: point)
-                } else {
-                    path.addLine(to: point)
-                }
-            }
-            path.closeSubpath()
-            return path
-        }
     }
 }
 
