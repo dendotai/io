@@ -16,6 +16,9 @@ final class FoldAnimation {
     private var isIdle = true
     private var isOpening = true
     private var height: CGFloat = 0
+    /// Counted from the first tick, so the time the menu takes to swap its items is not skipped.
+    private var tickStart: Date?
+    private var completion: (() -> Void)?
 
     /// Built when the panel opens, because building these views at the click delays the first frame.
     init(model: AppModel, device: Device, modes: [ListeningMode]) {
@@ -48,23 +51,27 @@ final class FoldAnimation {
         rows.setFrameSize(NSSize(width: Metrics.width, height: rows.fittingSize.height))
         let target = isOpening ? groupHeight : 0
         let fromHeight = height, fromOpacity = group.alphaValue
-        // Counted from the first tick, so the time the menu takes to swap its items is not skipped.
-        var start: Date?
+        tickStart = nil
+        self.completion = completion
         let foldTimer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] timer in
             guard let self else { return timer.invalidate() }
-            let begun = start ?? .now
-            start = begun
-            let elapsed = Date.now.timeIntervalSince(begun)
-            let isDone = elapsed >= FoldCurve.duration
-            height = isDone ? target : fromHeight + (target - fromHeight) * FoldCurve.position(at: elapsed)
-            group.alphaValue = fromOpacity + ((isOpening ? 1 : 0) - fromOpacity) * FoldCurve.fade(at: elapsed)
-            layOut()
-            if isDone {
-                timer.invalidate()
-                self.timer = nil
-                isIdle = true
+            MainActor.assumeIsolated { [self] in
+                let begun = tickStart ?? .now
+                tickStart = begun
+                let elapsed = Date.now.timeIntervalSince(begun)
+                let isDone = elapsed >= FoldCurve.duration
+                height = isDone ? target : fromHeight + (target - fromHeight) * FoldCurve.position(at: elapsed)
+                group.alphaValue = fromOpacity + ((isOpening ? 1 : 0) - fromOpacity) * FoldCurve.fade(at: elapsed)
                 layOut()
-                completion()
+                if isDone {
+                    self.timer?.invalidate()
+                    self.timer = nil
+                    isIdle = true
+                    layOut()
+                    let finish = self.completion
+                    self.completion = nil
+                    finish?()
+                }
             }
         }
         RunLoop.main.add(foldTimer, forMode: .common)

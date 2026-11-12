@@ -115,7 +115,7 @@ final class StatusItemController {
             (model.rows, model.airPodsName, updater.availableVersion != nil)
         } onChange: { [weak self] in
             // Common modes, so the menu follows a connect while it is open.
-            RunLoop.main.perform(inModes: [.common]) { self?.updateItems() }
+            RunLoop.main.perform(inModes: [.common]) { MainActor.assumeIsolated { self?.updateItems() } }
         }
 
         startFoldAnimations(rows[.output] ?? [])
@@ -250,8 +250,10 @@ final class StatusItemController {
     private func updateItemsUnderRestingPointer(in window: NSWindow?) {
         updateItems()
         RunLoop.main.perform(inModes: [.common]) {
-            guard let window else { return }
-            Self.reportPointer(at: window.convertPoint(fromScreen: NSEvent.mouseLocation), in: window)
+            MainActor.assumeIsolated {
+                guard let window else { return }
+                Self.reportPointer(at: window.convertPoint(fromScreen: NSEvent.mouseLocation), in: window)
+            }
         }
     }
 
