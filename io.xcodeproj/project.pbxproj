@@ -15,9 +15,22 @@
 		A10000000000000000000005 /* io.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = io.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A10000000000000000000016 /* Exceptions for "io" folder in "io" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A10000000000000000000006 /* io */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A10000000000000000000003 /* io */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A10000000000000000000016 /* Exceptions for "io" folder in "io" target */,
+			);
 			path = io;
 			sourceTree = "<group>";
 		};
@@ -168,8 +181,9 @@
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_DEBUG_DYLIB = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "io-Info.plist";
+				INFOPLIST_FILE = io/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "io reads and sets the listening mode of your AirPods.";
 				INFOPLIST_KEY_CFBundleDisplayName = io;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -195,8 +209,9 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "io-Info.plist";
+				INFOPLIST_FILE = io/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "io reads and sets the listening mode of your AirPods.";
 				INFOPLIST_KEY_CFBundleDisplayName = io;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
