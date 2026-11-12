@@ -22,6 +22,8 @@ final class AppUpdater: NSObject, SPUUserDriver {
     /// Only the release script sets `PUBLISHED_RELEASE`, so a local build never replaces itself with a published release.
     func start() {
         #if PUBLISHED_RELEASE
+            // Sparkle has no setting for a check at start, and ignores `checkForUpdatesInBackground()` while `start()`'s session runs; with no last check time, its scheduler checks at once. The key is `SULastCheckTimeKey`, which Sparkle keeps out of its public headers.
+            UserDefaults.standard.removeObject(forKey: "SULastCheckTime")
             let sparkleUpdater = SPUUpdater(
                 hostBundle: .main,
                 applicationBundle: .main,
