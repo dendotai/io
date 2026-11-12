@@ -5,13 +5,24 @@ struct PanelSeparator: View {
     var width = Metrics.width
 
     var body: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.08))
+        LineGreyFill(shape: Rectangle())
             .frame(height: 1)
             .padding(.horizontal, inset)
             .padding(.top, 5)
             .padding(.bottom, 4)
             .frame(width: width)
+    }
+}
+
+/// The Sound menu's grey for a section line and for the icon circle of a row not in use: one blend over what is behind the menu, where an opacity reads lighter or darker with the backdrop.
+struct LineGreyFill<S: Shape>: View {
+    let shape: S
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        shape
+            .fill(Color(white: colorScheme == .dark ? Metrics.lineGreyDark : Metrics.lineGreyLight))
+            .blendMode(colorScheme == .dark ? .plusLighter : .plusDarker)
     }
 }
 

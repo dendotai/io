@@ -15,6 +15,9 @@ enum Metrics {
     // The "Icon glyph, a row not in use" in `docs/sound-menu.md`: the Sound menu adds 76 to its circle in each channel in Dark Mode (plus lighter) and takes 102 off in Light Mode (plus darker), over any background.
     static let notInUseGlyphGreyDark: CGFloat = 76 / 255
     static let notInUseGlyphGreyLight: CGFloat = 153 / 255
+    // The "Section line and icon circle" in `docs/sound-menu.md`: the Sound menu adds 20 to what is behind it in each channel in Dark Mode (plus lighter) and takes 20 off in Light Mode (plus darker), over any background.
+    static let lineGreyDark: CGFloat = 20 / 255
+    static let lineGreyLight: CGFloat = 235 / 255
     /// Half the menu row height: the Sound menu's highlight on "Sound Settings…" is a capsule.
     static let highlightRadius: CGFloat = 11
     /// The Sound menu's radius on a 32 pt device row: the Hover highlight in `docs/sound-menu.md`.

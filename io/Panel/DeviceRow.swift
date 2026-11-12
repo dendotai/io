@@ -102,7 +102,13 @@ struct DeviceRowLabel: View {
                 ))
                 .blendMode(row.isInUse ? .normal : colorScheme == .dark ? .plusLighter : .plusDarker)
                 .frame(width: Metrics.iconSize, height: Metrics.iconSize)
-                .background(Circle().fill(row.isInUse ? Color.accentColor : Color.primary.opacity(0.1)))
+                .background {
+                    if row.isInUse {
+                        Circle().fill(Color.accentColor)
+                    } else {
+                        LineGreyFill(shape: Circle())
+                    }
+                }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 Text(row.device.name)
