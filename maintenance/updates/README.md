@@ -34,7 +34,7 @@ A bump merged into `dev` ships with the next release, so an update PR needs no `
 - **File format versions (`objectVersion`, `preferredProjectObjectVersion`, `LastSwiftUpdateCheck`, and `LastUpgradeCheck` in `io.xcodeproj/project.pbxproj`, `version` in `Package.resolved`, `lockfileVersion` in `bun.lock` and `.github/bun.lock`):** the tools that own these files write them.
 - **`@semantic-release/*` plugins other than `exec`:** they come with `semantic-release`.
 - **`$schema` in `renovate.json`:** an editor hint, always the newest on purpose.
-- **`latest` in the appcast and download URLs (`io-Info.plist`, `README.md`, `RELEASING.md`):** they point at this repo's own releases, not at something from outside the repo.
+- **`latest` in the appcast and download URLs (`io/Info.plist`, `README.md`, `RELEASING.md`):** they point at this repo's own releases, not at something from outside the repo.
 - **Files copied from the owner's project template (`renovate.json`, `.github/workflows/renovate.yml`, `maintenance/updates/`):** copied content with no version string. The template is private, so no rule in this public repo can read it.
 - **`docs/agents/` and the "Agent skills" section of `CLAUDE.md`:** settings for skills installed outside the repo.
 - **Values copied from the Sound menu (`docs/sound-menu.md`):** copied content that follows macOS, measured by hand with the macOS version beside them (ADR 0002). The next measure replaces them.
