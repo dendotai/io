@@ -6,6 +6,9 @@
     "helpers:pinGitHubActionDigests",
     "group:allNonMajor"
   ],
+  "dependencyDashboard": false,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
   "packageRules": [
     {
       "description": "A closed PR skips the version its title names. The default major title names only the major (`to v5`), so closing it would skip every later v5 release.",
