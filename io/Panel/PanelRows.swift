@@ -5,13 +5,24 @@ struct PanelSeparator: View {
     var width = Metrics.width
 
     var body: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.08))
+        SoundMenuGreyFill(shape: Rectangle())
             .frame(height: 1)
             .padding(.horizontal, inset)
             .padding(.top, 5)
             .padding(.bottom, 4)
             .frame(width: width)
+    }
+}
+
+/// The Sound menu's grey for a section line, the icon circle of a row not in use, and a row's hover highlight: one blend over what is behind the menu, where an opacity reads lighter or darker with the backdrop.
+struct SoundMenuGreyFill<S: Shape>: View {
+    let shape: S
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        shape
+            .fill(Color(white: colorScheme == .dark ? Metrics.soundMenuGreyDark : Metrics.soundMenuGreyLight))
+            .blendMode(colorScheme == .dark ? .plusLighter : .plusDarker)
     }
 }
 
@@ -100,13 +111,6 @@ struct MenuRow: View {
 enum HoverRowStyle {
     case plain
     case update
-
-    var fill: Color {
-        switch self {
-        case .plain: Color.primary.opacity(0.09)
-        case .update: Color.accentColor.opacity(0.18)
-        }
-    }
 }
 
 /// A row that highlights under the pointer like a menu item. The caller insets it from the panel edge.
@@ -134,10 +138,14 @@ struct HoverRow<Content: View>: View {
             .padding(.horizontal, Metrics.contentInset - Metrics.edgeInset)
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
             .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(fillReason != nil ? style.fill : .clear)
-            )
+            .background {
+                if fillReason != nil {
+                    switch style {
+                    case .plain: SoundMenuGreyFill(shape: RoundedRectangle(cornerRadius: radius))
+                    case .update: RoundedRectangle(cornerRadius: radius).fill(Color.accentColor.opacity(0.18))
+                    }
+                }
+            }
             .background(HoverProbe(id: id, name: logName, clearHover: { isHovered = false }))
             .onChange(of: fillReason, initial: true) {
                 ProbeView.attached[id]?.fillReason = fillReason
