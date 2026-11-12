@@ -25,14 +25,14 @@ final class MenuLog: NSObject, NSMenuDelegate {
                 object: nil,
                 queue: .main
             ) { _ in
-                panelLog.notice("screens changed: \(WindowDump.screens())")
+                MainActor.assumeIsolated { panelLog.notice("screens changed: \(WindowDump.screens())") }
             }),
             (workspaceCenter, workspaceCenter.addObserver(
                 forName: NSWorkspace.activeSpaceDidChangeNotification,
                 object: nil,
                 queue: .main
             ) { _ in
-                panelLog.notice("space changed: \(WindowDump.frontmost())")
+                MainActor.assumeIsolated { panelLog.notice("space changed: \(WindowDump.frontmost())") }
             }),
         ]
         super.init()
@@ -91,7 +91,7 @@ final class MenuLog: NSObject, NSMenuDelegate {
             systemTap.enable()
         }
         let tickTimer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
-            self?.tick()
+            MainActor.assumeIsolated { self?.tick() }
         }
         RunLoop.main.add(tickTimer, forMode: .common)
         timer = tickTimer

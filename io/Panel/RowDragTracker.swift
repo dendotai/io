@@ -57,7 +57,7 @@ final class RowDragTracker {
             view.setFrameSize(view.fittingSize)
         }
         let timer = Timer(timeInterval: Self.releaseTick, repeats: true) { [weak self] _ in
-            self?.watchRelease()
+            MainActor.assumeIsolated { self?.watchRelease() }
         }
         RunLoop.main.add(timer, forMode: .common)
         // The first event's translation is still right, and holds the move made before the drag began.
