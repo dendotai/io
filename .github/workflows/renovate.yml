@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   renovate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Renovate writes with the app token below, not with GITHUB_TOKEN: a PR opened with GITHUB_TOKEN starts no workflow, so its checks would never run.
     permissions:
       contents: read

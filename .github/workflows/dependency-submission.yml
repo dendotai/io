@@ -15,7 +15,7 @@ concurrency:
 jobs:
   # Every step of a job holds the job's token, so Renovate's packages run here, with a read-only token, and the writes run in `submit`.
   extract:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     outputs:
@@ -54,7 +54,7 @@ jobs:
 
   submit:
     needs: extract
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       # The dependency submission API takes a snapshot only from a token that can write contents.
       contents: write

@@ -73,7 +73,7 @@ jobs:
       - run: maintenance/code-style/lint-swift.sh
 
   commitlint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
@@ -91,7 +91,7 @@ jobs:
   semantic-release-dry-run:
     # A fork's token is read-only, and the dry run needs write access.
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write # the dry run still checks it may push (`git push --dry-run`); it pushes nothing
     steps:
