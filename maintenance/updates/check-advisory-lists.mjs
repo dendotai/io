@@ -50,7 +50,7 @@ for (const { depName, source } of lists) {
           Bun.semver.satisfies(version, vulnerability.vulnerable_version_range.replaceAll(",", "")),
       );
       if (!affected) continue;
-      // An issue in any state counts: a closed one is the owner's decision on this advisory.
+      // An issue in any state counts: a closed one records a decision on this advisory.
       const existing = gh(
         "issue",
         "list",
