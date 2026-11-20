@@ -2,7 +2,7 @@
 
 [swiftformat]
 repo = "nicklockwood/SwiftFormat"
-version = "0.64.6"
+version = "0.64.7"
 file = "swiftformat.zip"
 
 [swiftlint]

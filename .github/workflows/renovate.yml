@@ -16,14 +16,14 @@ jobs:
     concurrency:
       group: renovate
       cancel-in-progress: false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Renovate writes with the app token below, not with GITHUB_TOKEN: a PR opened with GITHUB_TOKEN starts no workflow, so its checks would never run.
     permissions:
       contents: read
     steps:
       - name: Create the app token
         id: app-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ vars.RENOVATE_CLIENT_ID }}
           private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
@@ -35,7 +35,7 @@ jobs:
       # Renovate exits with an error on a Node version its `engines` field leaves out.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 26.13.0
+          node-version: 26.13.1
 
       # Renovate's bun manager runs the bun on PATH to update each bun.lock.
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
