@@ -4,13 +4,18 @@ on:
   schedule:
     - cron: "17 3 * * 1" # Mondays, 03:17 UTC
   workflow_dispatch:
-
-concurrency:
-  group: renovate
-  cancel-in-progress: false
+  # A tick of the checkbox in a Renovate PR's description edits the PR. `pull_request_target`, not `pull_request`: GitHub starts no `pull_request` workflow for a PR in conflict, and that is the PR whose checkbox gets ticked. The job checks out `dev`, never the PR's code.
+  pull_request_target:
+    types: [edited]
 
 jobs:
   renovate:
+    # Renovate edits a PR's description itself, with the checkbox empty, so most `edited` events are not a tick. The head repo test keeps a PR from a fork, which anyone can name `renovate/…`, from starting a run.
+    if: github.event_name != 'pull_request_target' || (github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.event.pull_request.head.ref, 'renovate/') && contains(github.event.pull_request.body, '- [x] <!-- rebase-check -->'))
+    # On the job, not the workflow: a run this `if` skips must not replace a waiting run that a tick started.
+    concurrency:
+      group: renovate
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     # Renovate writes with the app token below, not with GITHUB_TOKEN: a PR opened with GITHUB_TOKEN starts no workflow, so its checks would never run.
     permissions:

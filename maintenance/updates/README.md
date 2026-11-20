@@ -8,7 +8,11 @@ Renovate opens the update PRs. [`.github/workflows/renovate.yml`](../../.github/
 
 Each update PR runs every check in [`.github/workflows/test.yml`](../../.github/workflows/test.yml) on the new version, so a green PR shows the bump works for what those checks run. `test.yml` does not run `renovate.yml` or `maintenance.yml`: the next Renovate run is the proof for a pin in `renovate.yml`, and a pin in `maintenance.yml` has no check on an update PR. Nothing merges unattended.
 
-A bump merged into `dev` ships with the next release, so an update PR needs no `fix:` prefix. Every minor and patch update arrives in one PR a week (`group:allNonMajor`), so a green PR is one merge. Each major update gets its own PR, because a major often needs a code change, and a red major in the weekly PR would hold every other update.
+A bump merged into `dev` ships with the next release, so an update PR needs no `fix:` prefix. Every update arrives in one PR a week (`group:all`), the major ones too, so a green PR is one check run and one merge. A PR per major update would change the same `package.json` and `bun.lock` as the weekly PR, so a merge of one would put the others in conflict.
+
+## An update PR in conflict
+
+A merged PR that changes a `package.json` or its `bun.lock` can put the update PR in conflict. Tick the checkbox at the end of the update PR's description ("If you want to rebase/retry this PR, check this box"). The tick starts the `renovate` workflow, and Renovate makes the updates again from the newest `dev`: one new commit in place of the old one. `dev` stays as it is.
 
 ## Version pins with an update rule
 
@@ -83,8 +87,6 @@ Renovate keeps no record of the updates it proposed: each run proposes the newes
 
 - **One update in the weekly PR breaks a check:** revert that package in the PR's branch and merge the rest. The next run proposes it again, so a fixed release arrives on its own. Until one ships, add a rule to `renovate.json` that skips the broken version (`"matchPackageNames": ["<name>"], "allowedVersions": "!/^1\\.2\\.3$/"`) so the weekly PR stays green, and delete the rule once a newer release passes.
 - **Closing the weekly PR declines nothing:** the next run opens it again with the same title.
-- **Closing a major-update PR** skips the exact version its title names (`to 5.0.0`, not `to v5`), so the next release of that major opens a new PR, which is the retest.
-
 ## A new version pin
 
 A change that adds a kind Renovate does not find on its own adds a rule to `renovate.json` in the same commit, or adds its reason here. The rule for a line a `customManagers` rule reads is in the "Version pins" section of `CLAUDE.md`.
