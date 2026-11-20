@@ -35,13 +35,13 @@ A bump merged into `dev` ships with the next release, so an update PR needs no `
 - **`@semantic-release/*` plugins other than `exec`:** they come with `semantic-release`.
 - **`$schema` in `renovate.json`:** an editor hint, always the newest on purpose.
 - **`latest` in the appcast and download URLs (`io/Info.plist`, `README.md`, `RELEASING.md`):** they point at this repo's own releases, not at something from outside the repo.
-- **Files copied from the owner's project template (`renovate.json`, `.github/workflows/renovate.yml`, `maintenance/updates/`):** copied content with no version string. The template is private, so no rule in this public repo can read it.
+- **Files copied from the project template (`renovate.json`, `.github/workflows/renovate.yml`, `maintenance/updates/`):** copied content with no version string. The template is private, so no rule in this public repo can read it.
 - **`docs/agents/` and the "Agent skills" section of `CLAUDE.md`:** settings for skills installed outside the repo.
 - **Values copied from the Sound menu (`docs/sound-menu.md`):** copied content that follows macOS, measured by hand with the macOS version beside them (ADR 0002). The next measure replaces them.
 
 ## Security advisories
 
-A security advisory for a pinned version reaches the owner as an update PR or an issue, never only as a notification or an email, because those have no owner and no reminder.
+A security advisory for a pinned version reaches the maintainers as an update PR or an issue, never only as a notification or an email, because those have no owner and no reminder.
 
 - **GitHub's Dependabot alerts:** GitHub's own parser reads `package.json`, `Package.resolved`, and workflows, not `bun.lock`, and raises no alert for an action pinned to a commit SHA. So on each push to `dev`, [`.github/workflows/dependency-submission.yml`](../../.github/workflows/dependency-submission.yml) sends every pin in Renovate's report, plus every package in `bun.lock` and `.github/bun.lock`, to the dependency graph as a snapshot (`maintenance/updates/build-dependency-snapshot.mjs`). An action goes in at the version in its `# vX.Y.Z` comment. A new snapshot replaces the last one, so a removed or bumped pin closes its alert. A pin kind the script has no package URL for fails the job, so no pin drops out unseen.
 - **Until a tool turns an alert into an issue,** the weekly Renovate run is the signal: Renovate reads the repo's alerts and opens a `[SECURITY]` update PR.

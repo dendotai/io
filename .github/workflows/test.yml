@@ -73,7 +73,6 @@ jobs:
       - run: maintenance/code-style/lint-swift.sh
 
   commitlint:
-    if: github.base_ref == 'dev'
     runs-on: ubuntu-24.04
     permissions:
       contents: read

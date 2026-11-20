@@ -4,7 +4,7 @@ A release is a `dev` → `main` pull request. Its merge builds, signs, and notar
 
 ## The flow
 
-- Feature pull requests merge into `dev`. The `commitlint` job in `.github/workflows/test.yml` checks that each of their commits has a conventional prefix (`feat:`, `fix:`, `chore:`, …).
+- Feature pull requests merge into `dev`. The `commitlint` job in `.github/workflows/test.yml` checks that each commit of a pull request has a conventional prefix (`feat:`, `fix:`, `chore:`, …). It runs on the release pull request too, because a squash merge writes the pull request title as the commit, and nothing checks the title.
 - To release, open a pull request from `dev` into `main` titled `Release TBD`, with a `## What's Changed` list of the commits it brings.
 - Merge it with a **merge commit**. A squash merge turns the pull request title into the one commit semantic-release reads, and `Release TBD` carries no prefix.
 - The push to `main` runs `.github/workflows/release.yml`. Its `Release` step runs semantic-release, which reads the commits since the last tag and picks the version.
