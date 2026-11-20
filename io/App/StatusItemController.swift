@@ -69,7 +69,10 @@ final class StatusItemController {
         panelDelegate = PanelDelegate(model: model)
         rightClickMenuDelegate = RightClickMenuDelegate(updater: updater)
         panel.delegate = panelDelegate
-        panelDelegate.willOpen = { [weak self] in self?.prepareFoldAnimations() }
+        panelDelegate.willOpen = { [weak self] in
+            self?.renewVolumeSlider()
+            self?.prepareFoldAnimations()
+        }
         statusItem.menu = panel
         dragTracker.didStart = { [weak self] in self?.updateItems() }
         dragTracker.didEnd = { [weak self] window in self?.updateItemsUnderRestingPointer(in: window) }
@@ -102,11 +105,20 @@ final class StatusItemController {
     }
 
     private static func item(_ view: some View) -> NSMenuItem {
+        let item = NSMenuItem()
+        item.view = hostingView(view)
+        return item
+    }
+
+    private static func hostingView(_ view: some View) -> NSView {
         let hosting = NSHostingView(rootView: view)
         hosting.setFrameSize(hosting.fittingSize)
-        let item = NSMenuItem()
-        item.view = hosting
-        return item
+        return hosting
+    }
+
+    /// A slider drag released outside the panel closes the menu before the slider gets the release, and that slider view then ignores every later press.
+    private func renewVolumeSlider() {
+        volumeSlider.view = Self.hostingView(VolumeSlider(model: model))
     }
 
     /// Moves existing items instead of making new ones, so a row keeps its view.
